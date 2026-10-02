@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: score_oee_decline
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a per-file delta metric (here, OEE per line over 30d).
+#
+# What it does:
+#   Compute the 30-day OEE delta for a production line (or rank all lines),
+#   decomposed into availability / performance / quality losses. Powers the
+#   OEE-recovery playbook.
+#
+# Inputs:    line_id (optional), top_n
+# Reads:     Production_Order, Downtime_Event
+# Writes:    none
+# Returns:   {result | results: [{line_id, oee_pct, delta_30d_pct, drivers}]}
+# ============================================================================
+tool_id: score_oee_decline
+display_name: Score OEE Decline
+group: production_quality
+tool_kind: analyze
+description: |
+  Per-line OEE decline score over the trailing 30 days, decomposed into the
+  loss contributors driving the gap.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    line_id: { type: string, description: "Optional single-line mode" }
+    top_n: { type: integer, description: "Max rows (default 20)" }
+  required: []
+consumes_entities: [Production_Order, Downtime_Event]
+produces_entities: []
+tags: [pq, oee, analyze]
+example_invocation:
+  line_id: LINE-A2

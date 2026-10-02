@@ -1,0 +1,43 @@
+# ============================================================================
+# Tool: send_slack_alert
+# Kind: notify
+# Connector API: external.slack.post_message
+# ----------------------------------------------------------------------------
+# Cursor analog: post-build script -- push a real-time alert to ops.
+#
+# What it does:
+#   Post an operational alert to a Slack channel. Used by supply-chain-risk,
+#   OEE-recovery, and quality-hold playbooks to push real-time notifications
+#   to the right ops team.
+#
+# Inputs:    channel, message, title (optional), severity
+# Reads:     none
+# Writes:    Slack_Message, Audit_Event
+# Returns:   {action, channel, message_ts, severity}
+# ============================================================================
+tool_id: send_slack_alert
+display_name: Send Slack Alert
+group: notify
+tool_kind: notify
+description: |
+  Post an operational alert to a Slack channel. Real-time push for ops teams
+  so they can react inside their existing workflow.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: external.slack.post_message
+parameters:
+  type: object
+  properties:
+    channel: { type: string, description: "Slack channel name" }
+    message: { type: string }
+    title: { type: string }
+    severity: { type: string, description: "info | warning | critical" }
+  required: [channel, message]
+consumes_entities: []
+produces_entities: [Slack_Message, Audit_Event]
+tags: [notify, slack, alert, write]
+example_invocation:
+  channel: "#scr-ops"
+  message: "Lane LANE-EU-CN-1 disruption escalated"
+  severity: warning

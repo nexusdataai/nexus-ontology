@@ -1,0 +1,112 @@
+id: INTEGRATION_SF_SAP_DEMAND_V1_0
+name: Salesforce to SAP Demand Sync
+version: "1.0"
+source_system: Salesforce
+target_system: SAP
+sync_type: unidirectional
+frequency: "Near real-time (<5 minute sync interval)"
+description: >
+  Unidirectional integration from Salesforce CRM to SAP for demand planning.
+  Pushes order line items, customer data, and forecast overrides from Salesforce
+  into SAP to drive demand planning, MRP, and fulfillment processes.
+
+mappings:
+  - name: Order to Demand
+    source_object: Opportunity_Line_Item
+    target_object: SAP_Sales_Document
+    direction: Salesforce → SAP
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Opportunity_Line_Item.Product_ID
+        target: SAP_Sales_Document.material_id
+        direction: "source_to_target"
+        transformation: "Product_ID mapped to Material_ID via product mapping table"
+      - source: Opportunity_Line_Item.Quantity
+        target: SAP_Sales_Document.quantity
+        direction: "source_to_target"
+      - source: Opportunity_Line_Item.Delivery_Date__c
+        target: SAP_Sales_Document.delivery_date
+        direction: "source_to_target"
+      - source: Opportunity_Line_Item.Delivery_Priority__c
+        target: SAP_Sales_Document.delivery_priority
+        direction: "source_to_target"
+      - source: Opportunity_Line_Item.Account_ID
+        target: SAP_Sales_Document.business_partner_id
+        direction: "source_to_target"
+        transformation: "Account_ID mapped to SAP Business Partner via customer mapping table"
+
+  - name: Customer Sync
+    source_object: Account
+    target_object: SAP_Business_Partner
+    direction: Salesforce → SAP
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Account.Account_ID
+        target: SAP_Business_Partner.partner_id
+        direction: "source_to_target"
+      - source: Account.Name
+        target: SAP_Business_Partner.partner_name
+        direction: "source_to_target"
+      - source: Account.Channel_Type__c
+        target: SAP_Business_Partner.channel_type
+        direction: "source_to_target"
+      - source: Account.Region__c
+        target: SAP_Business_Partner.region
+        direction: "source_to_target"
+      - source: Account.Tier__c
+        target: SAP_Business_Partner.tier
+        direction: "source_to_target"
+
+  - name: Forecast Override
+    source_object: Forecast_Override
+    target_object: SAP_MRP_Forecast
+    direction: Salesforce → SAP
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Forecast_Override.Product_ID
+        target: SAP_MRP_Forecast.material_id
+        direction: "source_to_target"
+        transformation: "Product_ID mapped to Material_ID via product mapping table"
+      - source: Forecast_Override.Region
+        target: SAP_MRP_Forecast.region
+        direction: "source_to_target"
+      - source: Forecast_Override.Period
+        target: SAP_MRP_Forecast.period
+        direction: "source_to_target"
+      - source: Forecast_Override.Override_Qty
+        target: SAP_MRP_Forecast.forecast_quantity
+        direction: "source_to_target"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "demand-planning-alerts@company.com"
+  fallback: "Salesforce value is authoritative; manual SAP update required"
+
+dependencies:
+  - entity: Opportunity_Line_Item
+    system: Salesforce
+    relationship: "Source entity for demand signals"
+  - entity: Account
+    system: Salesforce
+    relationship: "Source entity for customer data"
+  - entity: Forecast_Override
+    system: Salesforce
+    relationship: "Source entity for manual forecast adjustments"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Required for Product_ID to Material_ID mapping"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Governs acceptable data latency thresholds"
+
+related_entities:
+  - Opportunity_Line_Item
+  - Account
+  - Forecast_Override
+  - Material_Master
+triggered_by_workflows:
+  - Demand Forecast Generation
+used_by_apps:
+  - "Demand Forecasting & Planning Engine"

@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_compliance_breaches
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a lint pass over a compliance audit log.
+#
+# What it does:
+#   Surface open compliance breaches across supplier and facility audits.
+#   Powers the compliance-breach-response playbook and the vendor-ESG-
+#   onboarding gate.
+#
+# Inputs:    severity (optional), top_n
+# Reads:     Compliance_Check
+# Writes:    none
+# Returns:   {count, results: [{check_id, scope, severity, vendor_id?|facility_id?, opened_at, summary}]}
+# ============================================================================
+tool_id: find_compliance_breaches
+display_name: Find Compliance Breaches
+group: esg
+tool_kind: analyze
+description: |
+  Open compliance breaches across supplier + facility audits, ranked by
+  severity. Used by compliance-breach-response and vendor onboarding.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    severity: { type: string, description: "Optional severity filter (low/medium/high/critical)" }
+    top_n: { type: integer, description: "Max rows (default 25)" }
+  required: []
+consumes_entities: [Compliance_Check]
+produces_entities: []
+tags: [esg, compliance, analyze]
+example_invocation:
+  severity: high

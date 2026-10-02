@@ -1,0 +1,38 @@
+# TMF ODA Transformer MCP Server - Production Dependencies
+# Only essential runtime dependencies for production deployments
+
+# Core MCP and logging
+loguru>=0.7.0
+mcp[cli]>=1.6.0
+pydantic>=2.10.6
+
+# AWS SDK
+boto3>=1.38.5
+botocore>=1.38.5
+
+# Database connections
+sqlalchemy>=2.0.0
+psycopg[binary]>=3.0
+mysql-connector-python>=8.0.0
+pymongo>=4.0.0
+
+# Schema parsing and analysis
+jsonschema>=4.0.0
+pyyaml>=6.0.0
+openapi-spec-validator>=0.5.0
+
+# File handling and utilities
+pathlib2>=2.3.0
+glob2>=0.7
+python-magic>=0.4.0
+
+# Data processing (production optimized versions)
+pandas>=1.5.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+
+# HTTP API server (for external access)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# System monitoring (for health checks)
+psutil>=5.9.0 

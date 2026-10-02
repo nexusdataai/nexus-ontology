@@ -1,0 +1,81 @@
+solution_id: etl-pipeline
+title: ETL Pipeline Report
+icon: GitMerge
+
+summary_kpis:
+  - key: rows_extracted
+    label: Rows Extracted
+    icon: Download
+    format: integer
+    rollup: sum
+    source: Data.kpis.rows_extracted
+  - key: rows_transformed
+    label: Rows Transformed
+    icon: Shuffle
+    format: integer
+    rollup: sum
+    source: Data.kpis.rows_transformed
+  - key: rows_loaded
+    label: Rows Loaded
+    icon: Upload
+    format: integer
+    rollup: sum
+    source: Data.kpis.rows_loaded
+  - key: invalid_rows
+    label: Invalid Rows
+    icon: XCircle
+    format: integer
+    rollup: sum
+    source: Data.kpis.invalid_rows
+  - key: rows_queued_for_review
+    label: Queued for Review
+    icon: FileWarning
+    format: integer
+    rollup: sum
+    source: Data.kpis.rows_queued_for_review
+  - key: null_fields
+    label: Null Fields
+    icon: AlertTriangle
+    format: integer
+    rollup: sum
+    source: Data.kpis.null_fields
+
+sections:
+  - id: quality
+    title: Data Quality
+    kind: kpi_grid
+    kpis:
+      - key: data_quality
+        label: Data Quality
+        format: percent
+        rollup: avg
+        source: Data.kpis.data_quality
+      - key: high_confidence_rows
+        label: High-Confidence Rows
+        format: integer
+        rollup: sum
+        source: Data.kpis.high_confidence_rows
+      - key: low_confidence_rows
+        label: Low-Confidence Rows
+        format: integer
+        rollup: sum
+        source: Data.kpis.low_confidence_rows
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs
+
+  - id: timeline
+    title: Run Timeline
+    kind: timeline

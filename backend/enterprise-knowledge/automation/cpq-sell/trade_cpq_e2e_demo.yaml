@@ -1,0 +1,134 @@
+use_case_id: cpq_sell.trade_cpq_e2e_demo
+title: Trade CPQ End-to-End Demo
+solution_id: trade-cpq
+bucket: cpq-sell
+description: 'Full Trade CPQ happy-path: configure a candidate offering for an
+  account, validate it, build the pricing waterfall, suggest upsells, forecast
+  win probability, route approval, generate the proposal, and convert the
+  approved quote to an order — chaining into existing order-to-cash monitoring.
+
+  '
+status: active
+tags:
+- cpq
+- e2e
+- demo
+- regression
+kpi_impact:
+- quote_cycle_time
+- auto_approval_rate
+- win_rate
+consumes_entities:
+- Account
+- Product_Offering
+- Offering_Component
+- Configuration_Rule
+- Serviceability_Footprint
+- Price_Book
+- Price_Book_Entry
+- Material_Master
+- Inventory_Position
+- Opportunity_Line_Item
+- AR_Customer
+- Campaign
+produces_entities:
+- Quote_Header
+- Quote_Line
+- Quote_Promotion
+- CPQ_Pricing_Waterfall
+- CPQ_Proposal_Document
+- Opportunity
+- Delivery_Document
+- Audit_Event
+stages:
+- stage_id: configure
+  name: Configure Candidate Offerings
+  order: 1
+  steps:
+  - step_id: bundle
+    name: Configure Bundle
+    order: 1
+    tool: configure_bundle
+    params:
+      account_id: ${context.account_id}
+      target_materials: ${context.target_materials}
+      channel: ${context.channel}
+  - step_id: serviceability
+    name: Check Serviceability
+    order: 2
+    tool: check_serviceability
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: validate
+  name: Validate Configuration
+  order: 2
+  steps:
+  - step_id: rules
+    name: Run Configuration Rules
+    order: 1
+    tool: validate_configuration
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: price
+  name: Build Pricing Waterfall
+  order: 3
+  steps:
+  - step_id: price
+    name: Price Quote
+    order: 1
+    tool: price_quote
+    params:
+      quote_id: ${context.quote_id}
+      scenario: default
+  - step_id: credit_margin
+    name: Credit & Margin Check
+    order: 2
+    tool: check_credit_and_margin
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: enhance
+  name: AI Enhancements
+  order: 4
+  steps:
+  - step_id: upsell
+    name: Suggest Upsell / Cross-sell
+    order: 1
+    tool: suggest_upsell_crosssell
+    params:
+      quote_id: ${context.quote_id}
+      top_n: 5
+  - step_id: forecast
+    name: Forecast Win Probability
+    order: 2
+    tool: forecast_quote_win_probability
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: approve
+  name: Approval & Proposal
+  order: 5
+  steps:
+  - step_id: route
+    name: Route Approval Chain
+    order: 1
+    requires_approval: true
+    tool: route_approval
+    params:
+      quote_id: ${context.quote_id}
+  - step_id: doc
+    name: Generate Proposal Document
+    order: 2
+    tool: generate_proposal_doc
+    params:
+      quote_id: ${context.quote_id}
+      template: standard
+- stage_id: convert
+  name: Convert To Order
+  order: 6
+  steps:
+  - step_id: convert
+    name: Move To Won_Converted
+    order: 1
+    requires_approval: true
+    tool: convert_quote_to_order
+    params:
+      quote_id: ${context.quote_id}

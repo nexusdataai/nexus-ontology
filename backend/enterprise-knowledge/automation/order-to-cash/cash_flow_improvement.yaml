@@ -1,0 +1,106 @@
+use_case_id: o2c.cash_flow_improvement
+title: Proactive Cash Flow Improvement
+solution_id: order-to-cash
+bucket: o2c
+description: 'Identify accounts with high lifetime value AND slow payment behaviour;
+  recommend per-account interventions (early-pay discount, expedite, factoring) and
+  write outcome.
+
+  '
+status: active
+tags:
+- cash-flow
+- ar
+- discount
+kpi_impact:
+- dso
+- leakage_rate
+- on_time_payment
+consumes_entities:
+- AR_Customer
+- AR_Invoice
+- O2C_KPI_Trend
+produces_entities:
+- O2C_Action_Log
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: diagnose
+  name: Identify Slow-Paying Whales
+  order: 1
+  steps:
+  - step_id: slow_payers
+    name: Slow-Paying High-CLV Accounts
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: AR_Customer
+      fields:
+      - Customer_ID
+      - Credit_Limit
+      - Payment_Terms
+      limit: 30
+  - step_id: cash_projection
+    name: Forecast 30-Day Cash Inflow
+    order: 2
+    tool: project_cash_flow
+    params: {}
+- stage_id: decide
+  name: Recommendation Per Account
+  order: 2
+  steps:
+  - step_id: choose_lever
+    name: Choose Lever (early-pay vs factoring vs expedite)
+    order: 1
+    tool: generate_o2c_alerts
+    params:
+      match_results: []
+      anomaly_scores: []
+      cash_projection: ${stage.diagnose.cash_projection}
+- stage_id: act
+  name: Take Action
+  order: 3
+  steps:
+  - step_id: discount_offer
+    name: Offer Early-Pay Discount
+    order: 1
+    requires_approval: true
+    tool: request_early_pay_discount
+    params:
+      invoice_id: ${item.invoice_id}
+      discount_pct: 1.5
+      expires_in_days: 7
+  - step_id: expedite
+    name: Expedite Pending Delivery
+    order: 2
+    tool: request_expedited_fulfillment
+    params:
+      delivery_id: ${item.delivery_id}
+      reason: Cash-flow improvement playbook
+  - step_id: forecast_adjust
+    name: Record Forecast Adjustment
+    order: 3
+    tool: record_action
+    params:
+      action_type: forecast:adjust
+      target_entity: kpi
+      target_id: dso
+      status: executed
+- stage_id: verify
+  name: Verify Lift
+  order: 4
+  steps:
+  - step_id: cash_followup
+    name: Re-Forecast After 14 Days
+    order: 1
+    tool: project_cash_flow
+    params: {}
+  - step_id: outcome
+    name: Record Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: dso
+      kpi_before: ${stage.diagnose.cash_projection.dso}
+      kpi_after: ${stage.verify.cash_followup.dso}

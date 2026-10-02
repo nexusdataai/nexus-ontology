@@ -1,0 +1,35 @@
+tool_id: draft_contract
+display_name: Draft Contract
+group: cpq_buy
+description: Compose a markdown contract draft for an approved Sourcing_Award
+  with the award split, prices per vendor, and links to underlying scenario,
+  approval chain, and policy references.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    award_id:
+      type: string
+      description: Sourcing_Award ID
+    template:
+      type: string
+      description: Template name (default 'standard')
+  required:
+  - award_id
+connector_api: null
+consumes_entities:
+- Sourcing_Award
+- Sourcing_Scenario
+- Vendor_Quote_Line
+- RFx_Event
+- Vendor_Master
+produces_entities:
+- Contract_Document
+tags:
+- cpq-buy
+- contract
+example_invocation:
+  award_id: AWD-00012
+  template: standard

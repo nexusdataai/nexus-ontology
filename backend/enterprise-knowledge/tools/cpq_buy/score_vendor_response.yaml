@@ -1,0 +1,32 @@
+tool_id: score_vendor_response
+display_name: Score Vendor Response
+group: cpq_buy
+description: Score a Vendor_Quote on a composite scale — price vs should-cost 40,
+  lead time 15, vendor risk 20, quality history 15, sustainability 10. Returns
+  per-line scores and an overall score 0-100.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    vendor_quote_id:
+      type: string
+      description: Vendor_Quote_ID
+  required:
+  - vendor_quote_id
+connector_api: null
+consumes_entities:
+- Vendor_Quote
+- Vendor_Quote_Line
+- RFx_Line
+- Should_Cost_Model
+- Vendor_Master
+- Quality_Inspection_Lot
+produces_entities: []
+tags:
+- cpq-buy
+- bid
+- score
+example_invocation:
+  vendor_quote_id: VQT-00042

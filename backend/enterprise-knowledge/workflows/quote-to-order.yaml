@@ -1,0 +1,107 @@
+id: WORKFLOW_QUOTE_TO_ORDER_V1_0
+name: Quote To Order
+version: "1.0"
+system: Internal
+scor_process: Deliver
+trigger:
+  object: Quote_Header
+  field: Status
+  condition: "Status transitions to Won_Converted on an Approved quote"
+description: >
+  Materialize an approved trade quote into operational order records:
+  create a Salesforce Opportunity and Opportunity_Line_Items, create a
+  SAP Delivery_Document and Shipment plan, and hand off to the existing
+  Order-to-Cash Monitoring workflow.
+
+steps:
+  - order: 1
+    name: Pre-flight Checks
+    system: Internal
+    action: "Verify Quote_Header.Status=Approved, Validity_Date not in past, Account.Status=Active, no credit hold on AR_Customer"
+
+  - order: 2
+    name: Materialize Opportunity
+    system: Salesforce
+    action: "Create Opportunity from Quote_Header with Stage=Closed_Won; map External_Quote_ID per cpq-salesforce-sync"
+
+  - order: 3
+    name: Materialize Opportunity_Line_Items
+    system: Salesforce
+    action: "Expand each Quote_Line via Offering_Component into one or more Opportunity_Line_Item rows"
+
+  - order: 4
+    name: Generate Delivery
+    system: SAP
+    action: "Create a Delivery_Document referencing Sales_Order_ID = new Opportunity_ID; pick batch and serving plant per Serviceability_Footprint and FIFO"
+
+  - order: 5
+    name: Reserve Inventory
+    system: SAP
+    action: "Reserve Inventory_Position for the chosen plant and batch; set Quantity_Reserved"
+
+  - order: 6
+    name: Apply Promo Materialization
+    system: Salesforce
+    action: "Persist each Quote_Promotion as a Campaign attribution on the Opportunity for downstream trade-spend tracking"
+
+  - order: 7
+    name: Chain Into Order-to-Cash
+    system: Internal
+    action: "Emit a 'closed_won' event to the order-to-cash-monitoring workflow"
+
+  - order: 8
+    name: Audit Trail
+    system: Internal
+    action: "Write a conversion record linking Quote_ID, Opportunity_ID, Delivery_ID, and the approval chain timestamp"
+
+dependencies:
+  - entity: Quote_Header
+    system: TPM
+    relationship: "Conversion source"
+  - entity: Quote_Line
+    system: TPM
+    relationship: "Conversion source lines"
+  - entity: Opportunity
+    system: Salesforce
+    relationship: "Materialized order header"
+  - entity: Opportunity_Line_Item
+    system: Salesforce
+    relationship: "Materialized order lines"
+  - entity: Account
+    system: Salesforce
+    relationship: "Customer reference"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Credit hold check"
+  - entity: Delivery_Document
+    system: SAP
+    relationship: "Fulfillment record created"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Inventory reservation"
+  - entity: Serviceability_Footprint
+    system: TPM
+    relationship: "Plant selection rule"
+  - entity: cpq-quote-approval-policy
+    system: Internal
+    relationship: "Gates Won_Converted transition"
+  - entity: order-fulfillment-policy
+    system: Internal
+    relationship: "Governs SLA and partial shipment"
+
+related_entities:
+  - Quote_Header
+  - Quote_Line
+  - Quote_Promotion
+  - Opportunity
+  - Opportunity_Line_Item
+  - Delivery_Document
+  - Account
+  - AR_Customer
+  - Serviceability_Footprint
+  - Inventory_Position
+related_policies:
+  - cpq-quote-approval-policy
+  - order-fulfillment-policy
+use_case: "Trade CPQ"
+scor_process: "Deliver"

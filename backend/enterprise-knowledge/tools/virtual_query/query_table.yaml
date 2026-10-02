@@ -1,0 +1,93 @@
+# ============================================================================
+# Tool: query_table
+# Kind: read
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep -- pull rows that match a filter.
+#
+# What it does:
+#   Execute a parameterized SELECT query against a foreign table
+#   (Salesforce object via FDW). Supports column selection, filters
+#   (eq/neq/gt/gte/lt/lte/like/in), ordering, and limit. Max 100 rows
+#   returned. Use discover_columns first to know available columns.
+#
+# Inputs:    table_name, schema_name, columns, filters, order_by, limit
+# Reads:     none
+# Writes:    none
+# ============================================================================
+tool_id: query_table
+display_name: Query Table
+group: virtual_query
+description: Execute a parameterized SELECT query against a foreign table (Salesforce
+  object via FDW). Supports column selection, filters (eq/neq/gt/gte/lt/lte/like/in),
+  ordering, and limit. Max 100 rows returned. Use discover_columns first to know available
+  columns.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    table_name:
+      type: string
+      description: The table name to query
+    schema_name:
+      type: string
+      description: 'Schema name (default: sfdc_itxp2dev)'
+      default: sfdc_itxp2dev
+    columns:
+      type: array
+      items:
+        type: string
+      description: Columns to select. Omit for all columns.
+    filters:
+      type: array
+      items:
+        type: object
+        properties:
+          column:
+            type: string
+          operator:
+            type: string
+            enum:
+            - eq
+            - neq
+            - gt
+            - gte
+            - lt
+            - lte
+            - like
+            - in
+          value: {}
+        required:
+        - column
+        - operator
+        - value
+      description: Filter conditions
+    order_by:
+      type: array
+      items:
+        type: object
+        properties:
+          column:
+            type: string
+          direction:
+            type: string
+            enum:
+            - asc
+            - desc
+        required:
+        - column
+      description: Ordering directives
+    limit:
+      type: integer
+      description: Max rows to return (default 25, max 100)
+      default: 25
+  required:
+  - table_name
+connector_api: null
+consumes_entities: []
+produces_entities: []
+tags:
+- fdw
+- read
+example_invocation: null

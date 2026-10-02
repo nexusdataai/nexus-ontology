@@ -1,0 +1,97 @@
+id: WORKFLOW_QUOTE_PRICE_CALCULATE_V1_0
+name: Quote Price Calculate
+version: "1.0"
+system: Internal
+scor_process: Deliver
+trigger:
+  object: Quote_Line
+  field: Qty
+  condition: "Quote line quantity, offering, or applied promotion changes"
+description: >
+  Calculate net price per quote line and produce a pricing waterfall from
+  list price through channel/tier discount, campaign overlay, promotion
+  stacking, listing/slotting fees, to final net and per-line margin.
+
+steps:
+  - order: 1
+    name: Resolve Price Book
+    system: Internal
+    action: "Pick the active Price_Book matching (Account.Channel_Type, Account.Tier, Account.Region, today) and load Price_Book_Entry for each Offering_ID"
+
+  - order: 2
+    name: Apply Tier Discount
+    system: Internal
+    action: "Apply tier-max discount per pricing-discount-policy section 2 to derive tier-adjusted unit price"
+
+  - order: 3
+    name: Apply Campaign Overlay
+    system: Salesforce
+    action: "Match active Campaigns by region/segment/period; layer the campaign mechanic onto the line"
+
+  - order: 4
+    name: Apply Promotion Stacking
+    system: Internal
+    action: "Aggregate Quote_Promotion records on the line; enforce 25 % combined cap and per-stacking_group exclusivity per pricing-discount-policy section 4"
+
+  - order: 5
+    name: Apply Listing and Slotting Fees
+    system: Internal
+    action: "Sum Listing_Fee and Slotting_Fee (one-time) and amortize on the waterfall for visibility"
+
+  - order: 6
+    name: Compute Margin
+    system: Oracle
+    action: "Use Price_Book_Entry.Cost_Snapshot (or Cost_Accounting Total_Unit_Cost when fresher) to compute Margin_Pct_Line and Quote_Header.Margin_Pct"
+
+  - order: 7
+    name: Detect Floor and Cap Breaches
+    system: Internal
+    action: "Flag any line below Price_Book_Entry.Floor_Price; flag margins below 15 % per cpq-quote-approval-policy"
+
+  - order: 8
+    name: Publish Waterfall
+    system: Internal
+    action: "Persist the pricing waterfall to the quote run context and surface in the Trade CPQ Pricing Waterfall widget"
+
+dependencies:
+  - entity: Quote_Header
+    system: TPM
+    relationship: "Pricing target"
+  - entity: Quote_Line
+    system: TPM
+    relationship: "Per-line pricing"
+  - entity: Price_Book
+    system: TPM
+    relationship: "Active price book for context"
+  - entity: Price_Book_Entry
+    system: TPM
+    relationship: "Per-offering list, floor, and cost snapshot"
+  - entity: Quote_Promotion
+    system: TPM
+    relationship: "Applied promotions"
+  - entity: Campaign
+    system: Salesforce
+    relationship: "Active campaigns overlay"
+  - entity: Cost_Accounting
+    system: Oracle
+    relationship: "Cost source for margin"
+  - entity: pricing-discount-policy
+    system: Internal
+    relationship: "Caps and stacking rules"
+  - entity: cpq-quote-approval-policy
+    system: Internal
+    relationship: "Margin floor thresholds"
+
+related_entities:
+  - Quote_Header
+  - Quote_Line
+  - Price_Book
+  - Price_Book_Entry
+  - Quote_Promotion
+  - Campaign
+  - Cost_Accounting
+related_policies:
+  - pricing-discount-policy
+  - cpq-quote-approval-policy
+use_case: "Trade CPQ"
+scor_process: "Deliver"

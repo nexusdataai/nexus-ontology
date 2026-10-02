@@ -1,0 +1,29 @@
+tool_id: forecast_quote_win_probability
+display_name: Forecast Quote Win Probability
+group: cpq_sell
+description: Score the probability that a quote will close. Blends account tier
+  baseline, discount depth, margin floor proximity, and validity window into a
+  win probability between 0 and 1.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Account
+produces_entities:
+- CPQ_Win_Probability
+tags:
+- cpq-sell
+- ai
+- forecast
+example_invocation:
+  quote_id: QT-00042

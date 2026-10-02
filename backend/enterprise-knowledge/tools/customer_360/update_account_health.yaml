@@ -1,0 +1,42 @@
+# ============================================================================
+# Tool: update_account_health
+# Kind: mutate
+# Connector API: sfdc.account.churn_risk.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- update churn-risk attributes on an SFDC Account.
+#
+# What it does:
+#   Update an account's health bucket / churn date / churn reason in
+#   Salesforce. Feeds the CSM dashboards and at-risk-save automations.
+#
+# Inputs:    account_id, health_bucket (optional), churn_date (optional), churn_reason (optional)
+# Reads:     Account
+# Writes:    Account, Audit_Event
+# Returns:   {action, account_id, ...patch}
+# ============================================================================
+tool_id: update_account_health
+display_name: Update Account Health
+group: customer_360
+tool_kind: mutate
+description: |
+  Update an account's health bucket / churn flag in Salesforce. Used by
+  retain-risky-customers, at-risk-save, and CSM-outreach playbooks.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: sfdc.account.churn_risk.set
+parameters:
+  type: object
+  properties:
+    account_id: { type: string }
+    health_bucket: { type: string, description: "e.g. Green, Yellow, Red" }
+    churn_date: { type: string }
+    churn_reason: { type: string }
+  required: [account_id]
+consumes_entities: [Account]
+produces_entities: [Account, Audit_Event]
+tags: [c360, churn, write]
+example_invocation:
+  account_id: ACC-1042
+  health_bucket: Yellow
+  churn_reason: payment_lateness

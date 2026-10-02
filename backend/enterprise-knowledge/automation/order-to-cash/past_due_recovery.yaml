@@ -1,0 +1,134 @@
+use_case_id: o2c.past_due_recovery
+title: Past-Due Invoice Recovery
+solution_id: order-to-cash
+bucket: o2c
+description: 'For invoices that have crossed the SLA, run a tiered dunning workflow,
+  optionally place a credit hold for the worst offenders, and write the outcome back
+  to the AR system. Triggered when DSO drifts above target or when the Monitor view
+  surfaces past-due AR concentrations.
+
+  '
+status: active
+tags:
+- collections
+- dunning
+- ar
+- o2c
+kpi_impact:
+- dso
+- leakage_rate
+- on_time_payment
+- past_due_ar
+consumes_entities:
+- O2C_Order_Result
+- AR_Invoice
+- Account
+produces_entities:
+- O2C_Action_Log
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve Affected Invoices
+  order: 1
+  description: Identify which invoices and accounts are in scope.
+  steps:
+  - step_id: list_overdue
+    name: List Overdue Invoices
+    order: 1
+    description: Pull invoices whose due date has passed.
+    tool: query_virtual_entity
+    params:
+      entity: AR_Invoice
+      filter:
+        Status: Overdue
+      limit: 50
+  - step_id: enrich_account
+    name: Enrich With Account Tier
+    order: 2
+    tool: query_virtual_entity
+    params:
+      entity: Account
+      fields:
+      - Account_ID
+      - Tier
+      - Region
+      - Channel_Type
+      - Annual_Revenue
+- stage_id: diagnose
+  name: Score Risk
+  order: 2
+  steps:
+  - step_id: anomaly_per_invoice
+    name: Score Anomaly Per Invoice
+    order: 1
+    tool: score_order_anomaly
+    params:
+      opportunity_id: ${item.Linked_Delivery_ID}
+  - step_id: cash_projection
+    name: Project 8-Week Cash Impact
+    order: 2
+    tool: project_cash_flow
+    params: {}
+- stage_id: act
+  name: Take Action
+  order: 3
+  steps:
+  - step_id: send_dunning_l1
+    name: Send L1 Dunning Notice
+    order: 1
+    description: First-tier reminder for all in-scope invoices.
+    tool: send_dunning_notice
+    params:
+      invoice_id: ${item.Invoice_ID}
+      customer_id: ${item.Customer_ID}
+      days_overdue: 7
+      tier: reminder
+  - step_id: send_dunning_l2
+    name: Send L2 Dunning (No Response in 7d)
+    order: 2
+    tool: send_dunning_notice
+    params:
+      invoice_id: ${item.Invoice_ID}
+      customer_id: ${item.Customer_ID}
+      days_overdue: 14
+      tier: warning
+  - step_id: place_credit_hold
+    name: Place Credit Hold (>60d, Bronze tier)
+    order: 3
+    requires_approval: true
+    description: Block new shipments per credit-policy Section 5.
+    tool: place_credit_hold
+    params:
+      account_id: ${item.Customer_ID}
+      reason: Past-due >60d under tiered dunning playbook
+  - step_id: open_dispute
+    name: Open Dispute Case (if customer reports defect)
+    order: 4
+    requires_approval: true
+    tool: create_dispute_case
+    params:
+      opportunity_id: ${item.Opportunity_ID}
+      invoice_id: ${item.Invoice_ID}
+      dispute_reason: Past-due triage
+- stage_id: verify
+  name: Verify Outcome
+  order: 4
+  steps:
+  - step_id: requery_invoices
+    name: Re-Query Invoice Status
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: AR_Invoice
+      filter:
+        Status: Paid
+  - step_id: write_outcome
+    name: Write Outcome Tracker Row
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: dso
+      kpi_before: ${stage.diagnose.cash_projection.dso}
+      kpi_after: ${stage.verify.requery_invoices.dso_after}

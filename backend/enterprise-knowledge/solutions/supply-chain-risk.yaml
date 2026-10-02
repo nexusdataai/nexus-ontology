@@ -1,0 +1,25 @@
+solutionId: supply-chain-risk
+title: Supply Chain Risk Radar
+description: |
+  Real-time supplier risk scoring and early warning for disruptions.
+  Fuses vendor performance, contract terms, news sentiment, and market
+  signals into an actionable risk score with mitigation playbooks.
+priority: P1
+category: Risk
+timeToValue: 3 weeks
+verticals: [supply_chain]
+personas: [procurement_manager, risk_officer]
+color: "from-violet-500 to-indigo-500"
+icon: Shield
+entities: [Vendor_Master, Purchase_Order, Market_Signal, Contract_Document]
+kpis:
+  - Risk Score < 30
+  - OTD > 95%
+  - Early Warning > 7d
+automations: [refresh_supplier_risk_scores, escalate_high_risk_supplier]
+analytics: [supplier_risk_heatmap, otd_by_supplier_view]
+nlq_examples:
+  - Which suppliers are trending toward high risk?
+  - Show me every open PO with a distressed supplier
+  - What is the OTD trend for our top 10 suppliers?
+journeyId: supply_chain_risk

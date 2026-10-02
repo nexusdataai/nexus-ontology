@@ -1,0 +1,43 @@
+# ============================================================================
+# Tool: release_credit_hold
+# Kind: mutate
+# Connector API: sfdc.account.credit_hold.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Release credit hold on an account after Finance Manager approval.
+#
+# Inputs:    account_id, approved_by
+# Reads:     Account
+# Writes:    Account, Audit_Event
+# ============================================================================
+tool_id: release_credit_hold
+display_name: Release Credit Hold
+group: o2c
+description: Release credit hold on an account after Finance Manager approval.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    account_id:
+      type: string
+      description: Account ID to release
+    approved_by:
+      type: string
+      description: Approver name/role
+  required:
+  - account_id
+connector_api: sfdc.account.credit_hold.set
+consumes_entities:
+- Account
+produces_entities:
+- Account
+- Audit_Event
+tags:
+- o2c
+- credit
+- write
+example_invocation: null

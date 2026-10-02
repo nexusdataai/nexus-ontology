@@ -1,0 +1,79 @@
+use_case_id: pa.maverick_spend_capture
+title: Maverick Spend Capture
+solution_id: procurement-analytics
+bucket: supply-chain
+description: 'Catch and convert off-contract spend. Surface vendors / categories with
+  off-contract spend, then block the worst offenders or route them to PO approval.
+
+  '
+status: active
+tags:
+- procurement
+- maverick
+- capture
+kpi_impact:
+- off_contract_spend_pct
+consumes_entities:
+- Invoice_Line
+- Contract
+produces_entities:
+- Oracle_Supplier
+- Oracle_Purchase_Order
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_maverick_spend
+    params:
+      period: last_quarter
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Block worst offenders; route the rest to PO approval. LLM-only step;
+
+    no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Block Supplier Orders
+    order: 1
+    requires_approval: true
+    tool: block_supplier_orders
+    params:
+      supplier_id: ${item.vendor_id}
+      block: true
+      reason: Maverick spend
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_maverick_spend
+    params:
+      period: last_quarter
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: off_contract_spend_pct
+      kpi_before: 0
+      kpi_after: 0

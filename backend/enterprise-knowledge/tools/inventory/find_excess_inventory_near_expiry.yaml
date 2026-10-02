@@ -1,0 +1,39 @@
+# ============================================================================
+# Tool: find_excess_inventory_near_expiry
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep with a date-range filter.
+#
+# What it does:
+#   Identify inventory positions whose batches will expire inside the horizon
+#   window with high write-off risk. Returns ranked SKUs with quantity, expiry
+#   date, plant, and projected dollar exposure.
+#
+# Inputs:    horizon_days, plant_id (optional), top_n
+# Reads:     Material, Inventory_Position, Batch
+# Writes:    none
+# Returns:   {count, results: [{material_id, qty, expiry_date, plant, writeoff_at_risk_usd}]}
+# ============================================================================
+tool_id: find_excess_inventory_near_expiry
+display_name: Find Excess Inventory Near Expiry
+group: inventory
+tool_kind: analyze
+description: |
+  Surface inventory positions with batches expiring inside `horizon_days` and
+  high projected write-off. Drives expiry-risk-mitigation, inter-plant rebalance,
+  and slow-mover liquidation.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    horizon_days: { type: integer, description: "Lookahead window in days (default 60)" }
+    plant_id: { type: string, description: "Optional plant filter" }
+    top_n: { type: integer, description: "Max rows (default 50)" }
+  required: []
+consumes_entities: [Material, Inventory_Position, Batch]
+produces_entities: []
+tags: [inventory, expiry, analyze]
+example_invocation:
+  horizon_days: 60

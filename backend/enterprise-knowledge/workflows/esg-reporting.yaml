@@ -1,0 +1,113 @@
+id: WORKFLOW_ESG_REPORTING_V1_0
+name: ESG Reporting
+version: "1.0"
+system: Internal
+scor_process: Enable
+trigger:
+  object: Plant_Master
+  event: "Scheduled quarterly OR emission threshold breach"
+  condition: "Quarterly scheduled run (5th business day after quarter end) OR Plant_Master emission data exceeds target by >15%"
+description: >
+  Collects energy, water, and emission data across plants; calculates Scope 1/2/3
+  emissions; allocates environmental impact to individual SKUs via BOM-based
+  activity allocation; assesses packaging sustainability; benchmarks against
+  targets and industry standards; generates framework-aligned reports (GRI, SASB,
+  CDP); monitors brand sentiment for ESG topics; and publishes dashboards and
+  board-ready summaries.
+
+steps:
+  - order: 1
+    name: Collect Energy and Water Data
+    system: SAP/Oracle
+    action: "Aggregate plant-level energy consumption from SAP utilities and Cost_Accounting (energy cost centers); water usage from SAP metering per Plant_Master"
+
+  - order: 2
+    name: Emission Calculation
+    system: Internal
+    action: "Apply emission factors: Scope 1 (direct combustion at plants), Scope 2 (purchased electricity per plant), Scope 3 upstream (supplier emissions estimated from Purchase_Order volumes + industry factors) and downstream (Shipment distance x vehicle type x load factor)"
+
+  - order: 3
+    name: Per-SKU Allocation
+    system: Internal
+    action: "Allocate plant-level emissions and water to individual SKUs using Bill_of_Materials activity-based allocation (production volume x resource intensity per BOM component)"
+
+  - order: 4
+    name: Packaging Assessment
+    system: Internal
+    action: "From Material_Master: aggregate Recycled_Content_Pct and Recyclability_Score across product portfolio; compare against sustainability-policy targets"
+
+  - order: 5
+    name: Benchmarking
+    system: Internal
+    action: "Compare current period against: prior period, annual target, industry benchmarks; calculate trajectory vs year-end goal"
+
+  - order: 6
+    name: Report Generation
+    system: Internal
+    action: "Compile metrics into framework-aligned reports (GRI 301/303/305, SASB FB-NB, CDP Climate); pull historical data from Sustainability_Report for trend analysis"
+
+  - order: 7
+    name: Sentiment Check
+    system: Internal
+    action: "Monitor Brand_Sentiment for ESG-related topics; flag negative sentiment trends"
+
+  - order: 8
+    name: Publish
+    system: Internal
+    action: "Publish ESG dashboard for sustainability team; generate board-ready summary; flag non-compliance items for escalation"
+    failure_action: "Alert sustainability lead if dashboard publish fails"
+
+dependencies:
+  - entity: Plant_Master
+    system: SAP
+    relationship: "Plant-level energy, water, and emission source data"
+  - entity: Production_Order
+    system: SAP
+    relationship: "Production volume data for per-SKU emission allocation"
+  - entity: Bill_of_Materials
+    system: SAP
+    relationship: "BOM-based activity allocation for per-SKU impact"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Packaging attributes (Recycled_Content_Pct, Recyclability_Score)"
+  - entity: Shipment
+    system: SAP
+    relationship: "Downstream Scope 3 emission calculation (distance, vehicle, load)"
+  - entity: Delivery_Document
+    system: SAP
+    relationship: "Delivery data supporting downstream emission estimates"
+  - entity: Cost_Accounting
+    system: Oracle
+    relationship: "Energy cost center data for plant-level consumption"
+  - entity: Fixed_Asset
+    system: Oracle
+    relationship: "Fixed asset data for plant equipment emission factors"
+  - entity: Sustainability_Report
+    system: Google_Drive
+    relationship: "Historical ESG reports for trend analysis"
+  - entity: Brand_Sentiment
+    system: Social_Listening
+    relationship: "ESG-related sentiment monitoring and trend detection"
+  - entity: sustainability-policy
+    system: Internal
+    relationship: "Governs emission targets, packaging goals, and reporting frameworks"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Defines maximum data staleness for ESG metric inputs"
+
+related_entities:
+  - Plant_Master
+  - Production_Order
+  - Bill_of_Materials
+  - Material_Master
+  - Shipment
+  - Delivery_Document
+  - Cost_Accounting
+  - Fixed_Asset
+  - Sustainability_Report
+  - Brand_Sentiment
+related_policies:
+  - sustainability-policy
+  - data-freshness-policy
+use_case: "ESG & Sustainability Tracker"
+scor_process: "Enable"

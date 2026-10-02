@@ -1,0 +1,97 @@
+id: WORKFLOW_QUALITY_DEVIATION_V1_0
+name: Quality Deviation Response
+version: "1.0"
+system: SAP
+scor_process: Make
+trigger:
+  object: Quality_Test_Result
+  event: "Test failure OR lab non-compliance OR consecutive batch failures"
+  condition: "Quality_Test_Result.Pass_Flag = false OR Lab_Report_Upload.Spec_Compliance = false OR same Quality_Inspection_Lot fails 3+ consecutive batches"
+description: >
+  Responds to quality deviations by classifying severity, blocking affected
+  batches, correlating root causes with production variables, escalating per
+  severity-based SLAs, executing corrective actions, and tracking resolution
+  with preventive measures.
+
+steps:
+  - order: 1
+    name: Detect Deviation
+    system: SAP/Internal
+    action: "Identify out-of-spec test results from Quality_Test_Result or NLP-extracted Lab_Report_Upload; classify severity: Minor (single test marginal), Major (single test outside spec), Critical (multiple tests or repeated failure)"
+
+  - order: 2
+    name: Hold Batch
+    system: SAP
+    action: "Update Batch_Master.Status to Blocked; prevent shipment or sale of affected batch; update Inventory_Position to move qty from Unrestricted to Blocked"
+
+  - order: 3
+    name: Root Cause Correlation
+    system: Internal
+    action: "Correlate deviation with production variables: raw material batch (via BOM), Production_Line, shift, operator, temperature/humidity if available; identify if the issue is isolated or systemic"
+
+  - order: 4
+    name: Escalation
+    system: Internal
+    action: "Route escalation based on severity classification"
+    rules:
+      - "Minor → notify QC supervisor"
+      - "Major → notify Quality Manager"
+      - "Critical (3+ consecutive) → stop production line, notify Plant Manager and Quality Director"
+    sla: "Minor: 24h, Major: 8h, Critical: 2h"
+
+  - order: 5
+    name: Corrective Action
+    system: SAP
+    action: "Define corrective action: re-test, rework, scrap, or conditionally release; update Quality_Inspection_Lot.Result"
+
+  - order: 6
+    name: Resolution Tracking
+    system: Internal
+    action: "Log corrective action, root cause, and preventive measures; update quality trends dashboard; trigger re-inspection if rework"
+
+dependencies:
+  - entity: Quality_Test_Result
+    system: SAP
+    relationship: "Source data — individual test results triggering deviation"
+  - entity: Quality_Inspection_Lot
+    system: SAP
+    relationship: "Inspection lot grouping test results for a batch"
+  - entity: Batch_Master
+    system: SAP
+    relationship: "Target entity — batch status updated to Blocked"
+  - entity: Production_Order
+    system: SAP
+    relationship: "Links deviation to production run for root cause analysis"
+  - entity: Production_Line
+    system: SAP
+    relationship: "Production line reference for root cause correlation"
+  - entity: Bill_of_Materials
+    system: SAP
+    relationship: "Raw material traceability for root cause analysis"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Material specification reference for deviation classification"
+  - entity: Lab_Report_Upload
+    system: File_Uploads
+    relationship: "Uploaded lab reports triggering spec compliance checks"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Stock status updated from Unrestricted to Blocked"
+  - entity: quality-policy
+    system: Internal
+    relationship: "Governs severity classification, SLA thresholds, and escalation rules"
+
+related_entities:
+  - Quality_Test_Result
+  - Quality_Inspection_Lot
+  - Batch_Master
+  - Production_Order
+  - Production_Line
+  - Bill_of_Materials
+  - Material_Master
+  - Lab_Report_Upload
+  - Inventory_Position
+related_policies:
+  - quality-policy
+use_case: "Production & Quality Control Copilot"
+scor_process: "Make"

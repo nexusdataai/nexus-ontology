@@ -1,0 +1,78 @@
+name: Run Test Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_types:
+        description: 'Comma-separated test types (unit,integration,bdd,endurance)'
+        required: true
+        default: 'unit'
+        type: string
+      server_url:
+        description: 'Server URL for integration/BDD/endurance tests'
+        required: false
+        default: 'http://localhost:8000'
+        type: string
+
+env:
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    environment: eks-dev
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r tests/requirements-test.txt
+        pip install pytest-json-report
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_DEV }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Run tests and upload reports
+      env:
+        SERVER_URL: ${{ inputs.server_url }}
+      run: |
+        source tests/report_setup/load_cloudfront_env.sh
+        ./tests/run_tests.sh "${{ inputs.test_types }}" --upload
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ github.run_id }}
+        path: test_reports/
+        retention-days: 30
+
+    - name: Test summary
+      if: always()
+      run: |
+        echo "## Test Suite Results" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Parameter | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|-----------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Test Types | \`${{ inputs.test_types }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Server URL | \`${{ inputs.server_url }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Branch | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Triggered by | \`${{ github.actor }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Reports" >> "$GITHUB_STEP_SUMMARY"
+        echo "- Dashboard: https://d37vwg02pj6oqg.cloudfront.net/index.html" >> "$GITHUB_STEP_SUMMARY"

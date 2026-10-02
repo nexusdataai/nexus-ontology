@@ -1,0 +1,43 @@
+#!/bin/bash
+# Simple wrapper for MCP diagnostics
+# Usage: ./diagnose [command]
+
+# Set proper environment
+export AWS_REGION=ap-south-1
+
+# Run the appropriate diagnostic
+case "${1:-quick}" in
+    "quick"|"q")
+        ./mcp-doctor.sh quick
+        ;;
+    "full"|"f")
+        ./mcp-doctor.sh full
+        ;;
+    "fix")
+        ./mcp-doctor.sh fix
+        ;;
+    "clean"|"cleanup"|"c")
+        ./mcp-doctor.sh cleanup
+        ;;
+    "test"|"t")
+        ./mcp-doctor.sh test
+        ;;
+    "cursor"|"show"|"s")
+        ./mcp-doctor.sh cursor
+        ;;
+    "install"|"i")
+        ./mcp-doctor.sh install
+        ;;
+    *)
+        echo "Usage: ./diagnose [quick|full|fix|clean|test|cursor|install]"
+        echo ""
+        echo "Commands:"
+        echo "  quick (q)  - Quick health check"
+        echo "  full (f)   - Full diagnostics"
+        echo "  fix        - Auto-fix issues"
+        echo "  clean (c)  - Clean up processes"
+        echo "  test (t)   - Test tools"
+        echo "  cursor (s) - Show Cursor tool view"
+        echo "  install (i)- Install dependencies"
+        ;;
+esac

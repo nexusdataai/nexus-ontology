@@ -1,0 +1,87 @@
+id: WORKFLOW_QUOTE_APPROVAL_ROUTE_V1_0
+name: Quote Approval Routing
+version: "1.0"
+system: Internal
+scor_process: Deliver
+trigger:
+  object: Quote_Header
+  field: Status
+  condition: "Status transitions from Draft to In_Review"
+description: >
+  Derive the approval chain for a submitted quote per the discount, margin,
+  trade-spend, and configuration-violation thresholds in
+  cpq-quote-approval-policy. Create approver tasks with SLAs, track
+  responses, and drive the quote through Approved or Rejected.
+
+steps:
+  - order: 1
+    name: Compute Required Approvers
+    system: Internal
+    action: "Evaluate Quote_Header.Discount_Pct, Margin_Pct, Listing_Fee + Slotting_Fee, trade spend trailing 12 months, and outstanding Configuration_Rule violations to determine the approval chain"
+    rules:
+      - "Within tier max + margin >= 15% + fees <= $50K -> auto-approve"
+      - "Discount > tier max by <= 5pp -> Regional Sales Manager"
+      - "Discount > tier max by > 5pp OR fees > $50K -> Commercial Director"
+      - "Margin < 15% -> CFO"
+      - "Trade spend > 8% -> VP Sales"
+      - "Configuration error override -> Commercial Director"
+
+  - order: 2
+    name: Build Approval Chain
+    system: Internal
+    action: "Construct ordered Approval_Chain_JSON with role, approver_id, status=pending, due_at per SLA"
+
+  - order: 3
+    name: Create Approver Tasks
+    system: Salesforce
+    action: "Create a Salesforce Task (or notification) for each pending approver in the chain"
+
+  - order: 4
+    name: Track SLA
+    system: Internal
+    action: "Poll approver actions; on SLA breach escalate to the next approver and append an escalation event"
+
+  - order: 5
+    name: Update Quote Status
+    system: TPM
+    action: "On final approver action set Quote_Header.Status to Approved or Rejected; persist Approval_Chain_JSON with timestamps"
+
+  - order: 6
+    name: Audit Log
+    system: Internal
+    action: "Write an Audit_Event row per approval action with approver identity, pre/post discount and margin, and reason"
+
+dependencies:
+  - entity: Quote_Header
+    system: TPM
+    relationship: "Subject of approval"
+  - entity: Quote_Line
+    system: TPM
+    relationship: "Line context for margin and discount"
+  - entity: Account
+    system: Salesforce
+    relationship: "Trade spend baseline source"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Credit hold check (blocks auto-approve)"
+  - entity: Cost_Accounting
+    system: Oracle
+    relationship: "Trade spend trailing 12 months source"
+  - entity: cpq-quote-approval-policy
+    system: Internal
+    relationship: "Approval matrix and SLA"
+  - entity: pricing-discount-policy
+    system: Internal
+    relationship: "Discount and trade spend caps"
+
+related_entities:
+  - Quote_Header
+  - Quote_Line
+  - Account
+  - AR_Customer
+  - Cost_Accounting
+related_policies:
+  - cpq-quote-approval-policy
+  - pricing-discount-policy
+use_case: "Trade CPQ"
+scor_process: "Deliver"

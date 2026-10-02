@@ -1,0 +1,88 @@
+use_case_id: pa.three_way_match
+title: 3-Way Match (Procurement)
+solution_id: procurement-analytics
+bucket: supply-chain
+description: 'Procurement-side 3-way match resolution. Run order-delivery-invoice
+  match for procurement; create credit notes / status updates for any mismatches.
+
+  '
+status: active
+tags:
+- procurement
+- three-way-match
+kpi_impact:
+- match_rate_pct
+- invoice_dispute_count
+consumes_entities:
+- Opportunity
+- Delivery_Document
+- AR_Invoice
+produces_entities:
+- Oracle_AR_Invoice
+- Oracle_AR_Credit_Note
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: match_order_delivery_invoice
+    params:
+      opportunity_id: ${context.opportunity_id}
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide credit-note vs status-update vs auto-resolve per mismatch.
+
+    LLM-only step; no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Update Invoice Status
+    order: 1
+    requires_approval: true
+    tool: update_invoice_status
+    params:
+      invoice_id: ${context.invoice_id}
+      new_status: Under_Review
+  - step_id: act_2
+    name: Process Credit Note
+    order: 2
+    requires_approval: true
+    tool: process_credit_note
+    params:
+      invoice_id: ${context.invoice_id}
+      amount: 0
+      reason: 3-way match adjustment
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: match_order_delivery_invoice
+    params:
+      opportunity_id: ${context.opportunity_id}
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: match_rate_pct
+      kpi_before: 0
+      kpi_after: 0

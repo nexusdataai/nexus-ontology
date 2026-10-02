@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: request_early_pay_discount
+# Kind: mutate
+# Connector API: oracle.invoice.discount.offer
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Attach an early-pay discount offer to an open invoice.
+#
+# Inputs:    invoice_id, discount_pct, expires_in_days
+# Reads:     AR_Invoice, Account
+# Writes:    AR_Invoice, Audit_Event
+# ============================================================================
+tool_id: request_early_pay_discount
+display_name: Request Early Pay Discount
+group: o2c
+description: Attach an early-pay discount offer to an open invoice.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    invoice_id:
+      type: string
+    discount_pct:
+      type: number
+    expires_in_days:
+      type: integer
+  required:
+  - invoice_id
+  - discount_pct
+connector_api: oracle.invoice.discount.offer
+consumes_entities:
+- AR_Invoice
+- Account
+produces_entities:
+- AR_Invoice
+- Audit_Event
+tags:
+- o2c
+- discount
+- write
+example_invocation: null

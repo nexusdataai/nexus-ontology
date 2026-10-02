@@ -1,0 +1,71 @@
+id: WORKFLOW_CREDIT_APPROVAL_V1_0
+name: Credit Approval Flow
+version: "1.0"
+system: Salesforce
+trigger:
+  object: Account
+  field: Credit_Limit__c
+  condition: "Change exceeds approval threshold"
+description: >
+  Workflow triggered when a customer credit limit change exceeds the
+  auto-approval threshold. Routes through risk assessment and manager
+  approval before syncing to Oracle ERP.
+
+steps:
+  - order: 1
+    name: Validate Pre-requisites
+    system: Salesforce
+    action: "Check Risk_Tier__c is current, AR balance is below threshold"
+    failure_action: "Reject change with reason"
+
+  - order: 2
+    name: Determine Approval Level
+    system: Salesforce
+    action: "Calculate change percentage, route to appropriate approver"
+    rules:
+      - "5-10% → Sales Manager"
+      - ">10% → Finance Manager"
+
+  - order: 3
+    name: Approval Decision
+    system: Salesforce
+    action: "Approver reviews and approves/rejects"
+    sla: "48 hours for Finance Manager, 24 hours for Sales Manager"
+    timeout_action: "Escalate to Finance Director"
+
+  - order: 4
+    name: Apply Credit Limit
+    system: Salesforce
+    action: "Update Account.Credit_Limit__c with new value"
+    audit: true
+
+  - order: 5
+    name: Sync to Oracle ERP
+    system: Oracle
+    action: "Push new credit limit to AR_Customer.credit_limit"
+    retry: 3
+    failure_action: "Alert Finance team; Salesforce value is authoritative"
+
+  - order: 6
+    name: Recalculate Collection Priority
+    system: Oracle
+    action: "Update collection priority based on new credit limit and Risk_Tier"
+
+dependencies:
+  - entity: Account
+    relationship: "Source object — credit limit lives here"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Sync target for credit limit"
+  - entity: credit-policy
+    system: Internal
+    relationship: "Governing policy for approval thresholds"
+
+related_entities:
+  - Account
+  - AR_Customer
+related_policies:
+  - credit-policy
+  - close-window-policy
+use_case: "Customer 360 & Revenue Growth Intelligence"
+scor_process: "Deliver"

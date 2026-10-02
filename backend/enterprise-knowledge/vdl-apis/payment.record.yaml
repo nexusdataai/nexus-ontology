@@ -1,0 +1,25 @@
+api_id: vdl.payment.record
+verb: write
+virtual_entity: Payment
+description: Record a customer payment against one or more invoices.
+risk_level: low_risk_write
+parameters_schema:
+  type: object
+  properties:
+    customer_id:
+      type: string
+    invoice_id:
+      type: string
+    amount:
+      type: number
+    payment_method:
+      type: string
+  required: [customer_id, invoice_id, amount]
+impl:
+  - connector_api_id: oracle.payment.record
+    arg_mapping:
+      customer_id: customer_id
+      invoice_id: invoice_id
+      amount: amount
+      payment_method: payment_method
+tags: [payment, ar, o2c]

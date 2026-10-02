@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: score_customer_lifetime_value
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter computing a per-file metric.
+#
+# What it does:
+#   Computes customer lifetime value (CLV) across recurring revenue, expansion,
+#   and expected retention horizon. Either scores a single customer (when
+#   `customer_id` is supplied) or returns the top-N by CLV.
+#
+# Inputs:    customer_id (optional), top_n
+# Reads:     AR_Invoice, Customer
+# Writes:    none
+# Returns:   {result | results: [{customer_id, clv_usd, recurring_arr, tier}]}
+# ============================================================================
+tool_id: score_customer_lifetime_value
+display_name: Score Customer Lifetime Value
+group: customer_360
+tool_kind: analyze
+description: |
+  Per-customer CLV across recurring revenue + expansion + retention. Powers
+  renewal-negotiation, retain-risky, and upsell prioritisation.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    customer_id: { type: string, description: "Optional single-customer mode" }
+    top_n: { type: integer, description: "Max rows when ranking (default 20)" }
+  required: []
+consumes_entities: [AR_Invoice, Customer]
+produces_entities: []
+tags: [c360, clv, analyze]
+example_invocation:
+  customer_id: ACC-1001

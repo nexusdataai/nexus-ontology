@@ -1,0 +1,74 @@
+use_case_id: cpq_sell.discount_request_review
+title: Discount Request Review
+solution_id: trade-cpq
+bucket: cpq-sell
+description: 'For quotes whose requested discount exceeds the tier maximum, evaluate
+  the discount, compute the approval chain per cpq-quote-approval-policy, and
+  generate the proposal document for downstream review.
+
+  '
+status: active
+tags:
+- cpq
+- discount
+- approval
+kpi_impact:
+- auto_approval_rate
+- margin_floor_breach
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Account
+- AR_Customer
+- Configuration_Rule
+- Price_Book_Entry
+produces_entities:
+- Quote_Header
+- CPQ_Proposal_Document
+- Audit_Event
+stages:
+- stage_id: diagnose
+  name: Diagnose Discount and Margin
+  order: 1
+  steps:
+  - step_id: price
+    name: Re-Price Quote
+    order: 1
+    tool: price_quote
+    params:
+      quote_id: ${context.quote_id}
+      scenario: review
+  - step_id: credit_margin
+    name: Credit & Margin Check
+    order: 2
+    tool: check_credit_and_margin
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: validate
+  name: Configuration Validation
+  order: 2
+  steps:
+  - step_id: rules
+    name: Run Configuration Rules
+    order: 1
+    tool: validate_configuration
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: approve
+  name: Route Approval Chain
+  order: 3
+  steps:
+  - step_id: route
+    name: Compute Approval Chain
+    order: 1
+    requires_approval: true
+    tool: route_approval
+    params:
+      quote_id: ${context.quote_id}
+  - step_id: proposal
+    name: Generate Proposal Document
+    order: 2
+    tool: generate_proposal_doc
+    params:
+      quote_id: ${context.quote_id}
+      template: discount_review

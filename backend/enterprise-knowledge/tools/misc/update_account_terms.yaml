@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: update_account_terms
+# Kind: mutate
+# Connector API: oracle.customer.terms.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Update an AR customer's payment terms (e.g. Net_60 -> Net_30 for
+#   high-risk accounts).
+#
+# Inputs:    customer_id, payment_terms
+# Reads:     AR_Customer
+# Writes:    AR_Customer, Audit_Event
+# ============================================================================
+tool_id: update_account_terms
+display_name: Update Account Terms
+group: misc
+description: Update an AR customer's payment terms (e.g. Net_60 -> Net_30 for high-risk
+  accounts).
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    customer_id:
+      type: string
+    payment_terms:
+      type: string
+      description: e.g. Net_30, Net_60, Net_90, COD
+  required:
+  - customer_id
+  - payment_terms
+connector_api: oracle.customer.terms.set
+consumes_entities:
+- AR_Customer
+produces_entities:
+- AR_Customer
+- Audit_Event
+tags:
+- o2c
+- ar
+- write
+example_invocation: null

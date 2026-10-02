@@ -1,0 +1,10 @@
+
+/* Improved widget metrics for light theme */
+:root .text-3xl {
+  color: #2c3e50;
+}
+
+/* Improved muted text for light theme */
+:root .text-muted-foreground {
+  color: #64748b;
+}

@@ -1,0 +1,976 @@
+Feature: AI Call Analysis # tests/bdd/features/call_process/call_analysis.feature:1
+  As a quality assurance manager
+  I want AI-powered analysis of call transcripts
+  So that I can automatically evaluate agent performance
+  Feature: AI Call Analysis  # tests/bdd/features/call_process/call_analysis.feature:1
+
+  @analysis @compliance
+  Scenario: Analyze PDPA compliance                  # tests/bdd/features/call_process/call_analysis.feature:10
+    Given the AI analyzer is configured              # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript with customer data discussion # tests/bdd/steps/call_process_steps.py:720
+    When AI analysis is performed                    # tests/bdd/steps/call_process_steps.py:454
+    Then PDPA compliance score should be calculated  # tests/bdd/steps/call_process_steps.py:497
+    And compliance violations should be flagged      # tests/bdd/steps/call_process_steps.py:504
+    And the analysis should include:                 # tests/bdd/steps/call_process_steps.py:1032
+      | field            | presence |
+      | pdpa_score       | required |
+      | pdpa_compliant   | required |
+      | violations       | required |
+      | compliance_notes | optional |
+
+  @analysis @compliance @violation
+  Scenario: Detect compliance violations                                # tests/bdd/features/call_process/call_analysis.feature:23
+    Given the AI analyzer is configured                                 # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript where agent shared customer data without consent # tests/bdd/steps/call_process_steps.py:731
+    When AI analysis is performed                                       # tests/bdd/steps/call_process_steps.py:454
+    Then PDPA compliance score should be below 80                       # tests/bdd/steps/call_process_steps.py:849
+    And at least one violation should be flagged                        # tests/bdd/steps/call_process_steps.py:856
+    And the violation details should be documented                      # tests/bdd/steps/call_process_steps.py:862
+
+  @analysis @grading
+  Scenario: Generate performance grading         # tests/bdd/features/call_process/call_analysis.feature:31
+    Given the AI analyzer is configured          # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript of a sales call           # tests/bdd/steps/call_process_steps.py:739
+    When AI analysis is performed                # tests/bdd/steps/call_process_steps.py:454
+    Then 16 grading elements should be evaluated # tests/bdd/steps/call_process_steps.py:510
+    And overall score should be calculated       # tests/bdd/steps/call_process_steps.py:516
+    And each grading element should include:     # tests/bdd/steps/call_process_steps.py:1039
+      | field     | type   |
+      | element   | string |
+      | score     | number |
+      | max_score | number |
+      | feedback  | string |
+
+  @analysis @grading @elements
+  Scenario: Verify grading elements                        # tests/bdd/features/call_process/call_analysis.feature:44
+    Given the AI analyzer is configured                    # tests/bdd/steps/call_process_steps.py:41
+    Given a complete sales call transcript                 # tests/bdd/steps/call_process_steps.py:747
+    When AI analysis is performed                          # tests/bdd/steps/call_process_steps.py:454
+    Then the following grading elements should be present: # tests/bdd/steps/call_process_steps.py:1046
+      | element            |
+      | Greeting           |
+      | Needs Discovery    |
+      | Product Knowledge  |
+      | Objection Handling |
+      | Closing            |
+      | Professionalism    |
+      | Active Listening   |
+      | Empathy            |
+      | Clarity            |
+      | Pace               |
+      | Hold Procedure     |
+      | Transfer Procedure |
+      | Documentation      |
+      | Follow-up          |
+      | Time Management    |
+      | Overall            |
+
+  @analysis @sentiment
+  Scenario: Extract sentiment analysis          # tests/bdd/features/call_process/call_analysis.feature:67
+    Given the AI analyzer is configured         # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript with emotional content   # tests/bdd/steps/call_process_steps.py:753
+    When AI analysis is performed               # tests/bdd/steps/call_process_steps.py:454
+    Then overall sentiment should be determined # tests/bdd/steps/call_process_steps.py:522
+    And sentiment timeline should be generated  # tests/bdd/steps/call_process_steps.py:528
+    And the analysis should include:            # tests/bdd/steps/call_process_steps.py:1032
+      | field              | type   |
+      | overall_sentiment  | string |
+      | sentiment_score    | number |
+      | customer_sentiment | string |
+      | agent_sentiment    | string |
+
+  @analysis @sentiment @positive
+  Scenario: Detect positive sentiment                        # tests/bdd/features/call_process/call_analysis.feature:80
+    Given the AI analyzer is configured                      # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript where customer expresses satisfaction # tests/bdd/steps/call_process_steps.py:761
+    When AI analysis is performed                            # tests/bdd/steps/call_process_steps.py:454
+    Then overall sentiment should be "positive"              # tests/bdd/steps/call_process_steps.py:882
+    And sentiment score should be above 0.6                  # tests/bdd/steps/call_process_steps.py:888
+
+  @analysis @sentiment @negative
+  Scenario: Detect negative sentiment                       # tests/bdd/features/call_process/call_analysis.feature:87
+    Given the AI analyzer is configured                     # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript where customer expresses frustration # tests/bdd/steps/call_process_steps.py:768
+    When AI analysis is performed                           # tests/bdd/steps/call_process_steps.py:454
+    Then overall sentiment should be "negative"             # tests/bdd/steps/call_process_steps.py:882
+    And sentiment score should be below 0.4                 # tests/bdd/steps/call_process_steps.py:894
+
+  @analysis @metrics
+  Scenario: Calculate call metrics                           # tests/bdd/features/call_process/call_analysis.feature:94
+    Given the AI analyzer is configured                      # tests/bdd/steps/call_process_steps.py:41
+    Given a complete call transcript with timing information # tests/bdd/steps/call_process_steps.py:775
+    When AI analysis is performed                            # tests/bdd/steps/call_process_steps.py:454
+    Then call metrics should be calculated                   # tests/bdd/steps/call_process_steps.py:900
+    And the call metrics should include:                     # tests/bdd/steps/call_process_steps.py:906
+      | metric                 | type   |
+      | total_duration_seconds | number |
+      | talk_time_seconds      | number |
+      | hold_time_seconds      | number |
+      | agent_talk_ratio       | number |
+
+  @analysis @products
+  Scenario: Extract mentioned products              # tests/bdd/features/call_process/call_analysis.feature:106
+    Given the AI analyzer is configured             # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript discussing mobile plans      # tests/bdd/steps/call_process_steps.py:783
+    When AI analysis is performed                   # tests/bdd/steps/call_process_steps.py:454
+    Then mentioned products should be extracted     # tests/bdd/steps/call_process_steps.py:921
+    And product recommendations should be generated # tests/bdd/steps/call_process_steps.py:927
+
+  @analysis @deal_potential
+  Scenario: Assess deal potential          # tests/bdd/features/call_process/call_analysis.feature:113
+    Given the AI analyzer is configured    # tests/bdd/steps/call_process_steps.py:41
+    Given a sales call transcript          # tests/bdd/steps/call_process_steps.py:1067
+    When AI analysis is performed          # tests/bdd/steps/call_process_steps.py:454
+    Then deal potential should be assessed # tests/bdd/steps/call_process_steps.py:933
+    And the assessment should include:     # tests/bdd/steps/call_process_steps.py:1053
+      | field    | type   |
+      | score    | number |
+      | category | string |
+      | signals  | array  |
+
+  @analysis @recommendations
+  Scenario: Generate recommendations                      # tests/bdd/features/call_process/call_analysis.feature:124
+    Given the AI analyzer is configured                   # tests/bdd/steps/call_process_steps.py:41
+    Given a complete call transcript                      # tests/bdd/steps/call_process_steps.py:791
+    When AI analysis is performed                         # tests/bdd/steps/call_process_steps.py:454
+    Then actionable recommendations should be generated   # tests/bdd/steps/call_process_steps.py:946
+    And recommendations should be specific and actionable # tests/bdd/steps/call_process_steps.py:952
+
+  @analysis @qualifying_questions
+  Scenario: Identify qualifying questions                          # tests/bdd/features/call_process/call_analysis.feature:131
+    Given the AI analyzer is configured                            # tests/bdd/steps/call_process_steps.py:41
+    Given a sales call transcript                                  # tests/bdd/steps/call_process_steps.py:1067
+    When AI analysis is performed                                  # tests/bdd/steps/call_process_steps.py:454
+    Then qualifying questions should be identified                 # tests/bdd/steps/call_process_steps.py:958
+    And question responses should be tracked                       # tests/bdd/steps/call_process_steps.py:964
+    And the analysis should indicate which questions were answered # tests/bdd/steps/call_process_steps.py:970
+
+  @analysis @script_adherence
+  Scenario: Evaluate script adherence                     # tests/bdd/features/call_process/call_analysis.feature:139
+    Given the AI analyzer is configured                   # tests/bdd/steps/call_process_steps.py:41
+    Given a call transcript with expected script elements # tests/bdd/steps/call_process_steps.py:797
+    When AI analysis is performed                         # tests/bdd/steps/call_process_steps.py:454
+    Then script adherence score should be calculated      # tests/bdd/steps/call_process_steps.py:976
+    And missed script elements should be listed           # tests/bdd/steps/call_process_steps.py:982
+    And extra elements should be noted                    # tests/bdd/steps/call_process_steps.py:988
+
+  @analysis @batch
+  Scenario: Batch analysis of multiple calls                 # tests/bdd/features/call_process/call_analysis.feature:147
+    Given the AI analyzer is configured                      # tests/bdd/steps/call_process_steps.py:41
+    Given 3 transcripts are available for analysis           # tests/bdd/steps/call_process_steps.py:829
+    When batch AI analysis is performed                      # tests/bdd/steps/call_process_steps.py:460
+    Then all 3 transcripts should be analyzed                # tests/bdd/steps/call_process_steps.py:994
+    And individual analysis files should be created for each # tests/bdd/steps/call_process_steps.py:1000
+    And analysis quality should be consistent                # tests/bdd/steps/call_process_steps.py:1006
+
+  @analysis @error @api_failure
+  Scenario: Handle OpenAI API failure                    # tests/bdd/features/call_process/call_analysis.feature:155
+    Given the AI analyzer is configured                  # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript ready for analysis                # tests/bdd/steps/call_process_steps.py:805
+    And the OpenAI API is unavailable                    # tests/bdd/steps/call_process_steps.py:811
+    When AI analysis is performed                        # tests/bdd/steps/call_process_steps.py:454
+    Then an error should be reported                     # tests/bdd/steps/call_process_steps.py:641
+    And the error should be logged                       # tests/bdd/steps/call_process_steps.py:668
+    And partial results should be preserved if available # tests/bdd/steps/call_process_steps.py:1012
+
+  @analysis @output_format
+  Scenario: Verify analysis output format  # tests/bdd/features/call_process/call_analysis.feature:164
+    Given the AI analyzer is configured    # tests/bdd/steps/call_process_steps.py:41
+    Given a transcript has been analyzed   # tests/bdd/steps/call_process_steps.py:822
+    Then the analysis JSON should include: # tests/bdd/steps/call_process_steps.py:1025
+      | field              | presence |
+      | call_id            | required |
+      | agent_name         | optional |
+      | customer_company   | optional |
+      | compliance         | required |
+      | grading            | required |
+      | sentiment_analysis | required |
+      | recommendations    | required |
+      | call_metrics       | required |
+      | products           | optional |
+      | deal_potential     | optional |
+
+Feature: Call Processing Stage Execution # tests/bdd/features/call_process/call_processing.feature:1
+  As a contact center manager
+  I want to process Webex CC calls through the journey system
+  So that I can analyze call data and track agent performance
+  Feature: Call Processing Stage Execution  # tests/bdd/features/call_process/call_processing.feature:1
+
+  @call_process @fetch
+  Scenario: Fetch new tasks from Webex CC                   # tests/bdd/features/call_process/call_processing.feature:12
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 3 new calls exist in Webex CC                     # tests/bdd/steps/call_process_steps.py:60
+    When I execute the fetch_tasks step                     # tests/bdd/steps/call_process_steps.py:106
+    Then 3 tasks should be found                            # tests/bdd/steps/call_process_steps.py:112
+    And the task IDs should be stored for processing        # tests/bdd/steps/call_process_steps.py:119
+
+  @call_process @fetch @empty
+  Scenario: Handle empty task list                          # tests/bdd/features/call_process/call_processing.feature:19
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given no new calls exist in Webex CC                    # tests/bdd/steps/call_process_steps.py:92
+    When I execute the fetch_tasks step                     # tests/bdd/steps/call_process_steps.py:106
+    Then 0 tasks should be found                            # tests/bdd/steps/call_process_steps.py:112
+    And the step should complete successfully               # tests/bdd/steps/call_process_steps.py:126
+
+  @call_process @dedup
+  Scenario: Skip already processed tasks                    # tests/bdd/features/call_process/call_processing.feature:26
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 5 tasks were fetched                              # tests/bdd/steps/call_process_steps.py:143
+    And 2 tasks have already been processed                 # tests/bdd/steps/call_process_steps.py:159
+    When I execute the deduplication step                   # tests/bdd/steps/call_process_steps.py:210
+    Then 3 tasks should be marked as new                    # tests/bdd/steps/call_process_steps.py:216
+    And 2 tasks should be skipped                           # tests/bdd/steps/call_process_steps.py:223
+
+  @call_process @dedup @all_new
+  Scenario: All tasks are new                               # tests/bdd/features/call_process/call_processing.feature:34
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 3 tasks were fetched                              # tests/bdd/steps/call_process_steps.py:143
+    And no tasks have been processed before                 # tests/bdd/steps/call_process_steps.py:178
+    When I execute the deduplication step                   # tests/bdd/steps/call_process_steps.py:210
+    Then 3 tasks should be marked as new                    # tests/bdd/steps/call_process_steps.py:216
+    And 0 tasks should be skipped                           # tests/bdd/steps/call_process_steps.py:223
+
+  @call_process @dedup @all_processed
+  Scenario: All tasks already processed                     # tests/bdd/features/call_process/call_processing.feature:42
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 3 tasks were fetched                              # tests/bdd/steps/call_process_steps.py:143
+    And all 3 tasks have already been processed             # tests/bdd/steps/call_process_steps.py:194
+    When I execute the deduplication step                   # tests/bdd/steps/call_process_steps.py:210
+    Then 0 tasks should be marked as new                    # tests/bdd/steps/call_process_steps.py:216
+    And 3 tasks should be skipped                           # tests/bdd/steps/call_process_steps.py:223
+
+  @call_process @recording
+  Scenario: Process and transcribe recordings               # tests/bdd/features/call_process/call_processing.feature:50
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 2 new tasks are ready for processing              # tests/bdd/steps/call_process_steps.py:234
+    When I execute the process_recordings step              # tests/bdd/steps/call_process_steps.py:269
+    Then recordings should be downloaded from Webex         # tests/bdd/steps/call_process_steps.py:275
+    And recordings should be uploaded to S3                 # tests/bdd/steps/call_process_steps.py:281
+    And transcripts should be generated                     # tests/bdd/steps/call_process_steps.py:287
+    And transcript files should be uploaded to S3           # tests/bdd/steps/call_process_steps.py:293
+
+  @call_process @recording @partial_failure
+  Scenario: Handle partial recording failures               # tests/bdd/features/call_process/call_processing.feature:59
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 3 new tasks are ready for processing              # tests/bdd/steps/call_process_steps.py:234
+    And 1 recording is unavailable                          # tests/bdd/steps/call_process_steps.py:251
+    When I execute the process_recordings step              # tests/bdd/steps/call_process_steps.py:269
+    Then 2 recordings should be processed successfully      # tests/bdd/steps/call_process_steps.py:299
+    And 1 recording should be marked as failed              # tests/bdd/steps/call_process_steps.py:305
+    And the step should complete with partial success       # tests/bdd/steps/call_process_steps.py:311
+
+  @call_process @glue
+  Scenario: Register metadata in Glue catalog               # tests/bdd/features/call_process/call_processing.feature:68
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 2 tasks have been processed                       # tests/bdd/steps/call_process_steps.py:322
+    When I execute the register_metadata step               # tests/bdd/steps/call_process_steps.py:356
+    Then metadata JSON files should exist in S3             # tests/bdd/steps/call_process_steps.py:362
+    And Glue partitions should be created                   # tests/bdd/steps/call_process_steps.py:368
+    And the metadata should include recording references    # tests/bdd/steps/call_process_steps.py:375
+
+  @call_process @glue @structure
+  Scenario: Verify S3 metadata structure                                                             # tests/bdd/features/call_process/call_processing.feature:76
+    Given the MCP server is running                                                                  # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                                                                  # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured                                          # tests/bdd/steps/call_process_steps.py:26
+    Given 1 task has been processed with ID "task-001"                                               # tests/bdd/steps/call_process_steps.py:339
+    When I execute the register_metadata step                                                        # tests/bdd/steps/call_process_steps.py:356
+    Then a metadata file should exist at "call-data/year=YYYY/month=MM/day=DD/hour=HH/task-001.json" # tests/bdd/steps/call_process_steps.py:381
+    And the metadata should contain:                                                                 # tests/bdd/steps/call_process_steps.py:1060
+      | field           | type   |
+      | task_id         | string |
+      | agent_id        | string |
+      | recording_file  | string |
+      | transcript_file | string |
+
+  @call_process @analysis
+  Scenario: Run AI analysis on transcripts                  # tests/bdd/features/call_process/call_processing.feature:88
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 2 transcripts are available                       # tests/bdd/steps/call_process_steps.py:405
+    When I execute the ai_analysis step                     # tests/bdd/steps/call_process_steps.py:439
+    Then comprehensive analysis should be generated         # tests/bdd/steps/call_process_steps.py:466
+    And analysis files should be uploaded to S3             # tests/bdd/steps/call_process_steps.py:472
+    And metadata should reference analysis files            # tests/bdd/steps/call_process_steps.py:478
+
+  @call_process @analysis @compliance
+  Scenario: Generate compliance scores                      # tests/bdd/features/call_process/call_processing.feature:96
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 1 transcript is available for analysis            # tests/bdd/steps/call_process_steps.py:421
+    When I execute the ai_analysis step                     # tests/bdd/steps/call_process_steps.py:439
+    Then PDPA compliance score should be calculated         # tests/bdd/steps/call_process_steps.py:497
+    And the analysis should include compliance details      # tests/bdd/steps/call_process_steps.py:843
+
+  @call_process @analysis @disabled
+  Scenario: Skip analysis when disabled                     # tests/bdd/features/call_process/call_processing.feature:103
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 2 transcripts are available                       # tests/bdd/steps/call_process_steps.py:405
+    And AI analysis is disabled in configuration            # tests/bdd/steps/call_process_steps.py:427
+    When I execute the ai_analysis step                     # tests/bdd/steps/call_process_steps.py:439
+    Then no analysis should be performed                    # tests/bdd/steps/call_process_steps.py:484
+    And the step should complete with skipped status        # tests/bdd/steps/call_process_steps.py:490
+
+  @call_process @full_pipeline
+  Scenario: Complete pipeline execution                     # tests/bdd/features/call_process/call_processing.feature:111
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 2 new calls exist in Webex CC                     # tests/bdd/steps/call_process_steps.py:60
+    When I execute the complete call_process stage          # tests/bdd/steps/call_process_steps.py:538
+    Then all 5 steps should complete successfully           # tests/bdd/steps/call_process_steps.py:577
+    And 2 calls should be processed                         # tests/bdd/steps/call_process_steps.py:585
+    And 2 analyses should be generated                      # tests/bdd/steps/call_process_steps.py:591
+    And the final summary should show all metrics           # tests/bdd/steps/call_process_steps.py:597
+
+  @call_process @error @api_failure
+  Scenario: Handle Webex API failure                        # tests/bdd/features/call_process/call_processing.feature:120
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given the Webex CC API is unavailable                   # tests/bdd/steps/call_process_steps.py:610
+    When I execute the fetch_tasks step                     # tests/bdd/steps/call_process_steps.py:106
+    Then an error should be reported                        # tests/bdd/steps/call_process_steps.py:641
+    And the error message should indicate API failure       # tests/bdd/steps/call_process_steps.py:655
+    And logs should be uploaded to S3                       # tests/bdd/steps/call_process_steps.py:675
+
+  @call_process @error @s3_failure
+  Scenario: Handle S3 upload failure                        # tests/bdd/features/call_process/call_processing.feature:128
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given 1 task is ready for processing                    # tests/bdd/steps/call_process_steps.py:634
+    And S3 is unavailable                                   # tests/bdd/steps/call_process_steps.py:622
+    When I execute the process_recordings step              # tests/bdd/steps/call_process_steps.py:269
+    Then an error should be reported                        # tests/bdd/steps/call_process_steps.py:641
+    And the task should be marked as failed                 # tests/bdd/steps/call_process_steps.py:662
+    And the error should be logged                          # tests/bdd/steps/call_process_steps.py:668
+
+  @call_process @configuration
+  Scenario: Custom configuration parameters                 # tests/bdd/features/call_process/call_processing.feature:137
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    And a journey exists with call_process stage configured # tests/bdd/steps/call_process_steps.py:26
+    Given the following configuration:                      # tests/bdd/steps/call_process_steps.py:1078
+      | parameter      | value |
+      | minutes_back   | 30    |
+      | transcribe     | true  |
+      | register_glue  | true  |
+      | run_analysis   | true  |
+      | skip_processed | true  |
+    When I execute the fetch_tasks step                     # tests/bdd/steps/call_process_steps.py:106
+    Then the configuration should be applied correctly      # tests/bdd/steps/call_process_steps.py:703
+    And tasks from the last 30 minutes should be fetched    # tests/bdd/steps/call_process_steps.py:709
+
+Feature: Live Call Processing End-to-End # tests/bdd/features/call_process/live_call_processing.feature:1
+  As a contact center manager
+  I want to process real Webex CC calls through the complete pipeline
+  So that I can verify the system works with actual data
+  Feature: Live Call Processing End-to-End  # tests/bdd/features/call_process/live_call_processing.feature:1
+
+  @live @smoke
+  Scenario: Smoke test - Verify connectivity  # tests/bdd/features/call_process/live_call_processing.feature:13
+
+  @live @fetch
+  Scenario: Fetch tasks from Webex CC  # tests/bdd/features/call_process/live_call_processing.feature:22
+
+  @live @dedup
+  Scenario: Deduplicate fetched tasks  # tests/bdd/features/call_process/live_call_processing.feature:29
+
+  @live @process
+  Scenario: Process recordings with transcription  # tests/bdd/features/call_process/live_call_processing.feature:36
+
+  @live @metadata
+  Scenario: Register metadata in Glue  # tests/bdd/features/call_process/live_call_processing.feature:45
+
+  @live @analysis
+  Scenario: Run AI analysis on transcripts  # tests/bdd/features/call_process/live_call_processing.feature:53
+
+  @live @complete @slow
+  Scenario: Complete call processing lifecycle  # tests/bdd/features/call_process/live_call_processing.feature:61
+
+  @live @verify
+  Scenario: Verify S3 artifacts after processing  # tests/bdd/features/call_process/live_call_processing.feature:76
+
+  @live @athena
+  Scenario: Query processed calls via Athena  # tests/bdd/features/call_process/live_call_processing.feature:83
+
+  @live @error_recovery
+  Scenario: Handle and recover from partial failures  # tests/bdd/features/call_process/live_call_processing.feature:90
+
+  @live @performance @slow
+  Scenario: Process multiple calls efficiently  # tests/bdd/features/call_process/live_call_processing.feature:98
+
+Feature: Error Handling and Edge Cases # tests/bdd/features/journey/error_handling.feature:1
+  As a developer using the AI Job Engine
+  I want comprehensive error handling
+  So that I can handle failures gracefully
+  Feature: Error Handling and Edge Cases  # tests/bdd/features/journey/error_handling.feature:1
+
+  @error @invalid_action
+  Scenario: Handle invalid action                                  # tests/bdd/features/journey/error_handling.feature:11
+    Given the MCP server is running                                # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                                # tests/bdd/steps/common_steps.py:25
+    When I send a request with action "totally_invalid_action_xyz" # tests/bdd/steps/error_handling_steps.py:15
+    Then I should receive an error response                        # tests/bdd/steps/common_steps.py:100
+    And the error should indicate "invalid"                        # tests/bdd/steps/common_steps.py:108
+    And the response should list valid actions                     # tests/bdd/steps/error_handling_steps.py:511
+
+  @error @missing_parameter
+  Scenario: Handle missing required parameter                  # tests/bdd/features/journey/error_handling.feature:18
+    Given the MCP server is running                            # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                            # tests/bdd/steps/common_steps.py:25
+    When I send a request to read a journey without journey_id # tests/bdd/steps/error_handling_steps.py:33
+    Then I should receive a validation error                   # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should indicate "journey_id"                 # None
+    And the error should indicate "required"                   # None
+
+  @error @invalid_journey_id
+  Scenario: Handle invalid journey ID format                # tests/bdd/features/journey/error_handling.feature:25
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    When I try to read journey with ID "NOT-A-VALID-FORMAT" # tests/bdd/steps/error_handling_steps.py:51
+    Then I should receive an error response                 # tests/bdd/steps/common_steps.py:100
+    And the error should indicate "not found"               # tests/bdd/steps/common_steps.py:108
+
+  @error @non_existent_journey
+  Scenario: Handle non-existent journey operations   # tests/bdd/features/journey/error_handling.feature:31
+    Given the MCP server is running                  # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                  # tests/bdd/steps/common_steps.py:25
+    When I try to read journey "JRN-NONEXISTENT-999" # tests/bdd/steps/error_handling_steps.py:66
+    Then I should receive an error response          # tests/bdd/steps/common_steps.py:100
+    And the error should indicate "not found"        # tests/bdd/steps/common_steps.py:108
+    And the error code should be "JOURNEY_NOT_FOUND" # tests/bdd/steps/error_handling_steps.py:766
+      ASSERT FAILED: Expected error code 'JOURNEY_NOT_FOUND' in response
+
+
+  @error @non_existent_stage
+  Scenario: Handle non-existent stage operations           # tests/bdd/features/journey/error_handling.feature:38
+    Given the MCP server is running                        # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                        # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-STAGE-ERR" exists                 # tests/bdd/steps/common_steps.py:43
+    When I try to execute job on stage "invalid_stage_xyz" # tests/bdd/steps/error_handling_steps.py:72
+    Then I should receive an error response                # tests/bdd/steps/common_steps.py:100
+    And the error should indicate invalid stage            # tests/bdd/steps/job_lifecycle_steps.py:839
+      ASSERT FAILED:
+
+
+  @error @non_existent_job
+  Scenario: Handle non-existent job operations                    # tests/bdd/features/journey/error_handling.feature:45
+    Given the MCP server is running                               # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                               # tests/bdd/steps/common_steps.py:25
+    When I try to get logs for non-existent job "JOB-INVALID-999" # tests/bdd/steps/error_handling_steps.py:94
+    Then I should receive an error response                       # tests/bdd/steps/common_steps.py:100
+    And the error should indicate "Job not found"                 # tests/bdd/steps/common_steps.py:108
+      ASSERT FAILED: Expected error message containing 'Job not found'
+
+
+  @error @empty_values
+  Scenario: Handle empty required values           # tests/bdd/features/journey/error_handling.feature:51
+    Given the MCP server is running                # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                # tests/bdd/steps/common_steps.py:25
+    When I try to create a journey with empty name # tests/bdd/steps/error_handling_steps.py:116
+    Then I should receive a validation error       # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should indicate name is required # None
+
+  @error @null_values
+  Scenario: Handle null values in required fields              # tests/bdd/features/journey/error_handling.feature:57
+    Given the MCP server is running                            # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                            # tests/bdd/steps/common_steps.py:25
+    When I send a request with null values for required fields # tests/bdd/steps/error_handling_steps.py:137
+    Then I should receive a validation error                   # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And invalid fields should be listed                        # None
+
+  @error @invalid_data_types
+  Scenario: Handle invalid data types           # tests/bdd/features/journey/error_handling.feature:63
+    Given the MCP server is running             # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication             # tests/bdd/steps/common_steps.py:25
+    When I send a request with:                 # tests/bdd/steps/error_handling_steps.py:158
+      | field    | value     | correct_type |
+      | priority | not-a-num | number       |
+      | status   | 123       | string       |
+    Then I should receive a validation error    # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should indicate type mismatch # None
+
+  @error @invalid_enum_values
+  Scenario: Handle invalid enum values                            # tests/bdd/features/journey/error_handling.feature:72
+    Given the MCP server is running                               # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                               # tests/bdd/steps/common_steps.py:25
+    When I try to update journey status to "super_invalid_status" # tests/bdd/steps/error_handling_steps.py:165
+    Then I should receive a validation error                      # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should list valid status values                 # None
+
+  @error @invalid_priority
+  Scenario: Handle invalid priority values                       # tests/bdd/features/journey/error_handling.feature:78
+    Given the MCP server is running                              # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                              # tests/bdd/steps/common_steps.py:25
+    When I try to create journey with priority "ultra-mega-high" # tests/bdd/steps/error_handling_steps.py:186
+    Then I should receive a validation error                     # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should list valid priority values              # None
+
+  @error @malformed_json
+  Scenario: Handle malformed JSON request            # tests/bdd/features/journey/error_handling.feature:84
+    Given the MCP server is running                  # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                  # tests/bdd/steps/common_steps.py:25
+    When I send a malformed JSON request             # tests/bdd/steps/error_handling_steps.py:208
+    Then I should receive an error response          # tests/bdd/steps/common_steps.py:100
+    And the error should indicate JSON parsing error # tests/bdd/steps/error_handling_steps.py:554
+
+  @error @missing_api_key
+  Scenario: Handle missing API key                # tests/bdd/features/journey/error_handling.feature:90
+    Given the MCP server is running               # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication               # tests/bdd/steps/common_steps.py:25
+    Given I remove the API key from headers       # tests/bdd/steps/error_handling_steps.py:450
+    When I try to list journeys                   # tests/bdd/steps/error_handling_steps.py:231
+    Then I should receive an authentication error # tests/bdd/steps/error_handling_steps.py:561
+      ASSERT FAILED: Expected 401 or 403, got 422
+
+    And HTTP status should be 401 or 403          # None
+
+  @error @invalid_api_key
+  Scenario: Handle invalid API key                 # tests/bdd/features/journey/error_handling.feature:97
+    Given the MCP server is running                # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                # tests/bdd/steps/common_steps.py:25
+    Given I use an invalid API key "wrong-key-123" # tests/bdd/steps/error_handling_steps.py:456
+    When I try to list journeys                    # tests/bdd/steps/error_handling_steps.py:231
+    Then I should receive an authentication error  # tests/bdd/steps/error_handling_steps.py:561
+      ASSERT FAILED: Expected 401 or 403, got 200
+
+
+  @error @delete_without_confirmation
+  Scenario: Handle delete without confirmation flag       # tests/bdd/features/journey/error_handling.feature:103
+    Given the MCP server is running                       # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                       # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-DELETE-NO-CONFIRM" exists        # tests/bdd/steps/common_steps.py:43
+    When I try to delete the journey without confirmation # tests/bdd/steps/error_handling_steps.py:251
+    Then I should receive an error response               # tests/bdd/steps/common_steps.py:100
+    And the error should indicate confirmation required   # tests/bdd/steps/error_handling_steps.py:578
+
+  @error @update_immutable_fields
+  Scenario: Handle update of immutable fields              # tests/bdd/features/journey/error_handling.feature:110
+    Given the MCP server is running                        # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                        # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-IMMUTABLE" exists                 # tests/bdd/steps/common_steps.py:43
+    When I try to update immutable fields:                 # tests/bdd/steps/error_handling_steps.py:272
+      | field     | value         |
+      | journeyId | JRN-DIFFERENT |
+      | createdAt | 2020-01-01    |
+    Then the update should fail or ignore immutable fields # tests/bdd/steps/error_handling_steps.py:585
+    And the original values should remain unchanged        # tests/bdd/steps/error_handling_steps.py:592
+
+  @error @concurrent_updates
+  Scenario: Handle concurrent update conflicts             # tests/bdd/features/journey/error_handling.feature:120
+    Given the MCP server is running                        # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                        # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-CONCURRENT" exists                # tests/bdd/steps/common_steps.py:43
+    When two users update the journey simultaneously       # tests/bdd/steps/error_handling_steps.py:294
+    Then one update should succeed                         # tests/bdd/steps/error_handling_steps.py:599
+    And the other should handle the conflict appropriately # tests/bdd/steps/error_handling_steps.py:606
+
+  @error @timeout
+  Scenario: Handle operation timeout                     # tests/bdd/features/journey/error_handling.feature:127
+    Given the MCP server is running                      # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                      # tests/bdd/steps/common_steps.py:25
+    Given a journey with extremely large dataset         # tests/bdd/steps/error_handling_steps.py:481
+    When I request comprehensive data with short timeout # tests/bdd/steps/error_handling_steps.py:300
+    Then I should receive a timeout error                # tests/bdd/steps/error_handling_steps.py:613
+    And the error should be handled gracefully           # tests/bdd/steps/logs_and_reports_steps.py:903
+      ASSERT FAILED:
+
+
+  @error @database_connection
+  Scenario: Handle database connection errors        # tests/bdd/features/journey/error_handling.feature:134
+    Given the MCP server is running                  # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                  # tests/bdd/steps/common_steps.py:25
+    Given the database connection is interrupted     # tests/bdd/steps/error_handling_steps.py:462
+    When I try to list journeys                      # tests/bdd/steps/error_handling_steps.py:231
+    Then I should receive a service error            # tests/bdd/steps/error_handling_steps.py:619
+    And the error should indicate connectivity issue # tests/bdd/steps/error_handling_steps.py:625
+
+  @error @partial_data
+  Scenario: Handle partial data corruption      # tests/bdd/features/journey/error_handling.feature:141
+    Given the MCP server is running             # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication             # tests/bdd/steps/common_steps.py:25
+    Given a journey with corrupted records      # tests/bdd/steps/error_handling_steps.py:468
+    When I try to read the journey              # tests/bdd/steps/error_handling_steps.py:322
+    Then I should receive partial data          # tests/bdd/steps/error_handling_steps.py:632
+    And I should receive a data integrity error # tests/bdd/steps/error_handling_steps.py:639
+
+  @error @circular_dependencies
+  Scenario: Handle circular stage dependencies           # tests/bdd/features/journey/error_handling.feature:148
+    Given the MCP server is running                      # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                      # tests/bdd/steps/common_steps.py:25
+    Given a journey with stages                          # tests/bdd/steps/error_handling_steps.py:475
+    When I try to create circular dependencies           # tests/bdd/steps/error_handling_steps.py:328
+    Then the validation should prevent it                # tests/bdd/steps/error_handling_steps.py:646
+    And the error should explain the circular dependency # tests/bdd/steps/error_handling_steps.py:653
+
+  @error @rate_limiting
+  Scenario: Handle rate limit exceeded         # tests/bdd/features/journey/error_handling.feature:155
+    Given the MCP server is running            # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication            # tests/bdd/steps/common_steps.py:25
+    When I make 100 requests in 1 second       # tests/bdd/steps/error_handling_steps.py:334
+    Then some requests should be rate limited  # tests/bdd/steps/error_handling_steps.py:660
+    And rate limit error should be informative # tests/bdd/steps/error_handling_steps.py:667
+
+  @error @large_payload
+  Scenario: Handle excessively large payloads  # tests/bdd/features/journey/error_handling.feature:161
+    Given the MCP server is running            # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication            # tests/bdd/steps/common_steps.py:25
+    When I send a request with 10MB payload    # tests/bdd/steps/error_handling_steps.py:355
+    Then I should receive a payload size error # tests/bdd/steps/error_handling_steps.py:674
+    And the error should indicate size limit   # tests/bdd/steps/error_handling_steps.py:681
+
+  @error @invalid_characters
+  Scenario: Handle special characters in names                      # tests/bdd/features/journey/error_handling.feature:167
+    Given the MCP server is running                                 # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                                 # tests/bdd/steps/common_steps.py:25
+    When I create a journey with name containing special characters # tests/bdd/steps/error_handling_steps.py:380
+    Then the system should either accept or reject appropriately    # tests/bdd/steps/error_handling_steps.py:688
+    And any rejection should be clearly explained                   # tests/bdd/steps/error_handling_steps.py:696
+
+  @error @negative_numbers
+  Scenario: Handle negative values where inappropriate  # tests/bdd/features/journey/error_handling.feature:173
+    Given the MCP server is running                     # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                     # tests/bdd/steps/common_steps.py:25
+    When I try to set progress to -50                   # tests/bdd/steps/error_handling_steps.py:400
+    Then I should receive a validation error            # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should indicate valid range           # None
+
+  @error @out_of_range
+  Scenario: Handle out of range values                 # tests/bdd/features/journey/error_handling.feature:179
+    Given the MCP server is running                    # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                    # tests/bdd/steps/common_steps.py:25
+    When I try to set progress to 150                  # tests/bdd/steps/error_handling_steps.py:400
+    Then I should receive a validation error           # tests/bdd/steps/common_steps.py:127
+      ASSERT FAILED: No validation error received
+
+    And the error should indicate valid range is 0-100 # None
+
+  @error @duplicate_operations
+  Scenario: Handle duplicate create operations                # tests/bdd/features/journey/error_handling.feature:185
+    Given the MCP server is running                           # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                           # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-DUP-001" exists                      # tests/bdd/steps/common_steps.py:43
+    When I try to create another journey with same ID         # tests/bdd/steps/error_handling_steps.py:422
+    Then the system should handle the duplicate appropriately # tests/bdd/steps/error_handling_steps.py:717
+
+  @error @orphaned_resources
+  Scenario: Handle orphaned resources                       # tests/bdd/features/journey/error_handling.feature:191
+    Given the MCP server is running                         # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                         # tests/bdd/steps/common_steps.py:25
+    Given orphaned job records exist without parent journey # tests/bdd/steps/error_handling_steps.py:501
+    When I try to access the orphaned resources             # tests/bdd/steps/error_handling_steps.py:428
+    Then the system should handle gracefully                # tests/bdd/steps/error_handling_steps.py:724
+    And appropriate warnings should be issued               # tests/bdd/steps/error_handling_steps.py:731
+
+  @error @cascading_failures
+  Scenario: Handle cascading operation failures               # tests/bdd/features/journey/error_handling.feature:198
+    Given the MCP server is running                           # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                           # tests/bdd/steps/common_steps.py:25
+    Given a journey with dependent resources                  # tests/bdd/steps/error_handling_steps.py:494
+    When a critical operation fails                           # tests/bdd/steps/error_handling_steps.py:434
+    Then dependent operations should be handled appropriately # tests/bdd/steps/error_handling_steps.py:738
+    And rollback should occur if necessary                    # tests/bdd/steps/error_handling_steps.py:745
+
+  @error @recovery
+  Scenario: Error recovery and retry logic                # tests/bdd/features/journey/error_handling.feature:205
+    Given the MCP server is running                       # tests/bdd/steps/common_steps.py:15
+    And I have valid authentication                       # tests/bdd/steps/common_steps.py:25
+    Given an operation that can be retried                # tests/bdd/steps/error_handling_steps.py:488
+    When the operation fails temporarily                  # tests/bdd/steps/error_handling_steps.py:440
+    Then the system should provide retry information      # tests/bdd/steps/error_handling_steps.py:752
+    And subsequent retry should succeed if issue resolved # tests/bdd/steps/error_handling_steps.py:759
+
+Feature: Job Execution and Monitoring # tests/bdd/features/journey/job_execution.feature:1
+  As a transformation manager
+  I want to execute and monitor transformation jobs
+  So that I can process data through the defined journey stages
+  Feature: Job Execution and Monitoring  # tests/bdd/features/journey/job_execution.feature:1
+
+  @execution @single_stage
+  Scenario: Execute a single stage                        # tests/bdd/features/journey/job_execution.feature:14
+    Given the Journey Manager CLI is running              # None
+    And I am authenticated as "test-user@example.com"     # None
+    And a journey "JRN-EXEC-TEST" exists                  # None
+    And the journey has configured stages and rules       # None
+    And the journey is selected as current                # None
+    Given the stage "raw_analysis" is ready for execution # None
+    When I navigate to "Job Execution"                    # None
+    And I select "Execute Single Stage"                   # None
+    And I choose stage "raw_analysis"                     # None
+    And I confirm execution parameters:                   # None
+      | parameter        | value                    |
+      | input_location   | s3://data/input/raw.json |
+      | output_location  | s3://data/output/        |
+      | retry_on_failure | yes                      |
+    Then I should see "Job started successfully"          # None
+    And a job ID should be generated starting with "JOB-" # None
+    And the job status should show "running"              # None
+
+  @execution @full_journey
+  Scenario: Execute complete journey                  # tests/bdd/features/journey/job_execution.feature:29
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given all stages are configured and enabled       # None
+    When I navigate to "Job Execution"                # None
+    And I select "Execute Journey"                    # None
+    And I confirm journey execution with options:     # None
+      | option          | value |
+      | skip_completed  | yes   |
+      | stop_on_error   | no    |
+      | parallel_stages | yes   |
+    Then I should see "Journey execution started"     # None
+    And the first stage should begin execution        # None
+    And progress should be tracked for each stage     # None
+
+  @execution @monitoring
+  Scenario: Monitor running job progress                     # tests/bdd/features/journey/job_execution.feature:43
+    Given the Journey Manager CLI is running                 # None
+    And I am authenticated as "test-user@example.com"        # None
+    And a journey "JRN-EXEC-TEST" exists                     # None
+    And the journey has configured stages and rules          # None
+    And the journey is selected as current                   # None
+    Given a job is currently running for stage "tmf_mapping" # None
+    When I navigate to "Job Execution"                       # None
+    And I select "Monitor Jobs"                              # None
+    Then I should see the running job with:                  # None
+      | field             | visible |
+      | Job ID            | yes     |
+      | Stage Name        | yes     |
+      | Status            | yes     |
+      | Progress %        | yes     |
+      | Records Processed | yes     |
+      | Start Time        | yes     |
+      | Elapsed Time      | yes     |
+    And the progress should update in real-time              # None
+
+  @execution @pause_resume
+  Scenario: Pause and resume job execution            # tests/bdd/features/journey/job_execution.feature:59
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given a job is running for the journey            # None
+    When I navigate to "Job Execution"                # None
+    And I select "Pause Job"                          # None
+    And I confirm the pause action                    # None
+    Then the job status should change to "paused"     # None
+    And no new records should be processed            # None
+    When I select "Resume Job"                        # None
+    Then the job should continue from where it paused # None
+    And the status should change back to "running"    # None
+
+  @execution @cancel
+  Scenario: Cancel running job                        # tests/bdd/features/journey/job_execution.feature:71
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given a job is running with ID "JOB-TEST-001"     # None
+    When I navigate to "Job Execution"                # None
+    And I select "Cancel Job"                         # None
+    And I choose job "JOB-TEST-001"                   # None
+    And I confirm cancellation                        # None
+    Then I should see "Job cancelled successfully"    # None
+    And the job status should be "cancelled"          # None
+    And partial results should be preserved           # None
+
+  @execution @retry
+  Scenario: Retry failed job                          # tests/bdd/features/journey/job_execution.feature:82
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given a job has failed with ID "JOB-TEST-002"     # None
+    When I navigate to "Job Execution"                # None
+    And I select "Retry Failed Job"                   # None
+    And I choose job "JOB-TEST-002"                   # None
+    And I select retry options:                       # None
+      | option           | value            |
+      | retry_from       | point_of_failure |
+      | max_retries      | 3                |
+      | backoff_strategy | exponential      |
+    Then a new job should be created                  # None
+    And it should start from the failure point        # None
+    And the original job should be linked             # None
+
+  @execution @logs
+  Scenario: View job execution logs                   # tests/bdd/features/journey/job_execution.feature:97
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given a completed job exists with logs            # None
+    When I navigate to "Logs & Reports"               # None
+    And I select "View Job Logs"                      # None
+    And I choose a specific job                       # None
+    Then I should see detailed logs including:        # None
+      | log_type | content                   |
+      | INFO     | Processing started        |
+      | DEBUG    | Record validation details |
+      | WARNING  | Data quality issues       |
+      | ERROR    | Failed record details     |
+    And I should be able to filter by log level       # None
+
+  @execution @metrics
+  Scenario: View execution metrics                    # tests/bdd/features/journey/job_execution.feature:111
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given multiple jobs have been executed            # None
+    When I navigate to "Logs & Reports"               # None
+    And I select "Execution Metrics"                  # None
+    Then I should see metrics including:              # None
+      | metric           | value_type  |
+      | Total Records    | number      |
+      | Success Rate     | percentage  |
+      | Average Duration | time        |
+      | Error Rate       | percentage  |
+      | Throughput       | records/sec |
+    And I should be able to view trends over time     # None
+
+  @execution @error_handling
+  Scenario: Handle execution errors gracefully               # tests/bdd/features/journey/job_execution.feature:125
+    Given the Journey Manager CLI is running                 # None
+    And I am authenticated as "test-user@example.com"        # None
+    And a journey "JRN-EXEC-TEST" exists                     # None
+    And the journey has configured stages and rules          # None
+    And the journey is selected as current                   # None
+    Given a job encounters an error during execution         # None
+    When the error occurs                                    # None
+    Then the error should be logged with details             # None
+    And the job should follow the configured error strategy: # None
+      | strategy | action                         |
+      | retry    | Attempt retry with backoff     |
+      | skip     | Skip record and continue       |
+      | fail     | Stop execution and mark failed |
+    And error notifications should be sent                   # None
+
+  @execution @dependencies
+  Scenario: Execute stages with dependencies                          # tests/bdd/features/journey/job_execution.feature:137
+    Given the Journey Manager CLI is running                          # None
+    And I am authenticated as "test-user@example.com"                 # None
+    And a journey "JRN-EXEC-TEST" exists                              # None
+    And the journey has configured stages and rules                   # None
+    And the journey is selected as current                            # None
+    Given stage "tmf_mapping" depends on "stripped_schema" completion # None
+    When executing the journey                                        # None
+    Then "stripped_schema" should execute first                       # None
+    And "tmf_mapping" should wait for completion                      # None
+    When "stripped_schema" completes successfully                     # None
+    Then "tmf_mapping" should start automatically                     # None
+
+  @execution @parallel
+  Scenario: Execute independent stages in parallel                # tests/bdd/features/journey/job_execution.feature:146
+    Given the Journey Manager CLI is running                      # None
+    And I am authenticated as "test-user@example.com"             # None
+    And a journey "JRN-EXEC-TEST" exists                          # None
+    And the journey has configured stages and rules               # None
+    And the journey is selected as current                        # None
+    Given stages "validation" and "analysis" have no dependencies # None
+    When executing with parallel mode enabled                     # None
+    Then both stages should start simultaneously                  # None
+    And resources should be allocated appropriately               # None
+    And completion should wait for both stages                    # None
+
+  @execution @schedule
+  Scenario: Schedule job execution                    # tests/bdd/features/journey/job_execution.feature:154
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given I want to schedule a recurring execution    # None
+    When I navigate to "Job Execution"                # None
+    And I select "Schedule Job"                       # None
+    And I configure schedule:                         # None
+      | field        | value           |
+      | frequency    | daily           |
+      | time         | 02:00 UTC       |
+      | days         | weekdays        |
+      | notification | on_failure_only |
+    Then the schedule should be created               # None
+    And jobs should execute automatically             # None
+    And execution history should be maintained        # None
+
+  @execution @data_validation
+  Scenario: Validate data before execution            # tests/bdd/features/journey/job_execution.feature:169
+    Given the Journey Manager CLI is running          # None
+    And I am authenticated as "test-user@example.com" # None
+    And a journey "JRN-EXEC-TEST" exists              # None
+    And the journey has configured stages and rules   # None
+    And the journey is selected as current            # None
+    Given I am about to execute a stage               # None
+    When I enable pre-execution validation            # None
+    Then the system should:                           # None
+      | check                   | action             |
+      | Input file exists       | Verify S3 location |
+      | Schema compatibility    | Validate structure |
+      | Required fields present | Check completeness |
+      | Data format correct     | Verify formatting  |
+    And validation errors should prevent execution    # None
+    And a validation report should be generated       # None
+
+Feature: Job Lifecycle Management # tests/bdd/features/journey/job_lifecycle.feature:1
+  As a transformation manager
+  I want to manage job execution and lifecycle
+  So that I can control and monitor transformation jobs
+  Feature: Job Lifecycle Management  # tests/bdd/features/journey/job_lifecycle.feature:1
+
+  @job @execution @trigger
+  Scenario Outline: Execute job with different trigger types -- @1.1                                            # tests/bdd/features/journey/job_lifecycle.feature:22
+    Given the MCP server is running                                                                             # tests/bdd/steps/common_steps.py:15
+    And a journey exists with configured stages                                                                 # tests/bdd/steps/common_steps.py:49
+    And I have valid authentication                                                                             # tests/bdd/steps/common_steps.py:25
+    Given a journey "JRN-TEST-001" has stages configured                                                        # tests/bdd/steps/job_lifecycle_steps.py:63
+    When I execute a job on stage "raw_analysis" triggered by "system" with reason "Automated system execution" # tests/bdd/steps/job_lifecycle_steps.py:159
+    Then the job should start successfully                                                                      # tests/bdd/steps/job_lifecycle_steps.py:579
+    And the job should have ID starting with "JOB-"                                                             # tests/bdd/steps/job_lifecycle_steps.py:591
+      ASSERT FAILED: Job ID is empty
+
+    And the job metadata should record trigger type "system"                                                    # None
+    And the job should be in "pending" or "running" status                                                      # None

@@ -1,0 +1,51 @@
+workflows:
+  - name: Credit Approval Flow
+    trigger: credit_limit_change > 10%
+    description: Approval workflow for credit limit changes above threshold
+    steps:
+      - action: evaluate_risk_tier
+        description: Check customer risk tier before processing
+        system: Salesforce
+      - action: submit_for_approval
+        approver_role: Finance Manager
+        sla_hours: 24
+        description: Route to Finance Manager for review
+      - action: escalate_if_needed
+        condition: change > 25%
+        approver_role: VP Finance
+        sla_hours: 48
+      - action: sync_to_erp
+        system: Oracle
+        description: Sync approved credit limit to Oracle AR_Customer
+      - action: create_audit_entry
+        description: Log approval decision and details
+    constraints:
+      - blocked_during: financial_close
+      - requires: risk_tier_evaluation
+      - max_value: 1000000
+
+  - name: Customer Onboarding Flow
+    trigger: new_enterprise_customer_created
+    description: Multi-system onboarding for new B2B customers
+    steps:
+      - action: create_salesforce_account
+        system: Salesforce
+        required_fields: [Name, Industry, BillingAddress]
+      - action: run_risk_assessment
+        description: Evaluate customer risk profile
+        sla_hours: 4
+      - action: initial_credit_review
+        approver_role: Finance Manager
+        description: Set initial credit limit
+      - action: provision_oracle_customer
+        system: Oracle
+        description: Create customer in Oracle AR module
+        depends_on: create_salesforce_account
+      - action: data_enrichment
+        description: DUNS lookup and credit bureau check
+        parallel: true
+      - action: activate_customer
+        description: Set status to Active across all systems
+    constraints:
+      - sequence: [create_salesforce_account, run_risk_assessment, initial_credit_review, provision_oracle_customer]
+      - rollback_on_failure: true

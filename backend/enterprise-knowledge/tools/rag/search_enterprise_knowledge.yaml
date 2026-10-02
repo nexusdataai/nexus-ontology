@@ -1,0 +1,54 @@
+# ============================================================================
+# Tool: search_enterprise_knowledge
+# Kind: read
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep -- pull rows that match a filter.
+#
+# What it does:
+#   Hybrid semantic search over the enterprise knowledge graph. Combines
+#   vector similarity with graph dependency traversal to find schemas,
+#   policies, workflows, and integration mappings related to a concept.
+#   Use this for questions about business rules, approval thresholds,
+#   cross-system dependencies, and field ownership.
+#
+# Inputs:    query, content_type, limit
+# Reads:     none
+# Writes:    none
+# ============================================================================
+tool_id: search_enterprise_knowledge
+display_name: Search Enterprise Knowledge
+group: rag
+description: Hybrid semantic search over the enterprise knowledge graph. Combines
+  vector similarity with graph dependency traversal to find schemas, policies, workflows,
+  and integration mappings related to a concept. Use this for questions about business
+  rules, approval thresholds, cross-system dependencies, and field ownership.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Natural language question about enterprise data, policies, or workflows
+    content_type:
+      type: string
+      enum:
+      - onto_schema
+      - onto_policy
+      - onto_workflow
+      - onto_integration
+      description: Optional filter by knowledge category
+    limit:
+      type: integer
+      description: Max results (default 15)
+      default: 15
+  required:
+  - query
+connector_api: null
+consumes_entities: []
+produces_entities: []
+tags:
+- rag
+- read
+example_invocation: null

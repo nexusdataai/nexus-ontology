@@ -1,0 +1,39 @@
+tool_id: run_award_scenario
+display_name: Run Award Scenario
+group: cpq_buy
+description: Build a Sourcing_Scenario for an RFx_Event using a split strategy
+  (cost_optimal | risk_balanced | diversified). Persists the scenario with
+  modeled savings, risk score, and concentration.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    event_id:
+      type: string
+      description: RFx_Event ID
+    split_strategy:
+      type: string
+      description: cost_optimal | risk_balanced | diversified
+  required:
+  - event_id
+connector_api: sourcing.scenario.create
+consumes_entities:
+- RFx_Event
+- RFx_Line
+- Vendor_Quote
+- Vendor_Quote_Line
+- Should_Cost_Model
+- Vendor_Master
+produces_entities:
+- Sourcing_Scenario
+- Audit_Event
+tags:
+- cpq-buy
+- award
+- scenario
+- write
+example_invocation:
+  event_id: RFX-00007
+  split_strategy: risk_balanced

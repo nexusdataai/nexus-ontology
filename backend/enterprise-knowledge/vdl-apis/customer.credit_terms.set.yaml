@@ -1,0 +1,19 @@
+api_id: vdl.customer.credit_terms.set
+verb: write
+virtual_entity: Customer
+description: Update a customer's payment terms in the ERP of record via the Oracle connector.
+risk_level: high_risk_write
+parameters_schema:
+  type: object
+  properties:
+    customer_id:
+      type: string
+    payment_terms:
+      type: string
+  required: [customer_id, payment_terms]
+impl:
+  - connector_api_id: oracle.customer.terms.set
+    arg_mapping:
+      customer_id: customer_id
+      payment_terms: payment_terms
+tags: [customer, ar, terms, o2c]

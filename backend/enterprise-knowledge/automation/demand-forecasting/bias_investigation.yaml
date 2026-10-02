@@ -1,0 +1,80 @@
+use_case_id: df.bias_investigation
+title: Forecast Bias Investigation
+solution_id: demand-forecasting
+bucket: supply-chain
+description: 'Investigate persistent forecast bias. Surface SKUs with persistent over-
+  or under-forecast bias and create override rows to correct the trend.
+
+  '
+status: active
+tags:
+- forecast
+- bias
+- investigation
+kpi_impact:
+- mape_pct
+- bias_pct
+consumes_entities:
+- Forecast
+- Actual_Sales
+produces_entities:
+- Forecast_Override
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_forecast_bias
+    params:
+      top_n: 25
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide override magnitude + direction per SKU x region. LLM-only step;
+
+    no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Create Forecast Override
+    order: 1
+    tool: create_forecast_override
+    params:
+      product_id: ${item.product_id}
+      region: ${item.region}
+      period: 2026-W22
+      override_qty: 0
+      justification: bias-correction
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_forecast_bias
+    params:
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: bias_pct
+      kpi_before: 0
+      kpi_after: 0

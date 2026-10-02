@@ -1,0 +1,129 @@
+id: INTEGRATION_SOCIAL_LISTENING_V1_0
+name: Social Listening & Market Data Feed
+version: "1.0"
+source_system: Social_Listening_APIs
+target_system: Ontology_Layer
+sync_type: unidirectional
+frequency: "4-hour refresh cycle (Critical/High severity signals pushed immediately)"
+description: >
+  Unidirectional feed from social listening APIs, news sources, weather services,
+  and market data providers into the Ontology layer. Aggregates market signals,
+  brand sentiment, and commodity prices for supply chain risk assessment and
+  strategic decision-making.
+
+mappings:
+  - name: Market Signals
+    source_object: News_Social_Weather_APIs
+    target_object: Market_Signal
+    direction: APIs → Ontology
+    conflict_resolution: "Latest signal wins; historical signals retained"
+    fields:
+      - source: News_Social_Weather_APIs.content
+        target: Market_Signal.source
+        direction: "source_to_target"
+        transformation: "NLP classification identifies source type (News, Social, Weather)"
+      - source: News_Social_Weather_APIs.content
+        target: Market_Signal.event_type
+        direction: "source_to_target"
+        transformation: "NLP classification categorizes event (Supply Disruption, Regulatory, Weather, etc.)"
+      - source: News_Social_Weather_APIs.content
+        target: Market_Signal.location
+        direction: "source_to_target"
+        transformation: "NLP entity extraction identifies geographic location"
+      - source: News_Social_Weather_APIs.content
+        target: Market_Signal.severity
+        direction: "source_to_target"
+        transformation: "NLP classification assigns severity (Critical, High, Medium, Low)"
+        constraint: "Critical/High severity signals pushed immediately rather than waiting for 4-hour cycle"
+      - source: News_Social_Weather_APIs.content
+        target: Market_Signal.affected_commodity
+        direction: "source_to_target"
+        transformation: "NLP classification maps signal to affected commodity categories"
+
+  - name: Brand Sentiment
+    source_object: Social_Media_Monitoring
+    target_object: Brand_Sentiment
+    direction: Social Media → Ontology
+    conflict_resolution: "Latest aggregation wins"
+    fields:
+      - source: Social_Media_Monitoring.mentions
+        target: Brand_Sentiment.brand
+        direction: "source_to_target"
+        transformation: "Aggregate mentions by brand entity"
+      - source: Social_Media_Monitoring.mentions
+        target: Brand_Sentiment.product_category
+        direction: "source_to_target"
+        transformation: "Aggregate mentions by product category"
+      - source: Social_Media_Monitoring.mentions
+        target: Brand_Sentiment.platform
+        direction: "source_to_target"
+        transformation: "Aggregate mentions by social platform (Twitter, Reddit, Instagram, etc.)"
+      - source: Social_Media_Monitoring.mentions
+        target: Brand_Sentiment.sentiment_score
+        direction: "source_to_target"
+        transformation: "Compute weighted sentiment score from mention sentiment analysis"
+      - source: Social_Media_Monitoring.mentions
+        target: Brand_Sentiment.topic_trends
+        direction: "source_to_target"
+        transformation: "Detect emerging topic trends via clustering and frequency analysis"
+
+  - name: Commodity Prices
+    source_object: Market_Data_APIs
+    target_object: Commodity_Price
+    direction: Market Data → Ontology
+    conflict_resolution: "Latest market close wins"
+    fields:
+      - source: Market_Data_APIs.daily_close
+        target: Commodity_Price.commodity
+        direction: "source_to_target"
+        note: "Tracked commodities: Sugar, PET_Resin, Aluminum, Glass, Concentrate, CO2, High_Fructose_Corn_Syrup"
+      - source: Market_Data_APIs.daily_close
+        target: Commodity_Price.close_price
+        direction: "source_to_target"
+      - source: Market_Data_APIs.daily_close
+        target: Commodity_Price.currency
+        direction: "source_to_target"
+      - source: Market_Data_APIs.daily_close
+        target: Commodity_Price.change_pct_30d
+        direction: "source_to_target"
+        transformation: "Calculate 30-day rolling percentage change from historical close prices"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "market-intelligence-alerts@company.com"
+  fallback: "Stale data flagged with last_refresh_timestamp; downstream consumers use most recent available data"
+
+dependencies:
+  - entity: Market_Signal
+    system: Ontology_Layer
+    relationship: "Target entity for classified market signals"
+  - entity: Brand_Sentiment
+    system: Ontology_Layer
+    relationship: "Target entity for aggregated brand sentiment"
+  - entity: Commodity_Price
+    system: Ontology_Layer
+    relationship: "Target entity for commodity price tracking"
+  - entity: supply-chain-risk-policy
+    system: Internal
+    relationship: "Governs severity thresholds and immediate-push rules for critical signals"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Governs acceptable data latency for market data feeds"
+
+related_entities:
+  - Market_Signal
+  - Brand_Sentiment
+  - Commodity_Price
+triggered_by_workflows:
+  - Supplier Risk Scoring
+  - Disruption Response
+  - Demand Forecast Generation
+  - Customer Churn Prediction
+  - ESG Reporting
+used_by_apps:
+  - "Supply Chain Risk"
+  - "Demand Forecasting"
+  - "Customer 360"
+  - "ESG Tracker"

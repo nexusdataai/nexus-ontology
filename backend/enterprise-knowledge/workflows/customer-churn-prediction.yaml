@@ -1,0 +1,110 @@
+id: WORKFLOW_CUSTOMER_CHURN_V1_0
+name: Customer Churn Prediction
+version: "1.0"
+system: Internal
+scor_process: Deliver
+trigger:
+  object: Account
+  event: "Scheduled monthly OR order volume decline detected"
+  condition: "Monthly (1st business day) OR Account order volume declines >20% vs prior quarter"
+description: >
+  Predicts customer churn probability using a gradient-boosted model trained
+  on historical churn events. Assembles a 360-degree customer profile from
+  purchase history, fulfillment KPIs, financial metrics, returns, and
+  sentiment. Classifies churn drivers and maps each to an optimal retention
+  action, then pushes retention tasks to Salesforce CRM for account owners.
+
+steps:
+  - order: 1
+    name: Profile Assembly
+    system: Internal
+    action: "For each Account, aggregate: purchase history from Opportunity/Line_Items, fulfillment KPIs from Delivery_Document (fill rate, on-time%), financial metrics from Oracle_AR (revenue, margin, deductions, payment behavior), returns from Return_Order, sentiment from Brand_Sentiment"
+
+  - order: 2
+    name: Feature Engineering
+    system: Internal
+    action: "Compute: order frequency velocity, basket composition trend, complaint frequency, payment timeliness change, competitive signals"
+
+  - order: 3
+    name: Churn Scoring
+    system: Internal
+    action: "Gradient-boosted model trained on historical churn events; predict 30/60/90-day churn probability per account"
+
+  - order: 4
+    name: Driver Segmentation
+    system: Internal
+    action: "Classify churn driver per account"
+    mapping:
+      - "Price_Sensitivity"
+      - "Network_Quality"
+      - "Competitor_Pull"
+      - "Service_Issue"
+      - "Life_Event"
+
+  - order: 5
+    name: Match Retention Offer
+    system: Internal
+    action: "Map churn driver to optimal retention action"
+    rules:
+      - "Price_Sensitivity → discount/loyalty program"
+      - "Service_Issue → priority escalation + SLA commitment"
+      - "Competitor_Pull → match/beat offer"
+      - "Network_Quality → infrastructure review + credit"
+      - "Life_Event → flexible plan adjustment"
+
+  - order: 6
+    name: Push to CRM
+    system: Salesforce
+    action: "Create retention task on Account; assign to account owner; attach recommended offer; set SLA for outreach"
+    sla: "48 hours for Platinum/Gold accounts"
+
+dependencies:
+  - entity: Account
+    system: Salesforce
+    relationship: "Target entity — churn scored and retention task created here"
+  - entity: Opportunity
+    system: Salesforce
+    relationship: "Purchase history source for profile assembly"
+  - entity: Opportunity_Line_Item
+    system: Salesforce
+    relationship: "Line-item detail for basket composition analysis"
+  - entity: Delivery_Document
+    system: SAP
+    relationship: "Fulfillment KPIs — fill rate and on-time delivery"
+  - entity: Return_Order
+    system: SAP
+    relationship: "Return frequency and reasons for churn signal"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Revenue, margin, and payment behavior metrics"
+  - entity: AR_Invoice
+    system: Oracle
+    relationship: "Invoice-level financial data for deduction analysis"
+  - entity: Cost_Accounting
+    system: Oracle
+    relationship: "Margin calculation for account profitability"
+  - entity: Brand_Sentiment
+    system: Social_Listening
+    relationship: "Customer sentiment signal for churn prediction"
+  - entity: Campaign
+    system: Salesforce
+    relationship: "Retention campaign history and offer templates"
+  - entity: pricing-discount-policy
+    system: Internal
+    relationship: "Governs discount limits for retention offers"
+
+related_entities:
+  - Account
+  - Opportunity
+  - Opportunity_Line_Item
+  - Delivery_Document
+  - Return_Order
+  - AR_Customer
+  - AR_Invoice
+  - Cost_Accounting
+  - Brand_Sentiment
+  - Campaign
+related_policies:
+  - pricing-discount-policy
+use_case: "Customer 360 & Revenue Growth Intelligence"
+scor_process: "Deliver"

@@ -1,0 +1,94 @@
+id: WORKFLOW_DISRUPTION_RESPONSE_V1_0
+name: Disruption Response
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Market_Signal
+  field: Severity
+  condition: "Market_Signal with Severity = High or Critical detected"
+description: >
+  Rapid response workflow triggered by high/critical market disruption signals.
+  Assesses impact across the supply base, identifies affected orders and
+  inventory exposure, activates alternative suppliers, triggers emergency
+  procurement when safety stock falls below threshold, and updates vendor
+  risk scores for affected suppliers.
+
+steps:
+  - order: 1
+    name: Assess Impact Scope
+    system: Internal
+    action: "Match signal location/commodity against Vendor_Master locations and Material_Master dependencies to determine affected suppliers and materials"
+
+  - order: 2
+    name: Identify Affected Orders
+    system: Oracle/SAP
+    action: "Find open Purchase_Orders and Goods_Receipts from affected vendors; calculate exposure value"
+
+  - order: 3
+    name: Check Safety Stock
+    system: SAP
+    action: "For affected materials, check Inventory_Position and Material_Plant safety stock levels; calculate days-of-supply remaining"
+
+  - order: 4
+    name: Activate Alternatives
+    system: SAP
+    action: "Query Source_List for secondary/emergency vendors for affected materials; evaluate lead times and capacity"
+
+  - order: 5
+    name: Trigger Emergency Procurement
+    system: Oracle
+    action: "If safety stock <10 days and alternative available, generate emergency Purchase_Order"
+    rules:
+      - "Safety stock < 10 days triggers emergency order"
+      - "Alternative vendor must exist in Source_List"
+    failure_action: "Alert supply chain director for manual intervention"
+
+  - order: 6
+    name: Notify Stakeholders
+    system: Internal
+    action: "Alert procurement head, supply chain director, and affected plant managers; push to dashboard"
+
+  - order: 7
+    name: Update Risk Scores
+    system: Internal
+    action: "Trigger Supplier Risk Scoring workflow for affected vendors with updated signals"
+
+dependencies:
+  - entity: Market_Signal
+    system: Social_Listening
+    relationship: "Trigger source — disruption event detected here"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Vendor location and classification for impact matching"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Material dependencies for affected-item identification"
+  - entity: Source_List
+    system: SAP
+    relationship: "Alternative vendor lookup for emergency sourcing"
+  - entity: Purchase_Order
+    system: Oracle
+    relationship: "Open orders checked for exposure and emergency PO creation"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Current stock levels for days-of-supply calculation"
+  - entity: Material_Plant
+    system: SAP
+    relationship: "Safety stock parameters per material-plant combination"
+  - entity: supply-chain-risk-policy
+    system: Internal
+    relationship: "Governs disruption response thresholds and escalation rules"
+
+related_entities:
+  - Market_Signal
+  - Vendor_Master
+  - Material_Master
+  - Source_List
+  - Purchase_Order
+  - Inventory_Position
+  - Material_Plant
+related_policies:
+  - supply-chain-risk-policy
+use_case: "Supply Chain Risk & Disruption Radar"
+scor_process: "Source"

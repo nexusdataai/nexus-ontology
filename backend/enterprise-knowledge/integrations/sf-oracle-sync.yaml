@@ -1,0 +1,90 @@
+id: INTEGRATION_SF_ORACLE_SYNC_V1_0
+name: Salesforce to Oracle ERP Sync
+version: "1.0"
+source_system: Salesforce
+target_system: Oracle
+sync_type: bidirectional
+frequency: "Near real-time (15-minute sync interval)"
+description: >
+  Field-level integration mapping between Salesforce CRM and Oracle ERP.
+  Salesforce is the source of truth for customer and product data.
+  Oracle is the source of truth for financial transactions and GL.
+
+mappings:
+  - name: Customer Sync
+    source_object: Account
+    target_object: AR_Customer
+    direction: Salesforce → Oracle
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Account.Name
+        target: AR_Customer.customer_name
+        direction: "source_to_target"
+      - source: Account.Credit_Limit__c
+        target: AR_Customer.credit_limit
+        direction: "source_to_target"
+        requires_approval: true
+        constraint: "Only syncs after approval workflow completes"
+      - source: Account.Risk_Tier__c
+        target: AR_Customer.collection_priority
+        direction: "source_to_target"
+        transformation: "Low→Standard, Medium→Monitored, High→Escalated, Critical→Suspended"
+      - source: Account.Status
+        target: AR_Customer.customer_status
+        direction: "source_to_target"
+        constraint: "Deactivation blocked if AR balance > 0"
+      - source: Account.BillingAddress
+        target: AR_Customer.billing_address
+        direction: "source_to_target"
+      - source: AR_Customer.ar_balance
+        target: Account.AR_Balance__c
+        direction: "target_to_source"
+        read_only: true
+        note: "Oracle AR balance synced back to Salesforce for visibility"
+
+  - name: Product Sync
+    source_object: cspmb__Price_Item__c
+    target_object: Product_Master
+    direction: Salesforce → Oracle
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: cspmb__Price_Item__c.Name
+        target: Product_Master.product_name
+        direction: "source_to_target"
+      - source: cspmb__Price_Item__c.cspmb__Recurring_Charge__c
+        target: Product_Master.recurring_price
+        direction: "source_to_target"
+      - source: cspmb__Price_Item__c.cspmb__One_Off_Charge__c
+        target: Product_Master.setup_fee
+        direction: "source_to_target"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "finance-integration-alerts@company.com"
+  fallback: "Salesforce value is authoritative; manual Oracle update required"
+
+dependencies:
+  - entity: Account
+    relationship: "Source entity"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Target entity"
+  - entity: Credit Approval Flow
+    system: Internal
+    relationship: "Must complete before credit sync"
+
+related_entities:
+  - Account
+  - AR_Customer
+  - GL_Journal
+  - cspmb__Price_Item__c
+  - Product_Master
+triggered_by_workflows:
+  - Credit Approval Flow
+  - Customer Onboarding
+  - Risk Assessment
+used_by_apps:
+  - "Customer 360"
+  - "Order-to-Cash Monitor"

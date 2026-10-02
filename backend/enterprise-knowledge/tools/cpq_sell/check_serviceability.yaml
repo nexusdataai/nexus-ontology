@@ -1,0 +1,27 @@
+tool_id: check_serviceability
+display_name: Check Serviceability
+group: cpq_sell
+description: Confirm a Serviceability_Footprint covers the quote's ship-to region
+  and channel; return SLA days and minimum-order-quantity.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Account
+- Serviceability_Footprint
+produces_entities: []
+tags:
+- cpq-sell
+- serviceability
+example_invocation:
+  quote_id: QT-00042

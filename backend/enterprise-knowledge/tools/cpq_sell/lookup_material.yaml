@@ -1,0 +1,32 @@
+tool_id: lookup_material
+display_name: Lookup Material
+group: cpq_sell
+description: Fuzzy-resolve free-text product descriptions (e.g. "Cola 330ml",
+  "Energy drink", "PET bottle 1L") to Material_Master rows. Matches on name,
+  description, category, brand, pack_size, pack_config. Use this FIRST when the
+  user gives a product description instead of a Material_ID.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Free-text product description
+    limit:
+      type: integer
+      description: Max results (default 10)
+  required:
+  - query
+connector_api: null
+consumes_entities:
+- Material_Master
+produces_entities: []
+tags:
+- cpq-sell
+- material
+- lookup
+example_invocation:
+  query: Cola 330ml
+  limit: 10

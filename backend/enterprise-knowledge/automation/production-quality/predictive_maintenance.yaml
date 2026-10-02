@@ -1,0 +1,79 @@
+use_case_id: pq.predictive_maintenance
+title: Predictive Maintenance Schedule
+solution_id: production-quality
+bucket: supply-chain
+description: 'Schedule predictive maintenance for at-risk equipment. Predict equipment
+  failure probability and schedule maintenance for any asset above the risk threshold.
+
+  '
+status: active
+tags:
+- pq
+- maintenance
+- predictive
+kpi_impact:
+- unplanned_downtime_hours
+consumes_entities:
+- Equipment
+- Sensor_Reading
+produces_entities:
+- Maintenance_Order
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: predict_equipment_failure
+    params:
+      horizon_days: 30
+      top_n: 20
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide priority + schedule per asset. LLM-only step; no tool binding
+
+    because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Schedule Predictive Maintenance
+    order: 1
+    tool: schedule_predictive_maintenance
+    params:
+      equipment_id: ${item.equipment_id}
+      scheduled_for: '2026-05-30T08:00:00Z'
+      maintenance_type: Predictive
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: predict_equipment_failure
+    params:
+      horizon_days: 30
+      top_n: 20
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: unplanned_downtime_hours
+      kpi_before: 0
+      kpi_after: 0

@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS MCP Server Storage Infrastructure - S3 Bucket for alert-engine Data'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: 'Name of the project (e.g., ecommerce-mcp)'
+    Default: 'ecommerce-mcp'
+  
+  Environment:
+    Type: String
+    Description: 'Environment name (dev, stage, prod)'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  
+  BucketName:
+    Type: String
+    Description: 'S3 bucket name for data storage (must be globally unique)'
+    Default: ''
+  
+Conditions:
+  HasCustomBucketName: !Not [!Equals [!Ref BucketName, '']]
+
+Resources:
+  # Simple S3 Bucket for ecommerce data
+  EcommerceDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If 
+        - HasCustomBucketName
+        - !Ref BucketName
+        - !Sub '${ProjectName}-data-${Environment}-${AWS::AccountId}'
+      
+      # Block public access for security
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-data-bucket-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+
+
+Outputs:
+  StackName:
+    Description: 'Storage stack name'
+    Value: !Ref 'AWS::StackName'
+
+  BucketName:
+    Description: 'S3 bucket name for ecommerce data'
+    Value: !Ref EcommerceDataBucket
+    Export:
+      Name: !Sub '${ProjectName}-bucket-name-${Environment}'
+
+  BucketArn:
+    Description: 'S3 bucket ARN for ecommerce data'
+    Value: !GetAtt EcommerceDataBucket.Arn
+    Export:
+      Name: !Sub '${ProjectName}-bucket-arn-${Environment}'
+
+  BucketRegionalDomainName:
+    Description: 'S3 bucket regional domain name'
+    Value: !GetAtt EcommerceDataBucket.RegionalDomainName
+    Export:
+      Name: !Sub '${ProjectName}-bucket-domain-${Environment}'
+
+

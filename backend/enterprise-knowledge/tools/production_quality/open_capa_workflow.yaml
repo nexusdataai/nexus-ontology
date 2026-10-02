@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: open_capa_workflow
+# Kind: mutate
+# Connector API: sap.capa.open
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- open a real CAPA record the QA team owns.
+#
+# What it does:
+#   Open a Corrective-And-Preventive-Action workflow record in SAP. The CAPA
+#   carries severity + linked entity so the QA team can route it to the right
+#   owner.
+#
+# Inputs:    subject, severity, trigger_event_id (optional), owner (optional),
+#            linked_entity_type (optional), linked_entity_id (optional)
+# Reads:     none
+# Writes:    CAPA, Audit_Event
+# Returns:   {action, capa_id, subject, severity, status}
+# ============================================================================
+tool_id: open_capa_workflow
+display_name: Open CAPA Workflow
+group: production_quality
+tool_kind: mutate
+description: |
+  Open a CAPA record in SAP (corrective + preventive action). High-risk write
+  because it commits an audit-tracked workflow.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: sap.capa.open
+parameters:
+  type: object
+  properties:
+    subject: { type: string }
+    severity: { type: string, description: "low | medium | high | critical" }
+    trigger_event_id: { type: string }
+    owner: { type: string }
+    linked_entity_type: { type: string }
+    linked_entity_id: { type: string }
+  required: [subject]
+consumes_entities: []
+produces_entities: [CAPA, Audit_Event]
+tags: [pq, capa, quality, write]
+example_invocation:
+  subject: "Filler nozzle leak recurrence"
+  severity: high

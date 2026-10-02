@@ -1,0 +1,25 @@
+solutionId: inventory-optimization
+title: Inventory Optimization
+description: |
+  Multi-echelon inventory optimization and distribution intelligence.
+  Balances stock across plants, DCs, and hubs while minimising carrying
+  cost, expiries, and stockouts.
+priority: P0
+category: Operations
+timeToValue: 3 weeks
+verticals: [supply_chain]
+personas: [inventory_planner, supply_chain_manager]
+color: "from-green-500 to-emerald-500"
+icon: Package
+entities: [Inventory_Position, Batch_Master, Plant_Master, Warehouse_Transfer]
+kpis:
+  - Turns > 12x
+  - Fill Rate > 97%
+  - Expiry < 1%
+automations: [rebalance_across_dcs, expiry_writeoff_prevention]
+analytics: [inventory_positions_view, turns_by_sku_dashboard]
+nlq_examples:
+  - Which DCs are overstocked on batch X?
+  - Recommend transfers to prevent expiry losses this quarter
+  - Show fill-rate degradation by region
+journeyId: inventory_optimization

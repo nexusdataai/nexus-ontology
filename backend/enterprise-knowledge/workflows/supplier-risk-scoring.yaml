@@ -1,0 +1,126 @@
+id: WORKFLOW_SUPPLIER_RISK_SCORING_V1_0
+name: Supplier Risk Scoring
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Vendor_Master
+  event: "New Vendor_Master record created OR periodic re-evaluation"
+  condition: "New vendor onboarded, or monthly re-evaluation (1st business day)"
+description: >
+  Calculates a composite supplier risk score (0-100) by aggregating delivery
+  reliability, quality performance, financial health, contract compliance,
+  external market signals, and geographic risk. Maps the score to risk tiers
+  and updates Vendor_Master.Risk_Rating. Critical/High vendors trigger
+  procurement alerts with alternative vendor recommendations.
+
+steps:
+  - order: 1
+    name: Gather Performance Data
+    system: SAP/Oracle
+    action: "Pull delivery history from Goods_Receipt (on-time rate, qty accuracy), quality data from Quality_Inspection_Lot (incoming rejection rate), spend data from Purchase_Order"
+
+  - order: 2
+    name: Delivery Reliability Scoring
+    system: Internal
+    action: "Calculate on-time delivery %, lead time variance, partial shipment frequency per vendor"
+    rules:
+      - "Weight: 30% of composite score"
+
+  - order: 3
+    name: External Signal Scan
+    system: Social_Listening
+    action: "NLP scan of Market_Signal for vendor-related news, country risk, financial health signals"
+    rules:
+      - "Weight: 10% of composite score"
+
+  - order: 4
+    name: Contract Intelligence
+    system: Google_Drive
+    action: "Extract and validate Contract_Document terms — SLA compliance, pricing adherence, volume commitment"
+    rules:
+      - "Weight: 10% of composite score"
+
+  - order: 5
+    name: Financial Health Assessment
+    system: Internal
+    action: "Evaluate payment behavior from AP_Invoice/Payment history, credit reports if available"
+    rules:
+      - "Weight: 20% of composite score"
+
+  - order: 6
+    name: Quality Performance
+    system: SAP
+    action: "Incoming material Quality_Inspection_Lot pass rate, rejection trends over trailing 12 months"
+    rules:
+      - "Weight: 15% of composite score"
+
+  - order: 7
+    name: Geographic Risk
+    system: Internal
+    action: "Country/region risk index, natural disaster exposure, trade policy risk assessment"
+    rules:
+      - "Weight: 15% of composite score"
+
+  - order: 8
+    name: Composite Risk Score
+    system: Internal
+    action: "Weighted composite score 0-100; map to tiers and update Vendor_Master.Risk_Rating"
+    mapping:
+      - "Score 0-39 → Critical"
+      - "Score 40-59 → High"
+      - "Score 60-79 → Medium"
+      - "Score 80-100 → Low"
+
+  - order: 9
+    name: Publish Alerts
+    system: Internal
+    action: "Critical/High vendors: alert procurement head; recommend alternative vendors from Source_List"
+    failure_action: "Escalate to supply chain director if no alternative vendors available"
+
+dependencies:
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Target entity — risk rating updated here"
+  - entity: Source_List
+    system: SAP
+    relationship: "Alternative vendor lookup for critical suppliers"
+  - entity: Purchase_Order
+    system: Oracle
+    relationship: "Spend data source for vendor evaluation"
+  - entity: Goods_Receipt
+    system: SAP
+    relationship: "Delivery history for reliability scoring"
+  - entity: Quality_Inspection_Lot
+    system: SAP
+    relationship: "Incoming quality data for quality scoring"
+  - entity: AP_Invoice
+    system: Oracle
+    relationship: "Payment behavior data for financial health"
+  - entity: Contract_Document
+    system: Google_Drive
+    relationship: "Contract terms for compliance scoring"
+  - entity: Market_Signal
+    system: Social_Listening
+    relationship: "External signals for vendor news and country risk"
+  - entity: supply-chain-risk-policy
+    system: Internal
+    relationship: "Governing policy for risk tier thresholds and escalation rules"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Governs vendor approval and sourcing requirements"
+
+related_entities:
+  - Vendor_Master
+  - Source_List
+  - Purchase_Order
+  - Goods_Receipt
+  - Quality_Inspection_Lot
+  - AP_Invoice
+  - Contract_Document
+  - Market_Signal
+related_policies:
+  - supply-chain-risk-policy
+  - procurement-policy
+use_case: "Supply Chain Risk & Disruption Radar"
+scor_process: "Source"

@@ -1,0 +1,25 @@
+solutionId: demand-forecasting
+title: Demand Forecasting Engine
+description: |
+  AI-driven demand prediction across SKUs, regions, and channels. Blends
+  historical sell-through, opportunity pipeline, and market signals to
+  produce a short-horizon consensus forecast with confidence bands.
+priority: P0
+category: Planning
+timeToValue: 4 weeks
+verticals: [supply_chain]
+personas: [demand_planner, s_and_op_lead]
+color: "from-purple-500 to-pink-500"
+icon: TrendingUp
+entities: [Material_Master, Opportunity, Inventory_Position, Market_Signal]
+kpis:
+  - MAPE < 15%
+  - Stockout Rate < 2%
+  - Bias < 3%
+automations: [refresh_baseline_forecast, incorporate_market_signals]
+analytics: [forecast_accuracy_view, stockout_risk_dashboard]
+nlq_examples:
+  - What is next month's forecast for SKU X in EMEA?
+  - Which SKUs have highest forecast error?
+  - Predict stockout risk for the top 20 items
+journeyId: demand_forecasting

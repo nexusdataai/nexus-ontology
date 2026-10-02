@@ -1,0 +1,43 @@
+# AI Job Engine MCP Server - Minimal Production Dependencies
+# Optimized for size: Removed unused heavy dependencies
+# Expected image size: ~180MB (down from 539MB)
+
+# Core MCP and logging
+loguru>=0.7.0
+mcp[cli]>=1.6.0
+pydantic>=2.10.6
+
+# AWS SDK (includes DynamoDB client)
+boto3>=1.38.5
+botocore>=1.38.5
+
+# Schema parsing and analysis
+jsonschema>=4.0.0
+pyyaml>=6.0.0
+
+# File handling and utilities
+pathlib2>=2.3.0
+glob2>=0.7
+python-magic>=0.4.0
+
+# HTTP API server (for external access)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# System monitoring (for health checks)
+psutil>=5.9.0
+
+# ============================================================================
+# REMOVED DEPENDENCIES (Not used in codebase - verified via grep)
+# ============================================================================
+# pandas>=1.5.0,<3.0.0              # ~150MB - NOT USED
+# numpy>=1.24.0,<2.0.0               # ~100MB - NOT USED
+# psycopg[binary]>=3.0               # ~30MB - NOT USED (no PostgreSQL)
+# mysql-connector-python>=8.0.0      # ~25MB - NOT USED (no MySQL)
+# pymongo>=4.0.0                     # ~25MB - NOT USED (no MongoDB)
+# sqlalchemy>=2.0.0                  # ~10MB - NOT USED
+# openapi-spec-validator>=0.5.0      # ~5MB - NOT USED
+#
+# Total savings: ~345MB
+# ============================================================================
+

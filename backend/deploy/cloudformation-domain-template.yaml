@@ -1,0 +1,292 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS MCP Server Domain Infrastructure - Route53 Records and SSL Certificates'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: 'Name of the project (e.g., ecommerce-mcp)'
+    Default: 'ecommerce-mcp'
+  
+  Environment:
+    Type: String
+    Description: 'Environment name (dev, stage, prod)'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  
+  BaseDomain:
+    Type: String
+    Description: 'Base domain name (e.g., totogicore.com)'
+    Default: 'totogicore.com'
+  
+  Subdomain:
+    Type: String
+    Description: 'Subdomain for the environment'
+    Default: 'dev-ecommerce-mcp'
+  
+  HostedZoneId:
+    Type: String
+    Description: 'Route53 Hosted Zone ID for the base domain'
+    Default: 'Z00062013820EO6BYULDB'
+  
+  # External stack dependencies
+  BackendStackName:
+    Type: String
+    Description: 'Name of the backend stack'
+    Default: 'ecommerce-mcp-backend-dev'
+  
+  LoadBalancerDns:
+    Type: String
+    Description: 'ALB DNS name'
+    Default: ''
+  
+  LoadBalancerArn:
+    Type: String
+    Description: 'ALB ARN'
+    Default: ''
+  
+  CreateSSLCertificate:
+    Type: String
+    Description: 'Create SSL certificate for the domain'
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  
+  CreateHealthCheck:
+    Type: String
+    Description: 'Create Route53 health check for the domain (requires route53:CreateHealthCheck permission)'
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Conditions:
+  ShouldCreateSSLCertificate: !Equals [!Ref CreateSSLCertificate, 'true']
+  ShouldCreateHealthCheck: !Equals [!Ref CreateHealthCheck, 'true']
+  IsUSEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
+
+Resources:
+  # SSL Certificate for API (only if requested and in correct region)
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: ShouldCreateSSLCertificate
+    Properties:
+      DomainName: !Sub '${Subdomain}.${BaseDomain}'
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Sub '${Subdomain}.${BaseDomain}'
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-api-cert-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Route53 Record for API endpoint
+  ApiRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub '${Subdomain}.${BaseDomain}'
+      Type: A
+      AliasTarget:
+        DNSName: !Ref LoadBalancerDns
+        HostedZoneId: !GetAtt LoadBalancerHostedZone.Value
+        EvaluateTargetHealth: true
+      Comment: !Sub 'API endpoint for ${ProjectName} ${Environment} environment'
+
+  # Custom resource to get ALB hosted zone ID
+  LoadBalancerHostedZone:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt GetALBHostedZoneFunction.Arn
+      LoadBalancerArn: !Ref LoadBalancerArn
+      Region: !Ref 'AWS::Region'
+
+  # Lambda function to get ALB hosted zone ID
+  GetALBHostedZoneFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-get-alb-zone-${Environment}'
+      Runtime: python3.9
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+          
+          def handler(event, context):
+              try:
+                  if event['RequestType'] == 'Delete':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                      return
+                  
+                  # Regional ALB hosted zone mapping
+                  alb_hosted_zones = {
+                      'us-east-1': 'Z35SXDOTRQ7X7K',
+                      'us-east-2': 'Z3AADJGX6KTTL2',
+                      'us-west-1': 'Z368ELLRRE2KJ0',
+                      'us-west-2': 'Z1H1FL5HABSF5',
+                      'ap-south-1': 'ZP97RAFLXTNZK',
+                      'ap-northeast-2': 'ZWKZPGTI48KDX',
+                      'us-east-1': 'Z1LMS91P8CMLE5',
+                      'ap-southeast-2': 'Z1GM3OXH4ZPM65',
+                      'ap-northeast-1': 'Z14GRHDCWA56QT',
+                      'ca-central-1': 'ZQSVJUPU6J1EY',
+                      'eu-central-1': 'Z215JYRZR1TBD5',
+                      'eu-west-1': 'Z32O12XQLNTSW2',
+                      'eu-west-2': 'ZHURV8PSTC4K8',
+                      'eu-west-3': 'Z3Q77PNBQS71R4',
+                      'eu-north-1': 'Z23TAZ6LKFMNIO',
+                      'sa-east-1': 'Z2P70J7HTTTPLU',
+                      'af-south-1': 'Z268VQBMOIQQEK',
+                      'ap-east-1': 'Z3DQVH9N71FHZ0',
+                      'ap-south-2': 'Z0175378XQH9Q5',
+                      'ap-southeast-3': 'Z08888821HLRG5A9',
+                      'ap-southeast-4': 'Z0115697G39QP5VLP',
+                      'ap-northeast-3': 'Z5LXEXXYW11ES',
+                      'eu-south-1': 'Z3I17896Q1DZ3H',
+                      'eu-south-2': 'Z0081959F7139F0L0',
+                      'me-south-1': 'Z3QSRYVP46NYYV',
+                      'me-central-1': 'Z00282673NQF8',
+                      'il-central-1': 'Z0312387243T5'
+                  }
+                  
+                  region = event['ResourceProperties']['Region']
+                  hosted_zone_id = alb_hosted_zones.get(region, 'Z35SXDOTRQ7X7K')  # Default to us-east-1
+                  
+                  response_data = {'Value': hosted_zone_id}
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                  
+              except Exception as e:
+                  print(f'Error: {str(e)}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-get-alb-zone-lambda-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM role for Lambda function
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-lambda-execution-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ELBv2ReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeLoadBalancers
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-lambda-execution-role-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Health check record (optional)
+  HealthCheckRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub 'health.${Subdomain}.${BaseDomain}'
+      Type: A
+      AliasTarget:
+        DNSName: !Ref LoadBalancerDns
+        HostedZoneId: !GetAtt LoadBalancerHostedZone.Value
+        EvaluateTargetHealth: true
+      Comment: !Sub 'Health check endpoint for ${ProjectName} ${Environment} environment'
+
+  # Route53 Health Check (for production environments)
+  HealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Condition: ShouldCreateHealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: HTTPS
+        ResourcePath: /health
+        FullyQualifiedDomainName: !Sub '${Subdomain}.${BaseDomain}'
+        Port: 443
+        RequestInterval: 30
+        FailureThreshold: 3
+      HealthCheckTags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-health-check-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StackName:
+    Description: 'Domain stack name'
+    Value: !Ref 'AWS::StackName'
+
+  ApiDomain:
+    Description: 'API domain name'
+    Value: !Sub '${Subdomain}.${BaseDomain}'
+    Export:
+      Name: !Sub '${ProjectName}-api-domain-${Environment}'
+
+  ApiUrl:
+    Description: 'Full API URL'
+    Value: !Sub 'https://${Subdomain}.${BaseDomain}'
+    Export:
+      Name: !Sub '${ProjectName}-api-url-${Environment}'
+
+  ApiCertificateArn:
+    Condition: ShouldCreateSSLCertificate
+    Description: 'API SSL certificate ARN'
+    Value: !Ref ApiCertificate
+    Export:
+      Name: !Sub '${ProjectName}-api-cert-arn-${Environment}'
+
+  HealthCheckDomain:
+    Description: 'Health check domain name'
+    Value: !Sub 'health.${Subdomain}.${BaseDomain}'
+    Export:
+      Name: !Sub '${ProjectName}-health-check-domain-${Environment}'
+
+  HealthCheckUrl:
+    Description: 'Health check URL'
+    Value: !Sub 'https://health.${Subdomain}.${BaseDomain}/health'
+    Export:
+      Name: !Sub '${ProjectName}-health-check-url-${Environment}'
+
+  HealthCheckId:
+    Condition: ShouldCreateHealthCheck
+    Description: 'Route53 Health Check ID'
+    Value: !Ref HealthCheck
+    Export:
+      Name: !Sub '${ProjectName}-health-check-id-${Environment}'
+
+  Route53RecordName:
+    Description: 'Route53 record name for the API'
+    Value: !Ref ApiRecord
+    Export:
+      Name: !Sub '${ProjectName}-route53-record-${Environment}'
+

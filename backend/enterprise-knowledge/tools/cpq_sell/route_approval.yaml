@@ -1,0 +1,33 @@
+tool_id: route_approval
+display_name: Route Approval
+group: cpq_sell
+description: Compute and persist the approval chain on a Quote_Header per
+  cpq-quote-approval-policy. Auto-approves when discount is within tier max,
+  margin is above 15 percent floor, and total fees are below the auto-approve
+  cap.
+risk_level: high_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+  required:
+  - quote_id
+connector_api: tpm.quote.approval.route
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Account
+- Configuration_Rule
+produces_entities:
+- Quote_Header
+- Audit_Event
+tags:
+- cpq-sell
+- approval
+- write
+example_invocation:
+  quote_id: QT-00042

@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "ai-job-engine": {
+      "command": "uv",
+      "args": [
+        "run", 
+        "--project", 
+        ".",
+        "python", 
+        "-m",
+        "src.server",
+        "--stdio"
+      ],
+      "env": {
+        "PYTHONPATH": ".",
+        "LOG_LEVEL": "INFO",
+        "AWS_REGION": "us-east-1"
+      },
+      "cwd": "."
+    },
+    "ai-engine-http": {
+      "url": "http://alert--Backe-J3vD6CohaowE-1847151533.us-east-1.elb.amazonaws.com",
+      "name": "Alert Correlation Engine (HTTP)",
+      "description": "AI-Enabled Alert Correlation Engine deployed on ECS Fargate - HTTP transport for telecommunications network analysis"
+    }
+  }
+}

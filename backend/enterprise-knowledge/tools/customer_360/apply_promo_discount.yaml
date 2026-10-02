@@ -1,0 +1,48 @@
+# ============================================================================
+# Tool: apply_promo_discount
+# Kind: mutate
+# Connector API: oracle.promotion.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Creates a promotion / discount offer in Oracle AR. The promotion can be
+#   targeted at a customer segment, an account list, or a SKU bundle. Used by
+#   retain-risky-customers, churn-prevention, slow-mover-liquidation, and
+#   renewal-negotiation playbooks.
+#
+# Inputs:    name, discount_pct, promo_code (optional), applies_to (optional),
+#            valid_from / valid_to (optional), max_redemptions (optional)
+# Reads:     none
+# Writes:    Oracle_AR_Promotion, Audit_Event
+# Returns:   {action, promo_id, promo_code, discount_pct, name}
+# ============================================================================
+tool_id: apply_promo_discount
+display_name: Apply Promo Discount
+group: customer_360
+tool_kind: mutate
+description: |
+  Create a promotion / discount offer in Oracle AR for an at-risk segment or
+  SKU bundle. Approval required because it commits real revenue impact.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: oracle.promotion.create
+parameters:
+  type: object
+  properties:
+    name: { type: string }
+    discount_pct: { type: number }
+    promo_code: { type: string }
+    applies_to: { type: object, description: "Targeting filter, e.g. {segment: 'at_risk'}" }
+    valid_from: { type: string }
+    valid_to: { type: string }
+    max_redemptions: { type: integer }
+  required: [name, discount_pct]
+consumes_entities: []
+produces_entities: [Oracle_AR_Promotion, Audit_Event]
+tags: [c360, promotion, discount, write]
+example_invocation:
+  name: "Retain Q2 At-Risk"
+  discount_pct: 12.5
+  applies_to: { segment: at_risk }

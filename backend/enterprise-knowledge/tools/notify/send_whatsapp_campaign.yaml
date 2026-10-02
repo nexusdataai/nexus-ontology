@@ -1,0 +1,51 @@
+# ============================================================================
+# Tool: send_whatsapp_campaign
+# Kind: notify
+# Connector API: external.whatsapp.send_campaign
+# ----------------------------------------------------------------------------
+# Cursor analog: post-build script -- push a notification to a real channel.
+#
+# What it does:
+#   Send a personalised WhatsApp campaign batch to a recipient list using a
+#   pre-approved template. Used by Retain Risky Customers and Churn Prevention
+#   playbooks. Approval required because of spend implications.
+#
+# Inputs:    template_id, recipients[{customer_id, phone, vars?}],
+#            campaign_id (optional), message_body (optional)
+# Reads:     none
+# Writes:    WhatsApp_Campaign_Send, Audit_Event
+# Returns:   {action, channel, campaign_id, queued}
+# ============================================================================
+tool_id: send_whatsapp_campaign
+display_name: Send WhatsApp Campaign
+group: notify
+tool_kind: notify
+description: |
+  Send a templated WhatsApp campaign batch. Routes to the simulator in dev;
+  identical contract for production swap.
+risk_level: low_risk_write
+requires_approval: true
+cacheable: false
+connector_api: external.whatsapp.send_campaign
+parameters:
+  type: object
+  properties:
+    template_id: { type: string }
+    recipients:
+      type: array
+      items:
+        type: object
+        properties:
+          customer_id: { type: string }
+          phone: { type: string }
+          vars: { type: object }
+    campaign_id: { type: string }
+    message_body: { type: string }
+  required: [template_id, recipients]
+consumes_entities: []
+produces_entities: [WhatsApp_Campaign_Send, Audit_Event]
+tags: [notify, whatsapp, campaign, write]
+example_invocation:
+  template_id: retain_q2
+  recipients:
+    - { customer_id: ACC-1001, phone: "+15555550101" }

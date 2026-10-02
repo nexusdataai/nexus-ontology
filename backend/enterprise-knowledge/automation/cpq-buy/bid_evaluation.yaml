@@ -1,0 +1,87 @@
+use_case_id: cpq_buy.bid_evaluation
+title: Bid Evaluation & Award Recommendation
+solution_id: sourcing-cpq
+bucket: cpq-buy
+description: 'Score every Vendor_Quote against should-cost, build three award
+  scenarios (cost optimal, risk balanced, diversified), and recommend the
+  Pareto-optimal scenario subject to the 60 percent concentration ceiling.
+
+  '
+status: active
+tags:
+- cpq
+- sourcing
+- award
+kpi_impact:
+- savings_vs_should_cost
+- vendor_concentration
+- single_source_count
+consumes_entities:
+- RFx_Event
+- Vendor_Quote
+- Vendor_Quote_Line
+- Should_Cost_Model
+- Vendor_Master
+produces_entities:
+- Sourcing_Scenario
+- Audit_Event
+stages:
+- stage_id: collect
+  name: Collect Bids
+  order: 1
+  steps:
+  - step_id: list_bids
+    name: List Submitted Vendor Quotes
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: Vendor_Quote
+      filter:
+        Event_ID: ${context.event_id}
+        Status: Submitted
+      limit: 30
+- stage_id: score
+  name: Score Each Bid
+  order: 2
+  steps:
+  - step_id: score
+    name: Composite Score Per Vendor
+    order: 1
+    tool: score_vendor_response
+    params:
+      vendor_quote_id: ${item.Vendor_Quote_ID}
+- stage_id: scenarios
+  name: Build Award Scenarios
+  order: 3
+  steps:
+  - step_id: cost_optimal
+    name: Cost Optimal Scenario
+    order: 1
+    tool: run_award_scenario
+    params:
+      event_id: ${context.event_id}
+      split_strategy: cost_optimal
+  - step_id: risk_balanced
+    name: Risk Balanced Scenario
+    order: 2
+    tool: run_award_scenario
+    params:
+      event_id: ${context.event_id}
+      split_strategy: risk_balanced
+  - step_id: diversified
+    name: Diversified Scenario
+    order: 3
+    tool: run_award_scenario
+    params:
+      event_id: ${context.event_id}
+      split_strategy: diversified
+- stage_id: recommend
+  name: Recommend Optimal Split
+  order: 4
+  steps:
+  - step_id: pareto
+    name: Pareto-Optimal Recommendation
+    order: 1
+    tool: recommend_award_split
+    params:
+      event_id: ${context.event_id}

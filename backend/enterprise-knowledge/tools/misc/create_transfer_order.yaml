@@ -1,0 +1,57 @@
+# ============================================================================
+# Tool: create_transfer_order
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter / type-checker -- score rows without writing.
+#
+# What it does:
+#   Create an inter-warehouse stock transfer order to rebalance inventory.
+#   Transfers material from a surplus plant to a deficit plant.
+#   Auto-approved if value < $50K per inventory policy.
+#
+# Inputs:    from_plant, to_plant, material_id, quantity, batch_id
+# Reads:     Inventory_Position
+# Writes:    Warehouse_Transfer, Audit_Event
+# ============================================================================
+tool_id: create_transfer_order
+display_name: Create Transfer Order
+group: misc
+description: Create an inter-warehouse stock transfer order to rebalance inventory.
+  Transfers material from a surplus plant to a deficit plant. Auto-approved if value
+  < $50K per inventory policy.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    from_plant:
+      type: string
+      description: Source plant/warehouse ID
+    to_plant:
+      type: string
+      description: Destination plant/warehouse ID
+    material_id:
+      type: string
+      description: Material/SKU to transfer
+    quantity:
+      type: integer
+      description: Quantity to transfer
+    batch_id:
+      type: string
+      description: 'Specific batch (default: FIFO auto-selection)'
+  required:
+  - from_plant
+  - to_plant
+  - material_id
+  - quantity
+connector_api: null
+consumes_entities:
+- Inventory_Position
+produces_entities:
+- Warehouse_Transfer
+- Audit_Event
+tags:
+- supply-chain
+- write
+example_invocation: null

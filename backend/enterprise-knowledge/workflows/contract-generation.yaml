@@ -1,0 +1,89 @@
+id: WORKFLOW_CONTRACT_GENERATION_V1_0
+name: Contract Generation
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Sourcing_Award
+  field: Status
+  condition: "Sourcing_Award status transitions to Approved"
+description: >
+  Draft a Contract_Document for an approved sourcing award and persist
+  it in Google Drive. Pulls terms from the elected Vendor_Quote_Line
+  (price, lead time, payment terms, MOQ) and the RFx_Line (volume,
+  incoterm). Returns a markdown contract ready for legal review.
+
+steps:
+  - order: 1
+    name: Resolve Award Context
+    system: Sourcing
+    action: "Load Sourcing_Award, elected Sourcing_Scenario, parent RFx_Event, and per-vendor Vendor_Quote_Lines"
+
+  - order: 2
+    name: Pull Standard Clauses
+    system: Google_Drive
+    action: "Locate the most recent contract template for the RFx_Event.Category; fall back to the master template"
+
+  - order: 3
+    name: Compose Contract Body
+    system: Internal
+    action: "LLM-grounded composition with extracted clauses: parties, volume commitment, contracted price, tiered pricing, payment terms, lead time, MOQ, penalty, incoterm, sustainability clauses if required"
+
+  - order: 4
+    name: Validate Required Clauses
+    system: Internal
+    action: "Check that recycling/cert clauses are present for packaging awards; payment terms within procurement-policy; SLA penalty bounded per supply-chain-risk-policy"
+
+  - order: 5
+    name: Persist Contract Draft
+    system: Google_Drive
+    action: "Write Contract_Document.Document_Path; populate Effective_Date, Expiry_Date, Volume_Commitment, Contracted_Price, SLA_Terms"
+
+  - order: 6
+    name: Hand Off To Legal
+    system: Internal
+    action: "Create a legal review task; notify Procurement Director and Legal lead"
+
+  - order: 7
+    name: Link To Award
+    system: Sourcing
+    action: "Update Sourcing_Award context with Contract_ID; emit audit event"
+
+dependencies:
+  - entity: Sourcing_Award
+    system: Sourcing
+    relationship: "Subject"
+  - entity: Sourcing_Scenario
+    system: Sourcing
+    relationship: "Source of split and prices"
+  - entity: Vendor_Quote_Line
+    system: Sourcing
+    relationship: "Source of negotiated terms"
+  - entity: RFx_Event
+    system: Sourcing
+    relationship: "Parent event for category metadata"
+  - entity: Contract_Document
+    system: Google_Drive
+    relationship: "Persisted draft"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Vendor party"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Payment terms and approval gates"
+  - entity: sourcing-award-policy
+    system: Internal
+    relationship: "Sustainability cert requirements"
+
+related_entities:
+  - Sourcing_Award
+  - Sourcing_Scenario
+  - Vendor_Quote_Line
+  - Contract_Document
+  - Vendor_Master
+related_policies:
+  - sourcing-award-policy
+  - procurement-policy
+  - supply-chain-risk-policy
+use_case: "Sourcing CPQ"
+scor_process: "Source"

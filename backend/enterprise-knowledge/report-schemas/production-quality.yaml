@@ -1,0 +1,96 @@
+solution_id: production-quality
+title: Production Quality Report
+icon: Factory
+
+summary_kpis:
+  - key: oee_pct
+    label: OEE
+    icon: Gauge
+    format: percent
+    rollup: avg
+    source: Data.kpis.oee_pct
+    threshold:
+      invert: true
+      warn: 75
+      critical: 60
+  - key: yield_pct
+    label: Yield
+    icon: CheckCircle
+    format: percent
+    rollup: avg
+    source: Data.kpis.yield_pct
+    threshold:
+      invert: true
+      warn: 92
+      critical: 85
+  - key: first_pass_rate_pct
+    label: First Pass Rate
+    icon: Target
+    format: percent
+    rollup: avg
+    source: Data.kpis.first_pass_rate_pct
+  - key: schedule_adherence_pct
+    label: Schedule Adherence
+    icon: Clock
+    format: percent
+    rollup: avg
+    source: Data.kpis.schedule_adherence_pct
+  - key: total_orders
+    label: Production Orders
+    icon: Layers
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_orders
+  - key: alerts_count
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.alerts_count
+
+sections:
+  - id: traceability
+    title: Traceability
+    kind: kpi_grid
+    kpis:
+      - key: changeover_time_avg
+        label: Avg Changeover
+        format: duration
+        rollup: avg
+        source: Data.kpis.changeover_time_avg
+      - key: batch_traceability_time
+        label: Batch Trace Time
+        format: duration
+        rollup: avg
+        source: Data.kpis.batch_traceability_time
+      - key: total_materials_scored
+        label: Materials Scored
+        format: integer
+        rollup: sum
+        source: Data.kpis.total_materials_scored
+
+  - id: alerts
+    title: Quality Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        oee_drop: OEE Drop
+        yield_drop: Yield Drop
+        quality_deviation: Quality Deviation
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

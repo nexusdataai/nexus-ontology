@@ -1,0 +1,100 @@
+use_case_id: scr.disruption_mitigation
+title: Disruption Mitigation Playbook
+solution_id: supply-chain-risk
+bucket: supply-chain
+description: 'Mitigate active lane / supplier disruption. Identify disrupted lanes,
+  expedite alternative routes, and post a Slack alert to the SCR ops team.
+
+  '
+status: active
+tags:
+- scr
+- disruption
+- mitigation
+kpi_impact:
+- on_time_delivery_pct
+- expedite_cost_usd
+consumes_entities:
+- Shipment
+- Lane_Health
+produces_entities:
+- Warehouse_Transfer
+- Slack_Message
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_disrupted_lanes
+    params:
+      top_n: 20
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide route swap + expedite priority per lane. LLM-only step; no
+    tool
+
+    binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Create Transfer Order
+    order: 1
+    tool: create_transfer_order
+    params:
+      from_plant: PLT-N1
+      to_plant: PLT-N3
+      material_id: MAT-NA
+      quantity: 1
+  - step_id: act_2
+    name: Request Expedited Fulfillment
+    order: 2
+    tool: request_expedited_fulfillment
+    params:
+      delivery_id: ${item.lane_id}
+      reason: Lane disruption
+- stage_id: notify
+  name: Notify
+  order: 4
+  steps:
+  - step_id: notify_1
+    name: Send Slack Alert
+    order: 1
+    tool: send_slack_alert
+    params:
+      channel: '#scr-ops'
+      message: Lane disruption mitigated
+      severity: warning
+- stage_id: verify
+  name: Verify
+  order: 5
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_disrupted_lanes
+    params:
+      top_n: 20
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: on_time_delivery_pct
+      kpi_before: 0
+      kpi_after: 0

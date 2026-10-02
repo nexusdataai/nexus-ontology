@@ -1,0 +1,145 @@
+id: INTEGRATION_CPQ_SALESFORCE_V1_0
+name: Trade CPQ to Salesforce Sync
+version: "1.0"
+source_system: TPM_Simulator
+target_system: Salesforce
+sync_type: bidirectional
+frequency: "Near real-time (event-driven on status change)"
+description: >
+  Bidirectional integration between the Trade CPQ module (TPM simulator)
+  and Salesforce CRM. Quote_Header, Quote_Line, and Quote_Promotion
+  records are authoritative in the TPM layer until Status transitions to
+  Won_Converted, at which point the quote is materialized as a
+  Salesforce Opportunity and Opportunity_Line_Item set, chaining into
+  the existing order-to-cash workflow. Account, Campaign, and Contact
+  references are read from Salesforce.
+
+mappings:
+  - name: Account Read
+    source_object: Account
+    target_object: TPM_Quote_Header
+    direction: Salesforce → TPM
+    conflict_resolution: "Salesforce wins (master)"
+    fields:
+      - source: Account.Account_ID
+        target: Quote_Header.Account_ID
+        direction: "source_to_target"
+        read_only: true
+      - source: Account.Channel_Type
+        target: Quote_Header.context.channel_type
+        direction: "source_to_target"
+        read_only: true
+        note: "Drives pricing tier and configuration rule evaluation"
+      - source: Account.Tier
+        target: Quote_Header.context.tier
+        direction: "source_to_target"
+        read_only: true
+
+  - name: Campaign Read
+    source_object: Campaign
+    target_object: Quote_Promotion
+    direction: Salesforce → TPM
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Campaign.Campaign_ID
+        target: Quote_Promotion.Campaign_ID
+        direction: "source_to_target"
+      - source: Campaign.Type
+        target: Quote_Promotion.Mechanic
+        direction: "source_to_target"
+        transformation: "Discount→Discount, BOGO→BOGO, Bundle→Bundle, Display→Display, Sampling→Sampling"
+      - source: Campaign.Budget
+        target: Quote_Promotion.context.budget
+        direction: "source_to_target"
+        note: "Used to enforce trade spend cap policy"
+
+  - name: Quote To Opportunity Materialization
+    source_object: Quote_Header
+    target_object: Opportunity
+    direction: TPM → Salesforce
+    conflict_resolution: "TPM wins until Won_Converted; Salesforce wins thereafter"
+    fields:
+      - source: Quote_Header.Quote_ID
+        target: Opportunity.External_Quote_ID
+        direction: "source_to_target"
+      - source: Quote_Header.Account_ID
+        target: Opportunity.Account_ID
+        direction: "source_to_target"
+      - source: Quote_Header.Total_Net
+        target: Opportunity.Total_Value
+        direction: "source_to_target"
+      - source: Quote_Header.Discount_Pct
+        target: Opportunity.Discount_Pct
+        direction: "source_to_target"
+      - source: Quote_Header.Validity_Date
+        target: Opportunity.Close_Date
+        direction: "source_to_target"
+        note: "Quote validity becomes opportunity close date"
+      - source: Quote_Header.Status
+        target: Opportunity.Stage
+        direction: "source_to_target"
+        transformation: "Won_Converted→Closed_Won, Approved→Negotiation, Rejected→Closed_Lost"
+        constraint: "Only Won_Converted triggers materialization"
+
+  - name: Quote Line To Opportunity Line Item
+    source_object: Quote_Line
+    target_object: Opportunity_Line_Item
+    direction: TPM → Salesforce
+    conflict_resolution: "TPM wins until materialization"
+    fields:
+      - source: Quote_Line.Line_ID
+        target: Opportunity_Line_Item.External_Line_ID
+        direction: "source_to_target"
+      - source: Quote_Line.Offering_ID
+        target: Opportunity_Line_Item.context.offering_id
+        direction: "source_to_target"
+        note: "Offering expanded into one or more Opportunity_Line_Items via Offering_Component"
+      - source: Quote_Line.Qty
+        target: Opportunity_Line_Item.Quantity
+        direction: "source_to_target"
+      - source: Quote_Line.Unit_Price
+        target: Opportunity_Line_Item.Unit_Price
+        direction: "source_to_target"
+      - source: Quote_Line.Discount_Pct
+        target: Opportunity_Line_Item.Discount_Pct
+        direction: "source_to_target"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "cpq-integration-alerts@company.com"
+  fallback: "TPM is authoritative for Quote_* entities; manual reconciliation required if Won_Converted materialization fails"
+
+dependencies:
+  - entity: Account
+    system: Salesforce
+    relationship: "Master record referenced by Quote_Header"
+  - entity: Campaign
+    system: Salesforce
+    relationship: "Master record referenced by Quote_Promotion"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Master record referenced by Offering_Component"
+  - entity: cpq-quote-approval-policy
+    system: Internal
+    relationship: "Must complete before Won_Converted transition"
+  - entity: pricing-discount-policy
+    system: Internal
+    relationship: "Governs discount and trade spend caps"
+
+related_entities:
+  - Quote_Header
+  - Quote_Line
+  - Quote_Promotion
+  - Product_Offering
+  - Account
+  - Campaign
+  - Opportunity
+  - Opportunity_Line_Item
+triggered_by_workflows:
+  - Quote To Order
+  - Quote Approval Routing
+used_by_apps:
+  - "Trade CPQ"
+  - "Order-to-Cash Monitor"

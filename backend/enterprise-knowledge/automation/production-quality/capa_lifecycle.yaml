@@ -1,0 +1,77 @@
+use_case_id: pq.capa_lifecycle
+title: CAPA Lifecycle Play
+solution_id: production-quality
+bucket: supply-chain
+description: 'Open CAPA workflows for recurring root causes. Cluster recent quality
+  events by root cause and open a CAPA for each persistent recurrence.
+
+  '
+status: active
+tags:
+- pq
+- capa
+- lifecycle
+kpi_impact:
+- capa_close_rate_pct
+consumes_entities:
+- Quality_Event
+- CAPA
+produces_entities:
+- CAPA
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_capa_recurrence
+    params:
+      horizon_days: 180
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide severity + owner per recurring root cause. LLM-only step; no
+
+    tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Open Capa Workflow
+    order: 1
+    requires_approval: true
+    tool: open_capa_workflow
+    params:
+      subject: ${item.description}
+      severity: high
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_capa_recurrence
+    params:
+      horizon_days: 180
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: capa_close_rate_pct
+      kpi_before: 0
+      kpi_after: 0

@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_upsell_candidates
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep + ranking by similarity.
+#
+# What it does:
+#   Surfaces accounts whose product mix + usage trajectory suggests they will
+#   respond to a recommended upsell SKU. Returns ranked customers with the
+#   suggested SKU and expected uplift in USD.
+#
+# Inputs:    top_n, segment_filter (optional)
+# Reads:     Customer, Opportunity, Account
+# Writes:    none
+# Returns:   {count, results: [{customer_id, upsell_score, recommended_sku, expected_uplift_usd}]}
+# ============================================================================
+tool_id: find_upsell_candidates
+display_name: Find Upsell Candidates
+group: customer_360
+tool_kind: analyze
+description: |
+  Rank accounts by upsell propensity using product-mix + usage signals; returns
+  the suggested SKU and expected uplift. Used by the upsell-NBA playbook.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    top_n: { type: integer, description: "Max rows (default 20)" }
+    segment_filter: { type: string, description: "Optional tier / region filter" }
+  required: []
+consumes_entities: [Customer, Opportunity, Account]
+produces_entities: []
+tags: [c360, upsell, analyze]
+example_invocation:
+  top_n: 20

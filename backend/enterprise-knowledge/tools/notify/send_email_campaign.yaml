@@ -1,0 +1,51 @@
+# ============================================================================
+# Tool: send_email_campaign
+# Kind: notify
+# Connector API: external.email.send_campaign
+# ----------------------------------------------------------------------------
+# Cursor analog: post-build script -- push a notification to email channel.
+#
+# What it does:
+#   Send an email campaign batch (typically the opt-out / fallback channel for
+#   WhatsApp; also used by liquidation and renewal playbooks).
+#
+# Inputs:    subject, recipients[{customer_id, email, vars?}],
+#            campaign_id (optional), body_html / body_text (optional)
+# Reads:     none
+# Writes:    Email_Campaign_Send, Audit_Event
+# Returns:   {action, channel, campaign_id, queued}
+# ============================================================================
+tool_id: send_email_campaign
+display_name: Send Email Campaign
+group: notify
+tool_kind: notify
+description: |
+  Send a templated email campaign batch. Often the opt-out fallback for the
+  WhatsApp channel.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: external.email.send_campaign
+parameters:
+  type: object
+  properties:
+    subject: { type: string }
+    recipients:
+      type: array
+      items:
+        type: object
+        properties:
+          customer_id: { type: string }
+          email: { type: string }
+          vars: { type: object }
+    campaign_id: { type: string }
+    body_html: { type: string }
+    body_text: { type: string }
+  required: [subject, recipients]
+consumes_entities: []
+produces_entities: [Email_Campaign_Send, Audit_Event]
+tags: [notify, email, campaign, write]
+example_invocation:
+  subject: "Q2 Renewal - exclusive pricing inside"
+  recipients:
+    - { customer_id: ACC-1001, email: "ops@acme.example" }

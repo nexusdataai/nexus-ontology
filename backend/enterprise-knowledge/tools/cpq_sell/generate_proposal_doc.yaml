@@ -1,0 +1,34 @@
+tool_id: generate_proposal_doc
+display_name: Generate Proposal Document
+group: cpq_sell
+description: Compose a markdown commercial proposal for a quote with the pricing
+  waterfall, customer header, and validity terms. Used as the LLM-grounded
+  proposal output of the Trade CPQ module.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+    template:
+      type: string
+      description: Template name (default 'standard')
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Account
+- Price_Book_Entry
+produces_entities:
+- CPQ_Proposal_Document
+tags:
+- cpq-sell
+- document
+example_invocation:
+  quote_id: QT-00042
+  template: standard

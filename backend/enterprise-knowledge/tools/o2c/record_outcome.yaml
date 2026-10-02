@@ -1,0 +1,50 @@
+# ============================================================================
+# Tool: record_outcome
+# Kind: mutate
+# Connector API: external.outcome.write
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Append an O2C_Outcome_Tracker row capturing the before/after KPI delta
+#   and $ value attributed to an automation action. Used at the end of an
+#   automation playbook.
+#
+# Inputs:    action_id, kpi_name, kpi_before, kpi_after
+# Reads:     none
+# Writes:    O2C_Outcome_Tracker
+# ============================================================================
+tool_id: record_outcome
+display_name: Record Outcome
+group: o2c
+description: Append an O2C_Outcome_Tracker row capturing the before/after KPI delta
+  and $ value attributed to an automation action. Used at the end of an automation
+  playbook.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    action_id:
+      type: string
+    kpi_name:
+      type: string
+    kpi_before:
+      type: number
+    kpi_after:
+      type: number
+  required:
+  - action_id
+  - kpi_name
+  - kpi_before
+  - kpi_after
+connector_api: external.outcome.write
+consumes_entities: []
+produces_entities:
+- O2C_Outcome_Tracker
+tags:
+- o2c
+- kpi
+- write
+example_invocation: null

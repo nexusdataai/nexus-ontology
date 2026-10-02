@@ -1,0 +1,56 @@
+# ============================================================================
+# Tool: create_dispute_case
+# Kind: mutate
+# Connector API: sfdc.case.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Create a dispute case in Salesforce for invoice mismatch. Routes to AR
+#   team for review per order-fulfillment-policy Section 4.
+#
+# Inputs:    opportunity_id, invoice_id, dispute_reason, order_amount, invoiced_amount
+# Reads:     AR_Invoice, Opportunity
+# Writes:    Case, Audit_Event
+# ============================================================================
+tool_id: create_dispute_case
+display_name: Create Dispute Case
+group: o2c
+description: Create a dispute case in Salesforce for invoice mismatch. Routes to AR
+  team for review per order-fulfillment-policy Section 4.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    opportunity_id:
+      type: string
+      description: Opportunity ID
+    invoice_id:
+      type: string
+      description: Invoice ID with mismatch
+    dispute_reason:
+      type: string
+      description: Reason for dispute
+    order_amount:
+      type: number
+      description: Original order amount
+    invoiced_amount:
+      type: number
+      description: Invoiced amount
+  required:
+  - opportunity_id
+  - invoice_id
+connector_api: sfdc.case.create
+consumes_entities:
+- AR_Invoice
+- Opportunity
+produces_entities:
+- Case
+- Audit_Event
+tags:
+- o2c
+- dispute
+- write
+example_invocation: null

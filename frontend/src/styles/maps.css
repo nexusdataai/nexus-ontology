@@ -1,0 +1,31 @@
+
+.mapboxgl-canvas {
+  outline: none;
+}
+
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}
+
+/* Add custom styles for the map controls */
+.mapboxgl-ctrl-group {
+  background-color: hsl(var(--secondary)) !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 8px !important;
+}
+
+.mapboxgl-ctrl-group button {
+  width: 36px !important;
+  height: 36px !important;
+  filter: invert(1);
+}
+
+/* Light mode specific styles for map controls */
+:root .mapboxgl-ctrl-group button {
+  filter: none;
+}
+
+/* Dark mode specific styles for map controls */
+.dark .mapboxgl-ctrl-group button {
+  filter: invert(1);
+}

@@ -1,0 +1,23 @@
+# BDD Endurance Testing Requirements
+
+# Core testing framework
+behave>=1.2.6
+pexpect>=4.9.0
+
+# System monitoring
+psutil>=5.9.0
+
+# AWS SDK for DynamoDB/S3 monitoring
+boto3>=1.26.0
+
+# Data processing and reporting
+pyyaml>=6.0
+jinja2>=3.1.0
+
+# Charts and visualization (for report generation)
+matplotlib>=3.5.0
+plotly>=5.11.0
+
+# Performance profiling (optional)
+memory-profiler>=0.60.0
+py-spy>=0.3.14

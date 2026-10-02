@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ontology-dev
+  labels:
+    app.kubernetes.io/name: nexus-ontology
+    app.kubernetes.io/part-of: nexus

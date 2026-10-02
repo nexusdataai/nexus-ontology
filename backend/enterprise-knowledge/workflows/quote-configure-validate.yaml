@@ -1,0 +1,92 @@
+id: WORKFLOW_QUOTE_CONFIGURE_VALIDATE_V1_0
+name: Quote Configure & Validate
+version: "1.0"
+system: Internal
+scor_process: Plan/Deliver
+trigger:
+  object: Quote_Line
+  field: Offering_ID
+  condition: "Quote line added or modified on a Draft quote"
+description: >
+  On every quote line add or edit, validate the Trade CPQ configuration:
+  Configuration_Rule evaluation, channel/region eligibility, serviceability
+  footprint, inventory feasibility, and substitution recommendations.
+
+steps:
+  - order: 1
+    name: Resolve Quote Context
+    system: Internal
+    action: "Load Quote_Header (with Account context: channel, tier, region) and all Quote_Lines for the quote"
+
+  - order: 2
+    name: Run Configuration Rules
+    system: Internal
+    action: "Iterate Configuration_Rule set (Compatibility, MOQ, Pack_Config, Exclusion, Required_Together, Channel_Eligibility, Region_Restriction) against the quote context"
+    rules:
+      - "Errors block submission per cpq-configuration-policy"
+      - "Warnings escalate approval one level"
+
+  - order: 3
+    name: Serviceability Check
+    system: Internal
+    action: "For each ship-to region on the quote, match Serviceability_Footprint records to confirm SLA coverage and MOQ"
+
+  - order: 4
+    name: Inventory Feasibility
+    system: SAP
+    action: "Read Inventory_Position for each Offering_Component Material_ID at the serving Plant_ID; flag lines requiring expedite or substitution"
+
+  - order: 5
+    name: Substitution Recommendations
+    system: Internal
+    action: "When stock is short or eligibility fails on a substitutable component, propose like-for-like Material_Master alternatives within same brand family and pack size"
+
+  - order: 6
+    name: Write Violation Report
+    system: Internal
+    action: "Persist violations and recommendations to the quote run context; surface in the Trade CPQ configurator UI"
+
+dependencies:
+  - entity: Quote_Header
+    system: TPM
+    relationship: "Validated subject"
+  - entity: Quote_Line
+    system: TPM
+    relationship: "Per-line validation target"
+  - entity: Product_Offering
+    system: TPM
+    relationship: "Eligibility metadata"
+  - entity: Configuration_Rule
+    system: TPM
+    relationship: "Rule library evaluated"
+  - entity: Serviceability_Footprint
+    system: TPM
+    relationship: "Channel/region SLA coverage"
+  - entity: Account
+    system: Salesforce
+    relationship: "Channel/tier/region context"
+  - entity: Material_Master
+    system: SAP
+    relationship: "SKU attributes for substitution"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Stock feasibility check"
+  - entity: cpq-configuration-policy
+    system: Internal
+    relationship: "Rule severity thresholds and pack/case alignment"
+
+related_entities:
+  - Quote_Header
+  - Quote_Line
+  - Product_Offering
+  - Offering_Component
+  - Configuration_Rule
+  - Serviceability_Footprint
+  - Material_Master
+  - Inventory_Position
+  - Account
+related_policies:
+  - cpq-configuration-policy
+  - order-fulfillment-policy
+use_case: "Trade CPQ"
+scor_process: "Plan/Deliver"

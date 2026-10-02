@@ -1,0 +1,79 @@
+# Copilot-saved / Journey-Builder journeys. The solution_id assigned
+# at save time is ``builder`` (see copilot_journey_api). KPIs come from
+# the JourneyExecutorBridge's auto-derived ``Data.kpis`` dict written
+# at ``complete_run`` time.
+solution_id: builder
+title: Copilot Saved Journey Report
+icon: Workflow
+
+summary_kpis:
+  - key: steps_total
+    label: Steps
+    icon: Layers
+    format: integer
+    rollup: sum
+    source: Data.kpis.steps_total
+  - key: steps_completed
+    label: Completed
+    icon: CheckCircle
+    format: integer
+    rollup: sum
+    source: Data.kpis.steps_completed
+  - key: steps_failed
+    label: Failed
+    icon: XCircle
+    format: integer
+    rollup: sum
+    source: Data.kpis.steps_failed
+  - key: tools_invoked
+    label: Tools Invoked
+    icon: Wrench
+    format: integer
+    rollup: avg
+    source: Data.kpis.tools_invoked
+  - key: avg_duration
+    label: Avg Duration
+    icon: Clock
+    format: duration
+    rollup: avg
+    source: derived.avg_duration_seconds
+  - key: success_rate
+    label: Success Rate
+    icon: TrendingUp
+    format: percent
+    rollup: last
+    source: derived.success_rate
+
+sections:
+  - id: step_breakdown
+    title: Step Breakdown
+    kind: step_breakdown
+
+  - id: timeline
+    title: Run Timeline
+    kind: timeline
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: total_jobs
+        label: Total Runs
+        format: integer
+        rollup: last
+        source: derived.total_jobs
+      - key: completed_jobs
+        label: Completed Runs
+        format: integer
+        rollup: last
+        source: derived.completed_jobs
+      - key: failed_jobs
+        label: Failed Runs
+        format: integer
+        rollup: last
+        source: derived.failed_jobs
+      - key: rejected_jobs
+        label: Rejected Runs
+        format: integer
+        rollup: last
+        source: derived.rejected_jobs

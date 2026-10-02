@@ -1,0 +1,42 @@
+tool_id: configure_bundle
+display_name: Configure Bundle
+group: cpq_sell
+description: 'Assemble candidate Product_Offering bundles for an account from target
+  SKUs and channel. Filters offerings by channel/region eligibility and ranks by
+  material overlap.'
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    account_id:
+      type: string
+      description: Salesforce Account ID
+    target_materials:
+      type: array
+      items:
+        type: string
+      description: Optional list of Material_IDs the customer is interested in
+    channel:
+      type: string
+      description: Override channel (defaults to account channel)
+  required:
+  - account_id
+connector_api: null
+consumes_entities:
+- Account
+- Product_Offering
+- Offering_Component
+- Material_Master
+produces_entities: []
+tags:
+- cpq-sell
+- configure
+- analyze
+example_invocation:
+  account_id: ACC-00012
+  target_materials:
+  - MAT-00045
+  - MAT-00067
+  channel: HORECA

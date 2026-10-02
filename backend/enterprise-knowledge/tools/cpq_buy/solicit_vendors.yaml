@@ -1,0 +1,39 @@
+tool_id: solicit_vendors
+display_name: Solicit Vendors
+group: cpq_buy
+description: Create RFx_Invitation rows for the provided vendor panel and emit
+  the invitation event. Write-capable.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    event_id:
+      type: string
+      description: RFx_Event ID
+    vendor_ids:
+      type: array
+      items:
+        type: string
+      description: Vendor_IDs to invite
+  required:
+  - event_id
+  - vendor_ids
+connector_api: sourcing.rfx.invite
+consumes_entities:
+- RFx_Event
+- Vendor_Master
+produces_entities:
+- RFx_Invitation
+- Audit_Event
+tags:
+- cpq-buy
+- rfx
+- write
+example_invocation:
+  event_id: RFX-00007
+  vendor_ids:
+  - VND-003
+  - VND-018
+  - VND-042

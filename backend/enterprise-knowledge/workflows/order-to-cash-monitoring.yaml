@@ -1,0 +1,123 @@
+id: WORKFLOW_ORDER_TO_CASH_V1_0
+name: Order-to-Cash Monitoring
+version: "1.0"
+system: Internal
+scor_process: Deliver
+trigger:
+  object: Opportunity
+  field: Stage
+  condition: "Opportunity Stage changes to Closed_Won"
+description: >
+  End-to-end monitoring of the order-to-cash cycle across Salesforce, SAP,
+  and Oracle. Performs entity resolution, three-way matching, anomaly scoring,
+  risk prioritization, and cash-flow projection to surface revenue-at-risk
+  and accelerate collections.
+
+steps:
+  - order: 1
+    name: Entity Resolution
+    system: Internal
+    action: "Match Salesforce Opportunity to SAP Delivery_Document (via Sales_Order_ID mapping) and Oracle AR_Invoice (via Linked_Delivery_ID)"
+
+  - order: 2
+    name: Three-Way Match
+    system: Internal
+    action: "Validate Opportunity qty = Delivery qty = Invoice qty; flag mismatches"
+    rules:
+      - "Quantity tolerance ±2% per order-fulfillment-policy"
+      - "Price tolerance ±5% per order-fulfillment-policy"
+
+  - order: 3
+    name: Anomaly Scoring
+    system: Internal
+    action: "Score each order touchpoint against learned baselines: typical cycle times, expected values, payment patterns"
+
+  - order: 4
+    name: Risk Prioritization
+    system: Internal
+    action: "Rank open items by composite score: value x days overdue x account tier x SLA proximity"
+
+  - order: 5
+    name: Workflow Actions
+    system: Internal
+    action: "Execute credit holds, dispute cases, SLA escalations for at-risk orders based on policy rules"
+
+  - order: 6
+    name: Dunning & Collections
+    system: Internal
+    action: "Send collection notices for overdue invoices by aging tier (7/14/30/60 days)"
+
+  - order: 7
+    name: Action Summary
+    system: Internal
+    action: "Summarize all workflow actions taken and generate O2C_Action_Log audit trail"
+
+  - order: 8
+    name: Cash Flow Projection
+    system: Internal
+    action: "Apply customer-specific payment probability curves (from AR_Payment history) to open AR_Invoices; generate weekly/monthly forecast"
+
+  - order: 9
+    name: Store Results
+    system: Internal
+    action: "Write order data, alerts, KPIs, and action logs to S3 with Glue partitions and simulator"
+
+  - order: 10
+    name: Verify Results
+    system: Internal
+    action: "Read back O2C result entities from VDL and display summary report"
+
+dependencies:
+  - entity: Opportunity
+    system: Salesforce
+    relationship: "Order source — triggers workflow on Closed_Won"
+  - entity: Opportunity_Line_Item
+    system: Salesforce
+    relationship: "Line-level qty and price for three-way match"
+  - entity: Account
+    system: Salesforce
+    relationship: "Customer tier and credit context"
+  - entity: Delivery_Document
+    system: SAP
+    relationship: "Fulfillment record matched via Sales_Order_ID"
+  - entity: AR_Invoice
+    system: Oracle
+    relationship: "Invoice record matched via Linked_Delivery_ID"
+  - entity: AR_Payment
+    system: Oracle
+    relationship: "Payment history for probability curves"
+  - entity: AR_Credit_Note
+    system: Oracle
+    relationship: "Credit adjustments affecting cash projection"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Customer payment profile and terms"
+  - entity: Goods_Receipt
+    system: SAP
+    relationship: "Receipt confirmation for delivery validation"
+  - entity: Return_Order
+    system: SAP
+    relationship: "Returns affecting net fulfillment qty"
+  - entity: order-fulfillment-policy
+    system: Internal
+    relationship: "Defines matching tolerances and SLA thresholds"
+  - entity: credit-policy
+    system: Internal
+    relationship: "Governs credit-hold and escalation rules"
+
+related_entities:
+  - Opportunity
+  - Opportunity_Line_Item
+  - Account
+  - Delivery_Document
+  - AR_Invoice
+  - AR_Payment
+  - AR_Credit_Note
+  - AR_Customer
+  - Goods_Receipt
+  - Return_Order
+related_policies:
+  - order-fulfillment-policy
+  - credit-policy
+use_case: "Intelligent Order-to-Cash Monitor"
+scor_process: "Deliver"

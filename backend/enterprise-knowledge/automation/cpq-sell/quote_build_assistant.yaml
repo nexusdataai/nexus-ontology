@@ -1,0 +1,100 @@
+use_case_id: cpq_sell.quote_build_assistant
+title: Quote Build Assistant
+solution_id: trade-cpq
+bucket: cpq-sell
+description: 'End-to-end assistant that turns a sales-rep prompt into a draft trade
+  quote: configure offerings for the account, validate the configuration, check
+  serviceability, price the quote with a waterfall, and propose cross-sell
+  additions.
+
+  '
+status: active
+tags:
+- cpq
+- configure
+- price
+- guided-selling
+kpi_impact:
+- quote_cycle_time
+- win_rate
+- discount_leakage
+consumes_entities:
+- Account
+- Product_Offering
+- Offering_Component
+- Configuration_Rule
+- Serviceability_Footprint
+- Price_Book
+- Price_Book_Entry
+- Material_Master
+- Inventory_Position
+- Opportunity_Line_Item
+produces_entities:
+- Quote_Header
+- Quote_Line
+- CPQ_Pricing_Waterfall
+- CPQ_Validation_Result
+- Audit_Event
+stages:
+- stage_id: configure
+  name: Configure Bundle
+  order: 1
+  steps:
+  - step_id: build
+    name: Assemble Candidate Offerings
+    order: 1
+    tool: configure_bundle
+    params:
+      account_id: ${context.account_id}
+      target_materials: ${context.target_materials}
+      channel: ${context.channel}
+- stage_id: validate
+  name: Validate Configuration
+  order: 2
+  steps:
+  - step_id: rules
+    name: Run Configuration Rules
+    order: 1
+    tool: validate_configuration
+    params:
+      quote_id: ${context.quote_id}
+  - step_id: serviceability
+    name: Check Serviceability
+    order: 2
+    tool: check_serviceability
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: price
+  name: Build Pricing Waterfall
+  order: 3
+  steps:
+  - step_id: price
+    name: Compute Net Pricing
+    order: 1
+    tool: price_quote
+    params:
+      quote_id: ${context.quote_id}
+      scenario: default
+  - step_id: credit_margin
+    name: Verify Credit & Margin
+    order: 2
+    tool: check_credit_and_margin
+    params:
+      quote_id: ${context.quote_id}
+- stage_id: enhance
+  name: Suggest Add-On Offerings
+  order: 4
+  steps:
+  - step_id: upsell
+    name: Upsell / Cross-sell Recommendations
+    order: 1
+    tool: suggest_upsell_crosssell
+    params:
+      quote_id: ${context.quote_id}
+      top_n: 5
+  - step_id: forecast
+    name: Forecast Win Probability
+    order: 2
+    tool: forecast_quote_win_probability
+    params:
+      quote_id: ${context.quote_id}

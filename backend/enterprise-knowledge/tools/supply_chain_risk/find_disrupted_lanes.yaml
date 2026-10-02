@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_disrupted_lanes
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep over a feed of external events, ranked by impact.
+#
+# What it does:
+#   Identify shipping lanes currently impacted by external disruptions
+#   (weather, port congestion, geopolitical events). Returns ranked lanes
+#   with disruption score and root cause.
+#
+# Inputs:    region (optional), top_n
+# Reads:     Shipment, Lane_Health
+# Writes:    none
+# Returns:   {count, results: [{lane_id, from, to, disruption_score, cause}]}
+# ============================================================================
+tool_id: find_disrupted_lanes
+display_name: Find Disrupted Lanes
+group: supply_chain_risk
+tool_kind: analyze
+description: |
+  Score and rank shipping lanes by current disruption signals (weather,
+  congestion, geopolitical). Used by disruption-mitigation play.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    region: { type: string, description: "Optional region filter" }
+    top_n: { type: integer, description: "Max rows (default 20)" }
+  required: []
+consumes_entities: [Shipment, Lane_Health]
+produces_entities: []
+tags: [scr, lane, analyze]
+example_invocation:
+  top_n: 20

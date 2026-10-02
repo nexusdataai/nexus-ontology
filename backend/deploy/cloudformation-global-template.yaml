@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Global Resources for alert-engine MCP Server - Region-specific resources like SSL certificates'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: 'Name of the project (e.g., ecommerce-mcp)'
+    Default: 'ecommerce-mcp'
+  
+  Environment:
+    Type: String
+    Description: 'Environment name (dev, stage, prod)'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  
+  BaseDomain:
+    Type: String
+    Description: 'Base domain name (e.g., promodeagro.com)'
+    Default: 'promodeagro.com'
+  
+  Subdomain:
+    Type: String
+    Description: 'Subdomain for the environment'
+    Default: 'api-dev'
+  
+  HostedZoneId:
+    Type: String
+    Description: 'Route53 Hosted Zone ID for the base domain'
+    Default: 'Z00062013820EO6BYULDB'
+  
+  CreateSSLCertificate:
+    Type: String
+    Description: 'Create SSL certificate for the domain'
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Conditions:
+  ShouldCreateSSLCertificate: !Equals [!Ref CreateSSLCertificate, 'true']
+  IsUSEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
+
+Resources:
+  # SSL Certificate for API (only if requested)
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: ShouldCreateSSLCertificate
+    Properties:
+      DomainName: !Sub '${Subdomain}.${BaseDomain}'
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Sub '${Subdomain}.${BaseDomain}'
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-api-cert-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Global CloudWatch Log Group
+  GlobalLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/global/${ProjectName}-${Environment}'
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StackName:
+    Description: 'Global stack name'
+    Value: !Ref 'AWS::StackName'
+
+  ApiCertificateArn:
+    Condition: ShouldCreateSSLCertificate
+    Description: 'API SSL certificate ARN'
+    Value: !Ref ApiCertificate
+    Export:
+      Name: !Sub '${ProjectName}-api-cert-arn-${Environment}'
+
+  GlobalLogGroupName:
+    Description: 'Global CloudWatch log group name'
+    Value: !Ref GlobalLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-global-log-group-${Environment}'
+
+  Region:
+    Description: 'AWS Region for this deployment'
+    Value: !Ref 'AWS::Region'
+    Export:
+      Name: !Sub '${ProjectName}-region-${Environment}'

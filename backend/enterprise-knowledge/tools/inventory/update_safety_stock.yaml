@@ -1,0 +1,43 @@
+# ============================================================================
+# Tool: update_safety_stock
+# Kind: mutate
+# Connector API: sap.material_plant.reorder
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- adjust MRP planning levers in SAP.
+#
+# What it does:
+#   Update safety stock and/or reorder point for a (material, plant) pair.
+#   Drives SAP MRP runs and downstream replenishment.
+#
+# Inputs:    material_id, plant_id, safety_stock (optional), reorder_point (optional)
+# Reads:     Material_Plant
+# Writes:    Material_Plant, Audit_Event
+# Returns:   {action, material_id, plant_id, Safety_Stock?, Reorder_Point?}
+# ============================================================================
+tool_id: update_safety_stock
+display_name: Update Safety Stock
+group: inventory
+tool_kind: mutate
+description: |
+  Update safety stock / reorder point for a material+plant. Used by
+  inventory-rebalance and stockout-prevention playbooks.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: sap.material_plant.reorder
+parameters:
+  type: object
+  properties:
+    material_id: { type: string }
+    plant_id: { type: string }
+    safety_stock: { type: integer }
+    reorder_point: { type: integer }
+  required: [material_id, plant_id]
+consumes_entities: [Material_Plant]
+produces_entities: [Material_Plant, Audit_Event]
+tags: [inventory, sap, mrp, write]
+example_invocation:
+  material_id: MAT-00231
+  plant_id: PLT-N1
+  safety_stock: 500
+  reorder_point: 200

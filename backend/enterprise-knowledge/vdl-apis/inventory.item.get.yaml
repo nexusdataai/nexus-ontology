@@ -1,0 +1,17 @@
+api_id: vdl.inventory.item.get
+verb: read
+virtual_entity: InventoryItem
+description: Read an inventory item by id from the VDL layer.
+risk_level: read_only
+parameters_schema:
+  type: object
+  properties:
+    item_id:
+      type: string
+  required: [item_id]
+direct_sql:
+  virtual_entity: InventoryItem
+  filters:
+    item_id: "${item_id}"
+  limit: 1
+tags: [inventory, read]

@@ -1,0 +1,92 @@
+id: WORKFLOW_INVOICE_PROCESSING_V1_0
+name: Invoice Processing
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Invoice_Upload
+  event: "New file uploaded (PDF/scan)"
+  condition: "PDF or scanned invoice document uploaded to Invoice_Upload repository"
+description: >
+  End-to-end invoice processing workflow that extracts data from uploaded
+  invoice documents using OCR and LLM, validates extracted fields against
+  master data, performs three-way matching (PO–GRN–Invoice), and routes
+  approved invoices to Oracle AP for payment scheduling or flags discrepancies
+  for manual review.
+
+steps:
+  - order: 1
+    name: OCR + LLM Extraction
+    system: Internal
+    action: "Process uploaded file through OCR pipeline; apply LLM to extract vendor name, invoice number, date, line items (material, qty, unit price), total amount; assign Extraction_Confidence score"
+
+  - order: 2
+    name: Data Validation
+    system: Internal
+    action: "Validate extracted fields: vendor exists in Vendor_Master, invoice number not duplicate, amounts are numeric, dates are valid format"
+    rules:
+      - "Extraction_Confidence < 0.7 → flag for manual review"
+    failure_action: "Route to AP analyst for manual data entry"
+
+  - order: 3
+    name: PO Matching
+    system: Internal
+    action: "Match extracted invoice to Purchase_Order using vendor + material + approximate amount; set Matched_PO_ID"
+    failure_action: "Route to AP exception queue — no matching PO found"
+
+  - order: 4
+    name: GRN Matching
+    system: Internal
+    action: "Match to Goods_Receipt using PO_ID; validate qty received >= qty invoiced within 2% tolerance"
+    rules:
+      - "Quantity tolerance: ±2%"
+    failure_action: "Route to AP exception queue — GRN quantity mismatch"
+
+  - order: 5
+    name: Three-Way Match Decision
+    system: Internal
+    action: "If PO qty = GRN qty = Invoice qty within tolerance: auto-approve; if mismatch: route to AP exception queue with discrepancy detail"
+    rules:
+      - "PO qty = GRN qty = Invoice qty (within tolerance) → auto-approve"
+      - "Any mismatch → route to AP exception queue with discrepancy detail"
+
+  - order: 6
+    name: Approval or Rejection
+    system: Oracle
+    action: "Approved invoices: create AP_Invoice record and schedule payment per vendor Payment_Terms. Rejected: return to submitter with reason"
+    failure_action: "Alert AP manager if Oracle record creation fails"
+
+dependencies:
+  - entity: Invoice_Upload
+    system: File_Uploads
+    relationship: "Source document — uploaded invoice PDF/scan triggers workflow"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Vendor validation — confirms vendor exists and is active"
+  - entity: Purchase_Order
+    system: Oracle
+    relationship: "PO matching — invoice matched against purchase order"
+  - entity: Goods_Receipt
+    system: SAP
+    relationship: "GRN matching — validates received quantity against invoice"
+  - entity: AP_Invoice
+    system: Oracle
+    relationship: "Target entity — approved invoice record created here"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Governs PO matching rules and approval thresholds"
+  - entity: order-fulfillment-policy
+    system: Internal
+    relationship: "Governs GRN tolerance and three-way match criteria"
+
+related_entities:
+  - Invoice_Upload
+  - Vendor_Master
+  - Purchase_Order
+  - Goods_Receipt
+  - AP_Invoice
+related_policies:
+  - procurement-policy
+  - order-fulfillment-policy
+use_case: "Procurement & Spend Analytics"
+scor_process: "Source"

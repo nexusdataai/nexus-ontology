@@ -1,0 +1,95 @@
+id: WORKFLOW_PRODUCTION_SCHEDULING_V1_0
+name: Production Scheduling
+version: "1.0"
+system: SAP
+scor_process: Make
+trigger:
+  object: Demand_Forecast
+  event: "Demand forecast updated OR schedule conflict detected"
+  condition: "Demand Forecast Generation workflow publishes new plan, or raw material shortage blocks a planned production run"
+description: >
+  Generates an optimized production schedule by integrating demand forecasts
+  and sales priorities, checking material availability and line capacity,
+  running constraint-based optimization to minimize changeover and waste,
+  assigning batch IDs with expiry tracking, and releasing Production_Orders
+  in SAP PP.
+
+steps:
+  - order: 1
+    name: Demand Integration
+    system: Internal
+    action: "Pull latest demand forecast output (SKU x Region x Week) and open Salesforce Opportunities with Delivery_Priority = Express or Critical"
+
+  - order: 2
+    name: Material Availability Check
+    system: SAP
+    action: "For each planned Production_Order, explode Bill_of_Materials; check Inventory_Position for each component material; flag shortages"
+    failure_action: "Alert procurement to expedite missing materials"
+
+  - order: 3
+    name: Capacity Check
+    system: SAP
+    action: "Check Production_Line availability and capacity; account for Changeover_Time_Min between different products"
+
+  - order: 4
+    name: Schedule Optimization
+    system: Internal
+    action: "Constraint-based optimization: minimize total changeover time + waste while maximizing throughput; respect material availability and line capacity constraints; sequence similar products to reduce changeover"
+
+  - order: 5
+    name: Batch Planning
+    system: SAP
+    action: "Assign Batch_ID to each Production_Order; calculate expected Expiry_Date from Production_Date + Shelf_Life_Days"
+
+  - order: 6
+    name: Publish Schedule
+    system: SAP
+    action: "Release optimized Production_Orders in SAP PP; notify production supervisors; update dashboard"
+    failure_action: "Alert production planning team if SAP release fails"
+
+dependencies:
+  - entity: Production_Order
+    system: SAP
+    relationship: "Target entity — production orders created and released here"
+  - entity: Production_Line
+    system: SAP
+    relationship: "Capacity and availability constraints for scheduling"
+  - entity: Bill_of_Materials
+    system: SAP
+    relationship: "BOM explosion for material requirements"
+  - entity: Material_Master
+    system: SAP
+    relationship: "SKU reference data and shelf life parameters"
+  - entity: Material_Plant
+    system: SAP
+    relationship: "Plant-level material assignment and procurement parameters"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Current stock levels for material availability check"
+  - entity: Batch_Master
+    system: SAP
+    relationship: "Batch ID assignment and expiry date tracking"
+  - entity: Plant_Master
+    system: SAP
+    relationship: "Plant capacity and configuration reference"
+  - entity: quality-policy
+    system: Internal
+    relationship: "Governs batch quality hold rules during scheduling"
+  - entity: inventory-policy
+    system: Internal
+    relationship: "Defines safety stock and reorder parameters for material checks"
+
+related_entities:
+  - Production_Order
+  - Production_Line
+  - Bill_of_Materials
+  - Material_Master
+  - Material_Plant
+  - Inventory_Position
+  - Batch_Master
+  - Plant_Master
+related_policies:
+  - quality-policy
+  - inventory-policy
+use_case: "Production & Quality Control Copilot"
+scor_process: "Make"

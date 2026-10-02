@@ -1,0 +1,88 @@
+id: WORKFLOW_RFX_AWARD_V1_0
+name: RFx Award
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Sourcing_Award
+  field: Status
+  condition: "Sourcing_Award is created in Pending_Approval status"
+description: >
+  Finalize a sourcing event by selecting a Sourcing_Scenario, routing
+  approvals per sourcing-award-policy, updating Source_List, and
+  kicking off the contract generation workflow.
+
+steps:
+  - order: 1
+    name: Validate Award
+    system: Internal
+    action: "Confirm the elected Sourcing_Scenario passes sourcing-award-policy: concentration, single-source, risk tier, sustainability cert"
+
+  - order: 2
+    name: Compute Approval Chain
+    system: Internal
+    action: "Derive approval chain by total value and should-cost variance bands per sourcing-award-policy section 4 and 7"
+
+  - order: 3
+    name: Notify Approvers
+    system: Internal
+    action: "Create approval tasks; track per-approver SLA from section 8"
+
+  - order: 4
+    name: On Approval, Update Source List
+    system: SAP
+    action: "Apply the Split_JSON: largest share → Primary, second → Secondary, remainder → Emergency; deactivate previous Source_List rows for those Material_IDs"
+
+  - order: 5
+    name: Trigger Contract Generation
+    system: Internal
+    action: "Emit a kickoff event to WORKFLOW_CONTRACT_GENERATION_V1_0 with the Award_ID"
+
+  - order: 6
+    name: Set Award To Issued
+    system: Sourcing
+    action: "On all approvals + contract draft created: set Sourcing_Award.Status = Issued; record Issued_At"
+
+  - order: 7
+    name: Audit Trail
+    system: Internal
+    action: "Emit per-approver audit events; final award audit with should-cost variance, concentration, risk tier"
+
+dependencies:
+  - entity: Sourcing_Award
+    system: Sourcing
+    relationship: "Subject"
+  - entity: Sourcing_Scenario
+    system: Sourcing
+    relationship: "Elected scenario"
+  - entity: RFx_Event
+    system: Sourcing
+    relationship: "Parent event"
+  - entity: Vendor_Quote_Line
+    system: Sourcing
+    relationship: "Source of awarded prices"
+  - entity: Source_List
+    system: SAP
+    relationship: "Updated on approval"
+  - entity: sourcing-award-policy
+    system: Internal
+    relationship: "Approval matrix, single-source, concentration rules"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "PO conversion thresholds"
+  - entity: supply-chain-risk-policy
+    system: Internal
+    relationship: "Vendor risk tiers"
+
+related_entities:
+  - Sourcing_Award
+  - Sourcing_Scenario
+  - RFx_Event
+  - Vendor_Quote_Line
+  - Source_List
+related_policies:
+  - sourcing-award-policy
+  - procurement-policy
+  - supply-chain-risk-policy
+use_case: "Sourcing CPQ"
+scor_process: "Source"

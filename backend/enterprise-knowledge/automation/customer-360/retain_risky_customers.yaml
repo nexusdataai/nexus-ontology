@@ -1,0 +1,146 @@
+use_case_id: c360.retain_risky_customers
+title: Retain Risky Customers
+solution_id: customer-360
+bucket: customer-360
+description: 'When a customer''s churn risk crosses the threshold, run a personalised
+  save play: pair the at-risk account with excess inventory we want to move, apply
+  a targeted promo discount, assign a CSM outreach task, and follow up with a multi-channel
+  campaign. Verify by re-scoring churn risk after 14 days.
+
+  '
+status: active
+tags:
+- c360
+- churn
+- retention
+- retain-play
+kpi_impact:
+- churn_rate
+- expiry_writeoff_usd
+- campaign_response_rate
+- clv_uplift
+consumes_entities:
+- Customer
+- Activity_Log
+- AR_Invoice
+- Support_Case
+- Material
+- Inventory_Position
+- Batch
+produces_entities:
+- Oracle_AR_Promotion
+- Task
+- WhatsApp_Campaign_Send
+- Email_Campaign_Send
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve At-Risk Customers and Movable Inventory
+  order: 1
+  description: Identify the customers and SKUs in scope.
+  steps:
+  - step_id: list_at_risk
+    name: List Churn-Risk Customers
+    order: 1
+    tool: find_churning_customers
+    params:
+      horizon_days: 90
+      top_n: 25
+  - step_id: list_excess_stock
+    name: List Excess Stock Near Expiry
+    order: 2
+    tool: find_excess_inventory_near_expiry
+    params:
+      horizon_days: 60
+- stage_id: diagnose
+  name: Score CLV + Project Write-Off
+  order: 2
+  steps:
+  - step_id: score_clv
+    name: Score CLV Per At-Risk Customer
+    order: 1
+    tool: score_customer_lifetime_value
+    params: {}
+  - step_id: project_writeoff
+    name: Forecast Inventory Write-Off If No Action
+    order: 2
+    tool: project_inventory_writeoff
+    params:
+      horizon_days: 90
+- stage_id: decide
+  name: Pair Customers to Promo Bundles
+  order: 3
+  description: LLM step that maps each at-risk customer to the best SKU bundle.
+  steps:
+  - step_id: choose_promo_bundle
+    name: Choose Promo Bundle Per Customer
+    order: 1
+    description: 'LLM-only step. Takes the at-risk customer list + the excess-stock
+
+      list and returns a per-customer SKU bundle + recommended discount
+
+      tier. No tool binding because the reasoning is the action.
+
+      '
+- stage_id: act
+  name: Apply Discount + Open CSM Outreach
+  order: 4
+  steps:
+  - step_id: apply_promo
+    name: Create Targeted Promotion in Oracle
+    order: 1
+    requires_approval: true
+    tool: apply_promo_discount
+    params:
+      name: Q2 Retain At-Risk
+      discount_pct: 12.5
+      applies_to:
+        segment: at_risk
+  - step_id: open_csm_task
+    name: Open CSM Outreach Task
+    order: 2
+    tool: assign_csm_outreach
+    params:
+      account_id: ${item.customer_id}
+      subject: 'Save play: review Q3 expansion + promo offer'
+      outreach_type: csm_outreach
+- stage_id: notify
+  name: Send Personalised Multi-Channel Campaign
+  order: 5
+  steps:
+  - step_id: whatsapp_campaign
+    name: Send WhatsApp Campaign
+    order: 1
+    requires_approval: true
+    tool: send_whatsapp_campaign
+    params:
+      template_id: retain_q2
+      recipients: ${stage.resolve.list_at_risk.results}
+  - step_id: email_fallback
+    name: Send Email Fallback For Opt-Outs
+    order: 2
+    tool: send_email_campaign
+    params:
+      subject: Q2 Renewal -- exclusive offer
+      recipients: ${stage.resolve.list_at_risk.results}
+- stage_id: verify
+  name: Re-Score Churn Risk + Write Outcome
+  order: 6
+  steps:
+  - step_id: rescore_churn
+    name: Re-Score Churn Risk After 14d
+    order: 1
+    tool: find_churning_customers
+    params:
+      horizon_days: 14
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker Row
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: churn_rate
+      kpi_before: ${stage.resolve.list_at_risk.count}
+      kpi_after: ${stage.verify.rescore_churn.count}

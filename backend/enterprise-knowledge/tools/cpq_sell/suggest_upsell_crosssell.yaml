@@ -1,0 +1,36 @@
+tool_id: suggest_upsell_crosssell
+display_name: Suggest Upsell / Cross-sell
+group: cpq_sell
+description: Recommend additional Product_Offerings to add to a quote based on
+  the account's historic Opportunity_Line_Item purchases and overlapping
+  Material_Master content. Guided-selling helper.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+    top_n:
+      type: integer
+      description: Maximum number of recommendations to return
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Opportunity_Line_Item
+- Product_Offering
+- Offering_Component
+- Material_Master
+produces_entities: []
+tags:
+- cpq-sell
+- ai
+- recommend
+example_invocation:
+  quote_id: QT-00042
+  top_n: 5

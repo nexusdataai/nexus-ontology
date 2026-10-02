@@ -1,0 +1,34 @@
+tool_id: convert_award_to_po
+display_name: Convert Award To PO
+group: cpq_buy
+description: Mark a Sourcing_Award as Issued, record the Issued_At timestamp, and
+  kick off contract generation and Purchase_Order creation in SAP/Oracle via
+  the sourcing-sap-ariba-sync integration.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    award_id:
+      type: string
+      description: Sourcing_Award ID
+  required:
+  - award_id
+connector_api: sourcing.award.issue
+consumes_entities:
+- Sourcing_Award
+- Sourcing_Scenario
+- Vendor_Quote_Line
+- RFx_Line
+produces_entities:
+- Sourcing_Award
+- Purchase_Order
+- Source_List
+- Audit_Event
+tags:
+- cpq-buy
+- award
+- write
+example_invocation:
+  award_id: AWD-00012

@@ -1,0 +1,427 @@
+# BDD Endurance Test Configuration
+# This file contains all configurable parameters for endurance testing
+
+endurance:
+  # Test duration in minutes (default: 30 minutes)
+  duration_minutes: 30
+  
+  # Test execution strategy configuration
+  test_strategy:
+    # Strategy type: sequential, random, or weighted
+    type: "weighted"
+    
+    # Weights for different test categories (used in weighted strategy)
+    # These should sum to 1.0 for proper distribution
+    weights:
+      journey_management: 0.35    # 35% of tests
+      stage_management: 0.25      # 25% of tests
+      job_execution: 0.15         # 15% of tests
+      error_scenarios: 0.10       # 10% of tests
+      simulator_management: 0.15  # 15% of tests (WXCC Simulator MCP Tool)
+  
+  # Number of parallel test instances to run
+  # Set to 1 for sequential execution, >1 for parallel
+  parallel_instances: 1
+  
+  # Whether to continue testing if failures occur
+  continue_on_failure: true
+  
+  # Health monitoring configuration
+  health_monitoring:
+    # Enable/disable health monitoring
+    enabled: true
+    
+    # Sampling interval in seconds
+    interval_seconds: 10
+    
+    # Metrics to collect
+    metrics:
+      - cpu
+      - memory
+      - file_descriptors
+      - threads
+      - database_connections
+      - network_io
+      - disk_io
+  
+  # Alert thresholds for health metrics
+  thresholds:
+    # CPU usage percentage threshold
+    cpu_percent: 80.0
+    
+    # Memory usage threshold in GB
+    memory_gb: 8.0
+    
+    # Memory growth rate threshold (MB per hour)
+    memory_growth_mb_per_hour: 100
+    
+    # Swap usage percentage threshold
+    swap_percent: 20.0
+    
+    # Maximum file descriptors threshold
+    file_descriptors: 1000
+    
+    # Maximum thread count threshold
+    threads: 500
+    
+    # Response time threshold in milliseconds
+    response_time_ms: 5000
+    
+    # Error rate percentage threshold
+    error_rate_percent: 5.0
+    
+    # Disk usage percentage threshold
+    disk_usage_percent: 90.0
+  
+  # Alert notification configuration
+  alerts:
+    # Enable/disable alerts
+    enabled: true
+    
+    # Alert channels
+    channels:
+      - console      # Print to console
+      - file        # Write to log file
+      # - email     # Email notifications (requires configuration)
+      # - slack     # Slack notifications (requires webhook)
+    
+    # Email configuration (if email channel is enabled)
+    email:
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+      from_address: "endurance-tests@example.com"
+      to_addresses:
+        - "team@example.com"
+      # Credentials should be provided via environment variables:
+      # SMTP_USERNAME and SMTP_PASSWORD
+    
+    # Slack configuration (if slack channel is enabled)
+    slack:
+      # Webhook URL should be provided via environment variable:
+      # SLACK_WEBHOOK_URL
+      channel: "#test-alerts"
+      username: "Endurance Test Bot"
+  
+  # Reporting configuration
+  reporting:
+    # Output directory for reports
+    output_dir: "test_reports/endurance"
+    
+    # Report formats to generate
+    formats:
+      - html        # Interactive HTML report
+      - json        # JSON data export
+      - junit       # JUnit XML format (for CI/CD)
+    
+    # Include performance graphs in HTML report
+    include_graphs: true
+    
+    # Report retention in days (0 for no cleanup)
+    retention_days: 30
+    
+    # Generate report even if test is interrupted
+    generate_on_interrupt: true
+  
+  # Test scenario selection
+  scenarios:
+    # Include specific tags
+    include_tags:
+      - "@journey"
+      - "@stage"
+      - "@execution"
+      - "@mcp"
+      - "@simulator"
+    
+    # Exclude specific tags
+    exclude_tags:
+      - "@skip"
+      - "@manual"
+      - "@wip"
+    
+    # Specific feature files to include (empty for all)
+    include_features:
+      - "journey_management.feature"
+      - "stage_management.feature"
+      - "job_execution.feature"
+      - "wxcc_simulator/wxcc_simulator_mcp.feature"
+      - "call_process/call_process_journey.feature"
+      - "call_process/call_process_simulator.feature"
+    
+    # Specific scenarios to exclude
+    exclude_scenarios: []
+      # - "Complex multi-stage import"
+  
+  # Performance optimization
+  performance:
+    # Test execution timeout per scenario (seconds)
+    test_timeout: 60
+    
+    # Delay between test iterations (seconds)
+    iteration_delay: 0
+    
+    # Maximum retries for failed tests
+    max_retries: 1
+    
+    # Cache test data between iterations
+    use_cache: true
+    
+    # Clean up test data after each iteration
+    cleanup_after_iteration: true
+  
+  # Environment configuration
+  environment:
+    # AWS region for testing
+    aws_region: "us-east-1"
+    
+    # DynamoDB table name
+    dynamodb_table: "aurorastack-transformation-jobs"
+    
+    # S3 bucket for test data
+    s3_bucket: "aurorastack-test-data"
+    
+    # Use mocked AWS services
+    use_mocks: true
+    
+    # Log level (DEBUG, INFO, WARNING, ERROR)
+    log_level: "INFO"
+  
+  # Dashboard configuration
+  dashboard:
+    # Enable real-time dashboard
+    enabled: true
+    
+    # Dashboard directory (relative to project root)
+    directory: "test_reports/endurance/dashboard"
+    
+    # Dashboard port
+    port: 8080
+    
+    # Auto-open in browser
+    auto_open: false
+    
+    # Update interval (seconds)
+    update_interval: 5
+  
+  # CI/CD integration
+  ci_cd:
+    # Generate artifacts for CI/CD
+    generate_artifacts: true
+    
+    # Upload results to S3 (requires AWS credentials)
+    upload_to_s3: false
+    s3_results_bucket: "test-results"
+    
+    # Post results to API endpoint
+    post_results: false
+    results_endpoint: "https://api.example.com/test-results"
+    
+    # Exit code behavior
+    # fail_on_errors: true - return non-zero exit code if tests fail
+    # fail_on_degradation: true - return non-zero if performance degrades
+    fail_on_errors: true
+    fail_on_degradation: false
+
+# Development/Testing presets
+# Uncomment one of these presets for quick configuration
+
+# # Quick 5-minute test for development
+# quick_test:
+#   duration_minutes: 5
+#   parallel_instances: 1
+#   health_monitoring:
+#     interval_seconds: 5
+#   reporting:
+#     formats: ["json"]
+
+# # Stress test with parallel execution
+# stress_test:
+#   duration_minutes: 30
+#   parallel_instances: 4
+#   test_strategy:
+#     type: "random"
+#   performance:
+#     iteration_delay: 0
+#     cleanup_after_iteration: false
+
+# # Long-running stability test
+# stability_test:
+#   duration_minutes: 180  # 3 hours
+#   parallel_instances: 2
+#   test_strategy:
+#     type: "sequential"
+#   health_monitoring:
+#     interval_seconds: 30
+#   thresholds:
+#     memory_growth_mb_per_hour: 50
+
+# WXCC Simulator MCP Tool Test Scenarios
+# These scenarios test the simulator tool under continuous load
+simulator_test_scenarios:
+  # Seed/Reset cycle - tests memory handling for repeated data operations
+  - name: "simulator_seed_reset_cycle"
+    description: "Repeated seed and reset operations to test stability"
+    tool: "wxcc_simulator_tool"
+    steps:
+      - action: "reset"
+      - action: "seed"
+        params:
+          num_tasks: 10
+          include_recordings: true
+      - action: "status"
+      - action: "list_tasks"
+      - action: "reset"
+    iterations: 50
+    delay_between_steps_ms: 100
+    
+  # Simulate call cycle - tests task creation under load
+  - name: "simulator_call_creation"
+    description: "Create many simulated calls to test performance"
+    tool: "wxcc_simulator_tool"
+    steps:
+      - action: "simulate_call"
+        params:
+          duration: 180
+          status: "completed"
+    iterations: 100
+    delay_between_steps_ms: 50
+    
+  # Status monitoring - tests health check under load
+  - name: "simulator_status_monitoring"
+    description: "Repeated status checks to test monitoring stability"
+    tool: "wxcc_simulator_tool"
+    steps:
+      - action: "status"
+    iterations: 200
+    delay_between_steps_ms: 25
+
+# Call Processing Journey API Test Scenarios
+# These scenarios test the journey API endpoints under continuous load
+call_process_api_scenarios:
+  # Complete journey workflow - tests full CRUD cycle
+  - name: "journey_complete_workflow"
+    description: "Create journey, add stage, run job, check status"
+    api_endpoints:
+      - method: "POST"
+        endpoint: "/api/v1/journeys"
+        body:
+          name: "Endurance Test Journey"
+          description: "Created during endurance testing"
+          odaComponentType: "CALLCENTER"
+      - method: "POST"
+        endpoint: "/api/v1/journeys/{journey_id}/stages"
+        params:
+          stage_id: "call_process"
+          name: "Call Processing"
+      - method: "POST"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs"
+        params:
+          stage_id: "call_process"
+          triggered_by: "endurance-test"
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs/{job_id}/status"
+      - method: "DELETE"
+        endpoint: "/api/v1/journeys/{journey_id}"
+        params:
+          force: true
+    iterations: 50
+    delay_between_steps_ms: 100
+    
+  # Stage management cycle - tests stage CRUD operations
+  - name: "stage_management_cycle"
+    description: "Add, update, and remove stages repeatedly"
+    api_endpoints:
+      - method: "POST"
+        endpoint: "/api/v1/journeys/{journey_id}/stages"
+        params:
+          stage_id: "call_process"
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/stages"
+      - method: "PUT"
+        endpoint: "/api/v1/journeys/{journey_id}/stages/call_process"
+        params:
+          status: "running"
+      - method: "DELETE"
+        endpoint: "/api/v1/journeys/{journey_id}/stages/call_process"
+    iterations: 100
+    delay_between_steps_ms: 50
+    
+  # Job execution cycle - tests job management under load
+  - name: "job_execution_cycle"
+    description: "Run and monitor jobs continuously"
+    api_endpoints:
+      - method: "POST"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs"
+        params:
+          stage_id: "call_process"
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs/{job_id}/status"
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs/{job_id}"
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs"
+    iterations: 100
+    delay_between_steps_ms: 50
+    
+  # Job polling stress test - simulates UI polling behavior
+  - name: "job_status_polling"
+    description: "Rapid job status polling to simulate UI"
+    api_endpoints:
+      - method: "GET"
+        endpoint: "/api/v1/journeys/{journey_id}/jobs/{job_id}/status"
+    iterations: 500
+    delay_between_steps_ms: 200
+    
+  # Journey listing with filters - tests query performance
+  - name: "journey_list_queries"
+    description: "List journeys with various filters"
+    api_endpoints:
+      - method: "GET"
+        endpoint: "/api/v1/journeys"
+      - method: "GET"
+        endpoint: "/api/v1/journeys?status=pending"
+      - method: "GET"
+        endpoint: "/api/v1/journeys?component_type=CALLCENTER"
+      - method: "GET"
+        endpoint: "/api/v1/journeys?limit=10&offset=0"
+    iterations: 100
+    delay_between_steps_ms: 50
+
+# Combined Call Process + Simulator workflow scenarios
+call_process_simulator_scenarios:
+  # Full E2E workflow with simulator
+  - name: "e2e_simulator_processing"
+    description: "Complete E2E: seed simulator, create journey, run job"
+    steps:
+      - tool: "wxcc_simulator_tool"
+        action: "reset"
+      - tool: "wxcc_simulator_tool"
+        action: "seed"
+        params:
+          num_tasks: 5
+          include_recordings: true
+      - api:
+          method: "POST"
+          endpoint: "/api/v1/journeys"
+          body:
+            name: "E2E Endurance Test"
+            odaComponentType: "CALLCENTER"
+      - api:
+          method: "POST"
+          endpoint: "/api/v1/journeys/{journey_id}/stages"
+          params:
+            stage_id: "call_process"
+      - api:
+          method: "POST"
+          endpoint: "/api/v1/journeys/{journey_id}/jobs"
+          params:
+            stage_id: "call_process"
+      - api:
+          method: "GET"
+          endpoint: "/api/v1/journeys/{journey_id}/jobs/{job_id}/status"
+          poll_until: "completed"
+          max_polls: 60
+          poll_interval_ms: 1000
+      - tool: "wxcc_simulator_tool"
+        action: "reset"
+    iterations: 20
+    delay_between_steps_ms: 500

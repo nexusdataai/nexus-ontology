@@ -1,0 +1,165 @@
+id: INTEGRATION_SOURCING_SAP_ARIBA_V1_0
+name: Sourcing CPQ to SAP Ariba / SAP S/4HANA Sync
+version: "1.0"
+source_system: Sourcing_Simulator
+target_system: SAP
+sync_type: bidirectional
+frequency: "Event-driven on RFx and Award status transitions"
+description: >
+  Bidirectional integration between the Sourcing CPQ module
+  (Sourcing simulator, modelled on SAP Ariba) and SAP S/4HANA.
+  RFx_Event, RFx_Line, Vendor_Quote, Vendor_Quote_Line, Should_Cost_Model,
+  Sourcing_Scenario, and Sourcing_Award are authoritative in the
+  Sourcing layer. When an Award is approved, it updates Source_List
+  entries and creates Purchase_Order records in SAP, and drafts a
+  Contract_Document. Vendor_Master, Material_Master, Plant_Master are
+  read from SAP.
+
+mappings:
+  - name: Vendor Read
+    source_object: Vendor_Master
+    target_object: RFx_Invitation
+    direction: SAP → Sourcing
+    conflict_resolution: "SAP wins (master)"
+    fields:
+      - source: Vendor_Master.Vendor_ID
+        target: RFx_Invitation.Vendor_ID
+        direction: "source_to_target"
+        read_only: true
+      - source: Vendor_Master.Risk_Score
+        target: RFx_Invitation.context.risk_score
+        direction: "source_to_target"
+        read_only: true
+        note: "Used to filter candidate vendors per supply-chain-risk-policy"
+
+  - name: Source List Read
+    source_object: Source_List
+    target_object: RFx_Invitation
+    direction: SAP → Sourcing
+    conflict_resolution: "SAP wins"
+    fields:
+      - source: Source_List.Material_ID
+        target: RFx_Invitation.context.material_id
+        direction: "source_to_target"
+      - source: Source_List.Vendor_ID
+        target: RFx_Invitation.Vendor_ID
+        direction: "source_to_target"
+      - source: Source_List.Priority
+        target: RFx_Invitation.context.source_priority
+        direction: "source_to_target"
+
+  - name: Award To Source List Update
+    source_object: Sourcing_Award
+    target_object: Source_List
+    direction: Sourcing → SAP
+    conflict_resolution: "Sourcing wins on Approved transition"
+    fields:
+      - source: Sourcing_Award.Award_ID
+        target: Source_List.context.award_id
+        direction: "source_to_target"
+      - source: Sourcing_Scenario.Split_JSON
+        target: Source_List.Priority
+        direction: "source_to_target"
+        transformation: "Largest share → Primary, next → Secondary, remainder → Emergency"
+        constraint: "Only Approved awards update Source_List"
+
+  - name: Award To Purchase Order
+    source_object: Sourcing_Award
+    target_object: Purchase_Order
+    direction: Sourcing → Oracle/SAP
+    conflict_resolution: "Sourcing initiates; Oracle/SAP authoritative thereafter"
+    fields:
+      - source: Sourcing_Award.Award_ID
+        target: Purchase_Order.context.award_id
+        direction: "source_to_target"
+      - source: Sourcing_Scenario.Split_JSON.vendor_id
+        target: Purchase_Order.Vendor_ID
+        direction: "source_to_target"
+      - source: RFx_Line.Material_ID
+        target: Purchase_Order.Material_ID
+        direction: "source_to_target"
+      - source: Sourcing_Scenario.Split_JSON.qty_pct
+        target: Purchase_Order.Quantity
+        direction: "source_to_target"
+        transformation: "qty_pct * RFx_Line.Qty_Target / 100"
+      - source: Sourcing_Scenario.Split_JSON.unit_price
+        target: Purchase_Order.Unit_Price
+        direction: "source_to_target"
+      - source: Sourcing_Award.Issued_At
+        target: Purchase_Order.context.issued_at
+        direction: "source_to_target"
+
+  - name: Award To Contract Document Draft
+    source_object: Sourcing_Award
+    target_object: Contract_Document
+    direction: Sourcing → Google_Drive
+    conflict_resolution: "Sourcing drafts; Legal finalizes; Google Drive stores"
+    fields:
+      - source: Sourcing_Award.Award_ID
+        target: Contract_Document.context.award_id
+        direction: "source_to_target"
+      - source: Sourcing_Scenario.Split_JSON.vendor_id
+        target: Contract_Document.Vendor_ID
+        direction: "source_to_target"
+      - source: Vendor_Quote_Line.Unit_Price
+        target: Contract_Document.Contracted_Price
+        direction: "source_to_target"
+      - source: RFx_Line.Qty_Target
+        target: Contract_Document.Volume_Commitment
+        direction: "source_to_target"
+      - source: Vendor_Quote_Line.Payment_Terms
+        target: Contract_Document.context.payment_terms
+        direction: "source_to_target"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "10 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "sourcing-integration-alerts@company.com"
+  fallback: "Sourcing layer remains authoritative for award decisions; PO creation may be retried or manually entered in SAP if integration fails"
+
+dependencies:
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Master record referenced by RFx_Invitation and Vendor_Quote"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Master record referenced by RFx_Line"
+  - entity: Plant_Master
+    system: SAP
+    relationship: "Master record referenced by RFx_Event and RFx_Line"
+  - entity: Source_List
+    system: SAP
+    relationship: "Updated on award approval"
+  - entity: Commodity_Price
+    system: Social_Listening
+    relationship: "Feeds Should_Cost_Model"
+  - entity: sourcing-award-policy
+    system: Internal
+    relationship: "Must approve before award is issued"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Governs PO creation and approval"
+
+related_entities:
+  - RFx_Event
+  - RFx_Line
+  - RFx_Invitation
+  - Vendor_Quote
+  - Vendor_Quote_Line
+  - Should_Cost_Model
+  - Sourcing_Scenario
+  - Sourcing_Award
+  - Vendor_Master
+  - Source_List
+  - Purchase_Order
+  - Contract_Document
+triggered_by_workflows:
+  - RFx Launch
+  - RFx Bid Evaluation
+  - RFx Award
+  - Contract Generation
+used_by_apps:
+  - "Sourcing CPQ"
+  - "Procurement Analytics"
+  - "Supply Chain Risk Radar"

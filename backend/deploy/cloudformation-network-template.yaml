@@ -1,0 +1,557 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS MCP Server Network Infrastructure - VPC, Subnets, ECS Cluster'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: 'Name of the project (e.g., ecommerce-mcp)'
+    Default: 'ecommerce-mcp'
+  
+  Environment:
+    Type: String
+    Description: 'Environment name (dev, stage, prod)'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  
+  MaxAzs:
+    Type: Number
+    Description: 'Maximum number of Availability Zones'
+    Default: 2
+    MinValue: 1
+    MaxValue: 3
+  
+  NatGateways:
+    Type: Number
+    Description: 'Number of NAT Gateways (0 for staging cost optimization)'
+    Default: 1
+    MinValue: 0
+    MaxValue: 3
+  
+  LogRetentionDays:
+    Type: Number
+    Description: 'CloudWatch log retention in days'
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+  
+  # Existing VPC Configuration (Optional - leave empty to create new VPC)
+  ExistingVpcId:
+    Type: String
+    Description: 'Optional: Existing VPC ID to use instead of creating new VPC'
+    Default: ''
+  
+  ExistingPublicSubnet1:
+    Type: String
+    Description: 'Optional: Existing public subnet ID in AZ1'
+    Default: ''
+  
+  ExistingPublicSubnet2:
+    Type: String
+    Description: 'Optional: Existing public subnet ID in AZ2'
+    Default: ''
+  
+  ExistingPrivateSubnet1:
+    Type: String
+    Description: 'Optional: Existing private subnet ID in AZ1'
+    Default: ''
+  
+  ExistingPrivateSubnet2:
+    Type: String
+    Description: 'Optional: Existing private subnet ID in AZ2'
+    Default: ''
+  
+  ExistingInternetGatewayId:
+    Type: String
+    Description: 'Optional: Existing Internet Gateway ID'
+    Default: ''
+
+Conditions:
+  HasNatGateways: !Not [!Equals [!Ref NatGateways, 0]]
+  HasMultipleNatGateways: !Not [!Or [!Equals [!Ref NatGateways, 0], !Equals [!Ref NatGateways, 1]]]
+  IsProduction: !Equals [!Ref Environment, 'prod']
+  
+  # Conditions for existing VPC resources
+  CreateNewVpc: !Equals [!Ref ExistingVpcId, '']
+  UseExistingVpc: !Not [!Equals [!Ref ExistingVpcId, '']]
+  CreateNewSubnets: !Equals [!Ref ExistingPublicSubnet1, '']
+  UseExistingSubnets: !Not [!Equals [!Ref ExistingPublicSubnet1, '']]
+  CreateNewIgw: !And 
+    - !Condition CreateNewVpc
+    - !Equals [!Ref ExistingInternetGatewayId, '']
+  UseExistingIgw: !Not [!Equals [!Ref ExistingInternetGatewayId, '']]
+  HasExistingPrivateSubnets: !Not [!Equals [!Ref ExistingPrivateSubnet1, '']]
+  
+  # Combined conditions for NAT and private resources
+  CreateNatGatewaysInNewVpc: !And
+    - !Condition CreateNewVpc
+    - !Condition HasNatGateways
+  CreateMultipleNatGatewaysInNewVpc: !And
+    - !Condition CreateNewVpc
+    - !Condition HasMultipleNatGateways
+
+Resources:
+  # VPC - Only create if not using existing VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Condition: CreateNewVpc
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-vpc-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Internet Gateway - Only create if not using existing IGW
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: CreateNewIgw
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-igw-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateNewIgw
+    Properties:
+      VpcId: !If [CreateNewVpc, !Ref VPC, !Ref ExistingVpcId]
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnets - Only create if not using existing subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewSubnets
+    Properties:
+      VpcId: !If [CreateNewVpc, !Ref VPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-subnet-1-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewSubnets
+    Properties:
+      VpcId: !If [CreateNewVpc, !Ref VPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-subnet-2-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Private Subnets (only if NAT Gateways are configured AND not using existing)
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Condition: HasNatGateways
+    Properties:
+      VpcId: !If [CreateNewVpc, !Ref VPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-private-subnet-1-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Condition: HasMultipleNatGateways
+    Properties:
+      VpcId: !If [CreateNewVpc, !Ref VPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-private-subnet-2-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # NAT Gateway Elastic IPs
+  NATGateway1EIP:
+    Type: AWS::EC2::EIP
+    Condition: HasNatGateways
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-nat-eip-1-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  NATGateway2EIP:
+    Type: AWS::EC2::EIP
+    Condition: HasMultipleNatGateways
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-nat-eip-2-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # NAT Gateways
+  NATGateway1:
+    Type: AWS::EC2::NatGateway
+    Condition: HasNatGateways
+    Properties:
+      AllocationId: !GetAtt NATGateway1EIP.AllocationId
+      SubnetId: !If [CreateNewSubnets, !Ref PublicSubnet1, !Ref ExistingPublicSubnet1]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-nat-1-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  NATGateway2:
+    Type: AWS::EC2::NatGateway
+    Condition: HasMultipleNatGateways
+    Properties:
+      AllocationId: !GetAtt NATGateway2EIP.AllocationId
+      SubnetId: !If [CreateNewSubnets, !Ref PublicSubnet2, !Ref ExistingPublicSubnet2]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-nat-2-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Route Tables (only create when creating new VPC/subnets)
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateNewVpc
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-rt-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Condition: HasNatGateways
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-private-rt-1-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Condition: HasMultipleNatGateways
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-private-rt-2-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Routes (only for new VPC)
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Condition: CreateNewIgw
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Condition: HasNatGateways
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
+
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Condition: HasMultipleNatGateways
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway2
+
+  # Subnet Route Table Associations (only when creating new VPC/subnets)
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasNatGateways
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: HasMultipleNatGateways
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ProjectName}-cluster-${Environment}'
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enhanced
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-cluster-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Log Group for ECS
+  ECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ecs/${ProjectName}-${Environment}'
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for ECS Service
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Security group for ${ProjectName} ECS tasks - ${Environment}'
+      VpcId: !If 
+        - UseExistingVpc
+        - !Ref ExistingVpcId
+        - !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 10.0.0.0/16
+          Description: 'Allow inbound traffic on port 8000 from within VPC'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTP traffic from internet'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow all outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-ecs-sg-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for ALB
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Security group for ${ProjectName} Application Load Balancer - ${Environment}'
+      VpcId: !If 
+        - UseExistingVpc
+        - !Ref ExistingVpcId
+        - !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTP traffic from internet'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTPS traffic from internet'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow all outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-alb-sg-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StackName:
+    Description: 'Network stack name'
+    Value: !Ref 'AWS::StackName'
+
+  VpcId:
+    Description: 'VPC ID'
+    Value: !If 
+      - UseExistingVpc
+      - !Ref ExistingVpcId
+      - !Ref VPC
+    Export:
+      Name: !Sub '${ProjectName}-vpc-id-${Environment}'
+
+  ClusterName:
+    Description: 'ECS Cluster Name'
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${ProjectName}-cluster-name-${Environment}'
+
+  ClusterArn:
+    Description: 'ECS Cluster ARN'
+    Value: !GetAtt ECSCluster.Arn
+    Export:
+      Name: !Sub '${ProjectName}-cluster-arn-${Environment}'
+
+  PublicSubnet1Id:
+    Description: 'Public Subnet 1 ID'
+    Value: !If [CreateNewSubnets, !Ref PublicSubnet1, !Ref ExistingPublicSubnet1]
+    Export:
+      Name: !Sub '${ProjectName}-public-subnet-1-id-${Environment}'
+
+  PublicSubnet2Id:
+    Description: 'Public Subnet 2 ID'
+    Value: !If [CreateNewSubnets, !Ref PublicSubnet2, !Ref ExistingPublicSubnet2]
+    Export:
+      Name: !Sub '${ProjectName}-public-subnet-2-id-${Environment}'
+
+  PrivateSubnet1Id:
+    Condition: HasNatGateways
+    Description: 'Private Subnet 1 ID'
+    Value: !If 
+      - HasExistingPrivateSubnets
+      - !Ref ExistingPrivateSubnet1
+      - !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-private-subnet-1-id-${Environment}'
+
+  PrivateSubnet2Id:
+    Condition: HasMultipleNatGateways
+    Description: 'Private Subnet 2 ID'
+    Value: !If 
+      - HasExistingPrivateSubnets
+      - !Ref ExistingPrivateSubnet2
+      - !Ref PrivateSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-private-subnet-2-id-${Environment}'
+
+  PublicSubnets:
+    Description: 'Public Subnets (comma separated)'
+    Value: !If 
+      - CreateNewSubnets
+      - !Sub '${PublicSubnet1},${PublicSubnet2}'
+      - !Sub '${ExistingPublicSubnet1},${ExistingPublicSubnet2}'
+    Export:
+      Name: !Sub '${ProjectName}-public-subnets-${Environment}'
+
+  PrivateSubnets:
+    Condition: HasNatGateways
+    Description: 'Private Subnets (comma separated)'
+    Value: !If 
+      - HasExistingPrivateSubnets
+      - !If 
+        - HasMultipleNatGateways
+        - !Sub '${ExistingPrivateSubnet1},${ExistingPrivateSubnet2}'
+        - !Ref ExistingPrivateSubnet1
+      - !If 
+        - HasMultipleNatGateways
+        - !Sub '${PrivateSubnet1},${PrivateSubnet2}'
+        - !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-private-subnets-${Environment}'
+
+  ECSSecurityGroupId:
+    Description: 'ECS Security Group ID'
+    Value: !Ref ECSSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-ecs-sg-id-${Environment}'
+
+  ALBSecurityGroupId:
+    Description: 'ALB Security Group ID'
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-alb-sg-id-${Environment}'
+
+  LogGroupName:
+    Description: 'CloudWatch Log Group Name'
+    Value: !Ref ECSLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-log-group-name-${Environment}'
+
+  HasNatGateways:
+    Description: 'Whether NAT Gateways are configured'
+    Value: !If [HasNatGateways, 'true', 'false']
+    Export:
+      Name: !Sub '${ProjectName}-has-nat-gateways-${Environment}'
+

@@ -1,0 +1,42 @@
+# ============================================================================
+# Tool: discover_tables
+# Kind: read
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep -- pull rows that match a filter.
+#
+# What it does:
+#   Search for foreign tables (Salesforce objects) available via FDW.
+#   Optionally filter by name. Returns table names, schemas, and column
+#   counts.
+#
+# Inputs:    search_term, limit
+# Reads:     none
+# Writes:    none
+# ============================================================================
+tool_id: discover_tables
+display_name: Discover Tables
+group: misc
+description: Search for foreign tables (Salesforce objects) available via FDW. Optionally
+  filter by name. Returns table names, schemas, and column counts.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    search_term:
+      type: string
+      description: Optional substring to filter table names (e.g. 'Account', 'Opportunity',
+        'Lead')
+    limit:
+      type: integer
+      description: Max tables to return (default 20)
+      default: 20
+  required: []
+connector_api: null
+consumes_entities: []
+produces_entities: []
+tags:
+- fdw
+- read
+example_invocation: null

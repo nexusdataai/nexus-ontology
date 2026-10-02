@@ -1,0 +1,122 @@
+use_case_id: io.expiry_risk_mitigation
+title: Expiry Risk Mitigation
+solution_id: inventory-optimization
+bucket: supply-chain
+description: 'Move / discount near-expiry stock before write-off. Identify near-expiry
+  stock, bundle SKUs into clearance kits, attach a discount, and notify channel partners.
+
+  '
+status: active
+tags:
+- inventory
+- expiry
+- liquidation
+kpi_impact:
+- expiry_writeoff_usd
+- sell_through_rate
+consumes_entities:
+- Material
+- Inventory_Position
+- Batch
+produces_entities:
+- Oracle_Kit
+- Oracle_AR_Promotion
+- Warehouse_Transfer
+- Email_Campaign_Send
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_excess_inventory_near_expiry
+    params:
+      horizon_days: 60
+- stage_id: diagnose
+  name: Diagnose
+  order: 2
+  description: Score / decompose the candidates.
+  steps:
+  - step_id: diag
+    name: Score / Project
+    order: 1
+    tool: project_inventory_writeoff
+    params:
+      horizon_days: 90
+- stage_id: decide
+  name: Decide
+  order: 3
+  description: 'Decide bundle / discount / inter-plant transfer per SKU. LLM-only
+
+    step; no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 4
+  steps:
+  - step_id: act_1
+    name: Bundle Skus For Liquidation
+    order: 1
+    tool: bundle_skus_for_liquidation
+    params:
+      name: Near-Expiry Clearance
+      components: ${stage.decide.choose_action.bundle}
+  - step_id: act_2
+    name: Apply Promo Discount
+    order: 2
+    requires_approval: true
+    tool: apply_promo_discount
+    params:
+      name: Clearance Discount
+      discount_pct: 25.0
+      applies_to:
+        segment: clearance
+  - step_id: act_3
+    name: Create Transfer Order
+    order: 3
+    tool: create_transfer_order
+    params:
+      from_plant: ${item.plant}
+      to_plant: PLT-N1
+      material_id: ${item.material_id}
+      quantity: ${item.qty}
+- stage_id: notify
+  name: Notify
+  order: 5
+  steps:
+  - step_id: notify_1
+    name: Send Email Campaign
+    order: 1
+    tool: send_email_campaign
+    params:
+      subject: Clearance bundle available
+      recipients: ${stage.resolve.list.results}
+- stage_id: verify
+  name: Verify
+  order: 6
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_excess_inventory_near_expiry
+    params:
+      horizon_days: 60
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: expiry_writeoff_usd
+      kpi_before: ${stage.diagnose.diag.projected_writeoff_usd}
+      kpi_after: ${stage.verify.requery.projected_writeoff_usd}

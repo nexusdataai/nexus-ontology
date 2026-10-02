@@ -1,0 +1,34 @@
+tool_id: recommend_award_split
+display_name: Recommend Award Split
+group: cpq_buy
+description: Run all three split strategies (cost_optimal, risk_balanced,
+  diversified) for an RFx_Event and return the Pareto-optimal scenario subject
+  to the 60% concentration ceiling from sourcing-award-policy.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    event_id:
+      type: string
+      description: RFx_Event ID
+  required:
+  - event_id
+connector_api: sourcing.scenario.create
+consumes_entities:
+- RFx_Event
+- Vendor_Quote
+- Vendor_Quote_Line
+- Should_Cost_Model
+- Vendor_Master
+produces_entities:
+- Sourcing_Scenario
+- Audit_Event
+tags:
+- cpq-buy
+- award
+- ai
+- recommend
+example_invocation:
+  event_id: RFX-00007

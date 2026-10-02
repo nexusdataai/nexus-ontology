@@ -1,0 +1,1856 @@
+version: "2.0"
+name: "NLQ Exemplars - Curated AI Query Builder Knowledge Base"
+description: >
+  High-precision examples of natural language queries paired with their
+  correct structured Virtual Data Layer panel queries. Each exemplar carries
+  a list of `query_variants` (substantively different phrasings of the same
+  intent). The NLQExemplarGenerator multiplies each variant by:
+
+    1. Synonym substitution (using the `synonyms` map below)
+    2. Prefix templates ("show ", "list ", "get me ", etc.)
+
+  so a single curated entry produces 20-50 indexed rows in the pgvector
+  store. All multiplied rows share the same `metadata.structured_query`.
+
+  Coverage: every widget query from all 8 solutions defined in
+  nexus-ui/src/config/dashboardWidgets.ts plus core supply-chain entity
+  patterns. Field names match the dashboard widget definitions exactly so
+  queries execute end-to-end through the VirtualQueryService.
+
+  Solutions covered:
+    1. Order-to-Cash Monitor (O2C)
+    2. Demand Forecasting Engine (DF)
+    3. Inventory Optimization (IO)
+    4. Procurement and Spend Analytics (PA)
+    5. Production and Quality Copilot (PQ)
+    6. Supply Chain Risk Radar (SCR)
+    7. Customer 360 and Revenue Growth (C360)
+    8. ESG and Sustainability Tracker (ESG)
+
+# Synonym map: each key is substituted (case-insensitive, whole-word) with
+# any of its values to generate additional indexed phrasings. Plurals are
+# listed explicitly to avoid fragile programmatic pluralization. Keep this
+# list curated; over-broad synonyms cause noisy retrieval.
+synonyms:
+  vendor: [supplier]
+  vendors: [suppliers]
+  supplier: [vendor]
+  suppliers: [vendors]
+  account: [customer, client]
+  accounts: [customers, clients]
+  customer: [account, client]
+  customers: [accounts, clients]
+  alert: [warning, notification]
+  alerts: [warnings, notifications]
+  invoice: [bill]
+  invoices: [bills]
+  order: [purchase]
+  orders: [purchases]
+  inventory: [stock]
+  region: [territory, area]
+  regions: [territories, areas]
+  category: [type, class]
+  categories: [types, classes]
+  plant: [facility, factory, site]
+  plants: [facilities, factories, sites]
+  material: [product, item, sku]
+  materials: [products, items, skus]
+  forecast: [prediction]
+  forecasts: [predictions]
+  DSO: [days sales outstanding]
+  AR: [accounts receivable]
+  OEE: [overall equipment effectiveness]
+  MAPE: [forecast accuracy, mean absolute percentage error]
+  CLV: [lifetime value, customer lifetime value, ltv]
+  STP: [straight through processing]
+  OTD: [on time delivery]
+  KPI: [metric]
+  KPIs: [metrics]
+
+exemplars:
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 1: ORDER-TO-CASH MONITOR (O2C)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── O2C_KPI_Snapshot ────────────────────────────────────────────────
+  - query_variants:
+      - "days sales outstanding"
+      - "current DSO"
+      - "DSO value"
+      - "what is the DSO"
+      - "how many days sales outstanding"
+    entity: O2C_KPI_Snapshot
+    fields: [dso]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Days Sales Outstanding"
+    category: o2c_kpi
+
+  - query_variants:
+      - "DSO trend over time"
+      - "DSO history"
+      - "days sales outstanding by month"
+      - "how has DSO changed"
+    entity: O2C_KPI_Snapshot
+    fields: [processed_at, dso]
+    aggregation: {function: avg, field: dso}
+    groupBy: [processed_at]
+    orderBy: "processed_at ASC"
+    limit: 100
+    panel_type: time-series
+    title: "DSO Trend"
+    category: o2c_kpi
+
+  - query_variants:
+      - "match rate"
+      - "current match rate"
+      - "three way match rate"
+      - "what percent of orders match"
+      - "match success rate"
+    entity: O2C_KPI_Snapshot
+    fields: [match_rate]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Match Rate"
+    category: o2c_kpi
+
+  - query_variants:
+      - "revenue leakage"
+      - "leakage rate"
+      - "revenue leakage percent"
+      - "how much revenue is leaking"
+    entity: O2C_KPI_Snapshot
+    fields: [leakage_rate]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Revenue Leakage"
+    category: o2c_kpi
+
+  - query_variants:
+      - "open accounts receivable"
+      - "total open AR"
+      - "outstanding AR balance"
+      - "open AR amount"
+      - "how much AR is open"
+    entity: O2C_KPI_Snapshot
+    fields: [total_open_ar]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Total Open AR"
+    category: o2c_kpi
+
+  - query_variants:
+      - "AR at risk"
+      - "at risk amount"
+      - "overdue AR amount"
+      - "how much AR is at risk"
+    entity: O2C_KPI_Snapshot
+    fields: [at_risk_amount]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "AR at Risk"
+    category: o2c_kpi
+
+  # ─── O2C_Order_Result ────────────────────────────────────────────────
+  - query_variants:
+      - "order match status breakdown"
+      - "orders by match status"
+      - "match status distribution"
+      - "how are orders matching"
+    entity: O2C_Order_Result
+    fields: [match_status]
+    aggregation: {function: count, field: null}
+    groupBy: [match_status]
+    orderBy: "value DESC"
+    limit: 1000
+    panel_type: pie-chart
+    title: "Order Match Status"
+    category: o2c_orders
+
+  - query_variants:
+      - "top anomaly scores"
+      - "highest anomaly orders"
+      - "most anomalous orders"
+      - "orders with highest anomaly"
+      - "top 15 anomalous orders"
+    entity: O2C_Order_Result
+    fields: [opportunity_id, anomaly_score]
+    orderBy: "anomaly_score DESC"
+    limit: 15
+    panel_type: bar-chart
+    title: "Top Anomaly Scores"
+    category: o2c_risk
+
+  - query_variants:
+      - "top risk orders"
+      - "highest risk orders"
+      - "riskiest orders"
+      - "top orders by risk rank"
+      - "orders ranked by risk"
+    entity: O2C_Order_Result
+    fields: [opportunity_id, account_name, order_amount, match_status, anomaly_score, risk_rank]
+    orderBy: "risk_rank ASC"
+    limit: 20
+    panel_type: table
+    title: "Top Risk Orders"
+    category: o2c_risk
+
+  - query_variants:
+      - "top 10 orders by composite risk"
+      - "top 10 risky orders"
+      - "highest composite risk orders"
+    entity: O2C_Order_Result
+    fields: [opportunity_id, account_name, composite_risk, order_amount]
+    orderBy: "composite_risk DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top 10 Orders by Risk"
+    category: o2c_risk
+
+  - query_variants:
+      - "total order amount by account tier"
+      - "order revenue by tier"
+      - "sales by tier"
+      - "order amount per tier"
+    entity: O2C_Order_Result
+    fields: [account_tier, order_amount]
+    aggregation: {function: sum, field: order_amount}
+    groupBy: [account_tier]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Order Amount by Account Tier"
+    category: o2c_revenue
+
+  - query_variants:
+      - "average anomaly score by tier"
+      - "mean anomaly per account tier"
+      - "tier wise anomaly averages"
+    entity: O2C_Order_Result
+    fields: [account_tier, anomaly_score]
+    aggregation: {function: avg, field: anomaly_score}
+    groupBy: [account_tier]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Average Anomaly Score by Tier"
+    category: o2c_risk
+
+  # ─── O2C_Alert ───────────────────────────────────────────────────────
+  - query_variants:
+      - "active O2C alerts"
+      - "current order to cash alerts"
+      - "all O2C alerts"
+      - "recent O2C alerts"
+    entity: O2C_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Active Alerts"
+    category: o2c_alerts
+
+  - query_variants:
+      - "total O2C alerts over time"
+      - "alert count over time"
+      - "alert volume trend"
+      - "how alerts have grown"
+    entity: O2C_Alert
+    fields: [processed_at, total_alerts]
+    aggregation: {function: sum, field: total_alerts}
+    groupBy: [processed_at]
+    orderBy: "processed_at ASC"
+    limit: 200
+    panel_type: time-series
+    title: "Total Alerts Over Time"
+    category: o2c_alerts
+
+  # ─── O2C_Action_Log ──────────────────────────────────────────────────
+  - query_variants:
+      - "O2C actions by type"
+      - "action breakdown by type"
+      - "what actions were taken"
+      - "actions per category"
+    entity: O2C_Action_Log
+    fields: [action_type]
+    aggregation: {function: count, field: null}
+    groupBy: [action_type]
+    orderBy: "value DESC"
+    limit: 1000
+    panel_type: pie-chart
+    title: "Actions by Type"
+    category: o2c_actions
+
+  - query_variants:
+      - "recent O2C actions"
+      - "latest workflow actions"
+      - "last 15 actions executed"
+      - "newest action log entries"
+    entity: O2C_Action_Log
+    fields: [action_type, entity_type, entity_id, status, policy_reference]
+    orderBy: "processed_at DESC"
+    limit: 15
+    panel_type: table
+    title: "Recent Actions"
+    category: o2c_actions
+
+  - query_variants:
+      - "credit holds executed"
+      - "all credit hold actions"
+      - "accounts placed on credit hold"
+    entity: O2C_Action_Log
+    fields: [action_id, entity_id, status, processed_at]
+    filters:
+      - {field: action_type, operator: eq, value: credit_hold}
+    orderBy: "processed_at DESC"
+    limit: 50
+    panel_type: table
+    title: "Credit Hold Actions"
+    category: o2c_actions
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 2: DEMAND FORECASTING ENGINE (DF)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── DF_KPI_Snapshot ─────────────────────────────────────────────────
+  - query_variants:
+      - "MAPE"
+      - "current MAPE"
+      - "forecast accuracy"
+      - "mean absolute percentage error"
+      - "how accurate are forecasts"
+    entity: DF_KPI_Snapshot
+    fields: [mape]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Forecast Accuracy (MAPE)"
+    category: df_kpi
+
+  - query_variants:
+      - "MAPE trend"
+      - "forecast accuracy over time"
+      - "how MAPE has changed"
+      - "accuracy trend"
+    entity: DF_KPI_Snapshot
+    fields: [processed_at, mape]
+    aggregation: {function: avg, field: mape}
+    groupBy: [processed_at]
+    orderBy: "processed_at ASC"
+    limit: 100
+    panel_type: time-series
+    title: "MAPE Trend"
+    category: df_kpi
+
+  - query_variants:
+      - "forecast bias"
+      - "current bias"
+      - "bias percentage"
+      - "is forecast biased"
+    entity: DF_KPI_Snapshot
+    fields: [bias]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Forecast Bias"
+    category: df_kpi
+
+  - query_variants:
+      - "stockout rate"
+      - "current stockout percentage"
+      - "how often we stock out"
+      - "stockout frequency"
+    entity: DF_KPI_Snapshot
+    fields: [stockout_rate_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Stockout Rate"
+    category: df_kpi
+
+  - query_variants:
+      - "total forecast volume"
+      - "total forecast quantity"
+      - "overall forecast units"
+      - "how much we are forecasting"
+    entity: DF_KPI_Snapshot
+    fields: [total_forecast_qty]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Total Forecast Volume"
+    category: df_kpi
+
+  # ─── DF_Region_Summary ───────────────────────────────────────────────
+  - query_variants:
+      - "forecast by region"
+      - "forecast volume by region"
+      - "regional forecast breakdown"
+      - "top 10 regions by forecast"
+    entity: DF_Region_Summary
+    fields: [region, total_qty]
+    orderBy: "total_qty DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Forecast Volume by Region"
+    category: df_region
+
+  # ─── DF_Category_Summary ─────────────────────────────────────────────
+  - query_variants:
+      - "forecast by category"
+      - "forecast per product category"
+      - "category breakdown of forecast"
+    entity: DF_Category_Summary
+    fields: [category, total_qty]
+    orderBy: "total_qty DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Forecast by Category"
+    category: df_category
+
+  # ─── DF_Forecast_Result ──────────────────────────────────────────────
+  - query_variants:
+      - "top forecast SKUs"
+      - "highest forecast products"
+      - "top 20 SKUs by forecast"
+      - "biggest forecasted SKUs"
+    entity: DF_Forecast_Result
+    fields: [sku, region, category, period, forecast_qty, base_forecast, promo_lift, override_applied]
+    orderBy: "forecast_qty DESC"
+    limit: 20
+    panel_type: table
+    title: "Top Forecast SKUs"
+    category: df_forecast
+
+  - query_variants:
+      - "forecasts with overrides applied"
+      - "manually overridden forecasts"
+      - "SKUs with forecast override"
+    entity: DF_Forecast_Result
+    fields: [sku, region, forecast_qty, base_forecast, override_applied]
+    filters:
+      - {field: override_applied, operator: eq, value: true}
+    orderBy: "forecast_qty DESC"
+    limit: 50
+    panel_type: table
+    title: "Forecasts with Overrides"
+    category: df_forecast
+
+  # ─── DF_Alert ────────────────────────────────────────────────────────
+  - query_variants:
+      - "forecast alerts"
+      - "demand forecast alerts"
+      - "DF alerts"
+      - "recent forecast alerts"
+    entity: DF_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Forecast Alerts"
+    category: df_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 3: INVENTORY OPTIMIZATION (IO)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── IO_KPI_Snapshot ─────────────────────────────────────────────────
+  - query_variants:
+      - "inventory turns"
+      - "current inventory turnover"
+      - "turn rate"
+      - "how fast does inventory turn"
+    entity: IO_KPI_Snapshot
+    fields: [turns]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Inventory Turns"
+    category: io_kpi
+
+  - query_variants:
+      - "fill rate"
+      - "current fill rate"
+      - "order fill percentage"
+      - "service fill rate"
+    entity: IO_KPI_Snapshot
+    fields: [fill_rate_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Fill Rate"
+    category: io_kpi
+
+  - query_variants:
+      - "fill rate trend"
+      - "fill rate over time"
+      - "how fill rate has changed"
+    entity: IO_KPI_Snapshot
+    fields: [processed_at, fill_rate_pct]
+    aggregation: {function: avg, field: fill_rate_pct}
+    groupBy: [processed_at]
+    orderBy: "processed_at ASC"
+    limit: 100
+    panel_type: time-series
+    title: "Fill Rate Trend"
+    category: io_kpi
+
+  - query_variants:
+      - "days of supply"
+      - "current days of supply"
+      - "stock cover days"
+      - "how many days of stock"
+    entity: IO_KPI_Snapshot
+    fields: [days_of_supply]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Days of Supply"
+    category: io_kpi
+
+  - query_variants:
+      - "expiry write off"
+      - "expired inventory percent"
+      - "write off rate"
+      - "how much inventory is expiring"
+    entity: IO_KPI_Snapshot
+    fields: [expired_write_off_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Expiry Write-off"
+    category: io_kpi
+
+  # ─── IO_Plant_Summary ────────────────────────────────────────────────
+  - query_variants:
+      - "inventory by plant"
+      - "stock levels per plant"
+      - "top 10 plants by inventory"
+      - "plant wise inventory breakdown"
+    entity: IO_Plant_Summary
+    fields: [plant, total_qty]
+    orderBy: "total_qty DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Inventory by Plant"
+    category: io_plant
+
+  # ─── IO_Category_Summary ─────────────────────────────────────────────
+  - query_variants:
+      - "inventory by category"
+      - "stock per category"
+      - "category wise inventory"
+    entity: IO_Category_Summary
+    fields: [category, total_qty]
+    orderBy: "total_qty DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Inventory by Category"
+    category: io_category
+
+  # ─── IO_Position_Result ──────────────────────────────────────────────
+  - query_variants:
+      - "top inventory positions"
+      - "highest stock positions"
+      - "top 20 SKUs by current quantity"
+      - "biggest inventory holdings"
+    entity: IO_Position_Result
+    fields: [sku, plant, category, current_qty, days_of_supply, abc_class, expiry_risk]
+    orderBy: "current_qty DESC"
+    limit: 20
+    panel_type: table
+    title: "Top Inventory Positions"
+    category: io_position
+
+  - query_variants:
+      - "items with high expiry risk"
+      - "high expiry risk SKUs"
+      - "near expiry inventory"
+      - "stock about to expire"
+    entity: IO_Position_Result
+    fields: [sku, plant, category, current_qty, expiry_risk]
+    filters:
+      - {field: expiry_risk, operator: eq, value: high}
+    orderBy: "current_qty DESC"
+    limit: 50
+    panel_type: table
+    title: "High Expiry Risk Items"
+    category: io_position
+
+  - query_variants:
+      - "low days of supply items"
+      - "SKUs running out of stock"
+      - "lowest days of supply"
+      - "items with low cover"
+    entity: IO_Position_Result
+    fields: [sku, plant, current_qty, days_of_supply]
+    orderBy: "days_of_supply ASC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Low Days of Supply"
+    category: io_position
+
+  - query_variants:
+      - "ABC class A inventory"
+      - "class A SKUs"
+      - "high value inventory items"
+    entity: IO_Position_Result
+    fields: [sku, plant, current_qty, abc_class]
+    filters:
+      - {field: abc_class, operator: eq, value: A}
+    orderBy: "current_qty DESC"
+    limit: 50
+    panel_type: table
+    title: "Class A Inventory"
+    category: io_position
+
+  # ─── IO_Alert ────────────────────────────────────────────────────────
+  - query_variants:
+      - "inventory alerts"
+      - "stock alerts"
+      - "IO alerts"
+      - "recent inventory warnings"
+    entity: IO_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Inventory Alerts"
+    category: io_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 4: PROCUREMENT AND SPEND ANALYTICS (PA)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── PA_KPI_Snapshot ─────────────────────────────────────────────────
+  - query_variants:
+      - "total spend"
+      - "overall procurement spend"
+      - "how much we spent"
+      - "total procurement amount"
+    entity: PA_KPI_Snapshot
+    fields: [total_spend]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Total Spend"
+    category: pa_kpi
+
+  - query_variants:
+      - "maverick spend"
+      - "off contract spend percent"
+      - "rogue spend percent"
+      - "non compliant spend"
+    entity: PA_KPI_Snapshot
+    fields: [maverick_spend_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Maverick Spend"
+    category: pa_kpi
+
+  - query_variants:
+      - "STP rate"
+      - "straight through processing rate"
+      - "STP percentage"
+      - "automated processing rate"
+    entity: PA_KPI_Snapshot
+    fields: [stp_rate_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "STP Rate"
+    category: pa_kpi
+
+  - query_variants:
+      - "price variance"
+      - "current price variance"
+      - "price deviation"
+      - "how much prices deviate"
+    entity: PA_KPI_Snapshot
+    fields: [price_variance_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Price Variance"
+    category: pa_kpi
+
+  # ─── PA_Vendor_Summary ───────────────────────────────────────────────
+  - query_variants:
+      - "spend by vendor"
+      - "top 10 vendors by spend"
+      - "biggest vendors by spend"
+      - "vendor spend breakdown"
+    entity: PA_Vendor_Summary
+    fields: [vendor_name, total_spend]
+    orderBy: "total_spend DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top Vendors by Spend"
+    category: pa_vendor
+
+  # ─── PA_Category_Summary ─────────────────────────────────────────────
+  - query_variants:
+      - "spend by category"
+      - "spend per procurement category"
+      - "category wise spend"
+    entity: PA_Category_Summary
+    fields: [category, total_spend]
+    orderBy: "total_spend DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Spend by Category"
+    category: pa_category
+
+  # ─── PA_Spend_Result ─────────────────────────────────────────────────
+  - query_variants:
+      - "top purchase orders"
+      - "biggest POs"
+      - "top 20 POs by amount"
+      - "highest value purchase orders"
+    entity: PA_Spend_Result
+    fields: [po_id, vendor, category, amount, maverick_flag, match_status, price_variance]
+    orderBy: "amount DESC"
+    limit: 20
+    panel_type: table
+    title: "Top Purchase Orders"
+    category: pa_spend
+
+  - query_variants:
+      - "maverick purchase orders"
+      - "off contract POs"
+      - "non compliant purchase orders"
+    entity: PA_Spend_Result
+    fields: [po_id, vendor, category, amount, maverick_flag]
+    filters:
+      - {field: maverick_flag, operator: eq, value: true}
+    orderBy: "amount DESC"
+    limit: 50
+    panel_type: table
+    title: "Maverick Purchase Orders"
+    category: pa_spend
+
+  - query_variants:
+      - "highest price variance orders"
+      - "POs with biggest price deviation"
+      - "top price variance purchases"
+    entity: PA_Spend_Result
+    fields: [po_id, vendor, amount, price_variance]
+    orderBy: "price_variance DESC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Top Price Variance Orders"
+    category: pa_spend
+
+  # ─── PA_Alert ────────────────────────────────────────────────────────
+  - query_variants:
+      - "procurement alerts"
+      - "PA alerts"
+      - "spend alerts"
+      - "recent procurement warnings"
+    entity: PA_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Procurement Alerts"
+    category: pa_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 5: PRODUCTION AND QUALITY COPILOT (PQ)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── PQ_KPI_Snapshot ─────────────────────────────────────────────────
+  - query_variants:
+      - "OEE"
+      - "overall OEE"
+      - "overall equipment effectiveness"
+      - "current OEE percentage"
+      - "how is equipment performing"
+    entity: PQ_KPI_Snapshot
+    fields: [oee_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Overall OEE"
+    category: pq_kpi
+
+  - query_variants:
+      - "yield rate"
+      - "production yield"
+      - "yield percentage"
+      - "how good is production yield"
+    entity: PQ_KPI_Snapshot
+    fields: [yield_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Yield Rate"
+    category: pq_kpi
+
+  - query_variants:
+      - "first pass rate"
+      - "FPR"
+      - "first pass yield"
+      - "what percent passes first time"
+    entity: PQ_KPI_Snapshot
+    fields: [first_pass_rate_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "First Pass Rate"
+    category: pq_kpi
+
+  - query_variants:
+      - "schedule adherence"
+      - "production schedule adherence"
+      - "on schedule percentage"
+      - "how well we hit schedule"
+    entity: PQ_KPI_Snapshot
+    fields: [schedule_adherence_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Schedule Adherence"
+    category: pq_kpi
+
+  # ─── PQ_Line_Summary ─────────────────────────────────────────────────
+  - query_variants:
+      - "OEE by production line"
+      - "best performing lines"
+      - "top 10 lines by OEE"
+      - "line wise OEE"
+    entity: PQ_Line_Summary
+    fields: [line_id, avg_oee]
+    orderBy: "avg_oee DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "OEE by Production Line"
+    category: pq_line
+
+  - query_variants:
+      - "worst performing production lines"
+      - "lowest OEE lines"
+      - "underperforming lines"
+      - "production lines needing attention"
+    entity: PQ_Line_Summary
+    fields: [line_id, avg_oee]
+    orderBy: "avg_oee ASC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Lowest OEE Lines"
+    category: pq_line
+
+  # ─── PQ_Quality_Summary ──────────────────────────────────────────────
+  - query_variants:
+      - "quality by category"
+      - "pass rate by category"
+      - "quality per material category"
+      - "category wise quality"
+    entity: PQ_Quality_Summary
+    fields: [category, pass_rate]
+    orderBy: "pass_rate DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Quality by Material"
+    category: pq_quality
+
+  # ─── PQ_Production_Result ────────────────────────────────────────────
+  - query_variants:
+      - "production orders"
+      - "all production orders"
+      - "list production orders"
+      - "production order details"
+    entity: PQ_Production_Result
+    fields: [order_id, material, line_id, planned_qty, actual_qty, yield_pct, oee, status]
+    orderBy: "yield_pct ASC"
+    limit: 20
+    panel_type: table
+    title: "Production Orders"
+    category: pq_production
+
+  - query_variants:
+      - "lowest yield production orders"
+      - "worst yield orders"
+      - "underperforming production orders"
+      - "orders with poor yield"
+    entity: PQ_Production_Result
+    fields: [order_id, material, line_id, yield_pct]
+    orderBy: "yield_pct ASC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Lowest Yield Orders"
+    category: pq_production
+
+  - query_variants:
+      - "delayed production orders"
+      - "production orders behind schedule"
+      - "late production orders"
+    entity: PQ_Production_Result
+    fields: [order_id, material, line_id, status, planned_qty, actual_qty]
+    filters:
+      - {field: status, operator: eq, value: delayed}
+    orderBy: "actual_qty ASC"
+    limit: 50
+    panel_type: table
+    title: "Delayed Production Orders"
+    category: pq_production
+
+  # ─── PQ_Alert ────────────────────────────────────────────────────────
+  - query_variants:
+      - "production alerts"
+      - "quality alerts"
+      - "PQ alerts"
+      - "recent production warnings"
+      - "production and quality alerts"
+    entity: PQ_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Production Alerts"
+    category: pq_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 6: SUPPLY CHAIN RISK RADAR (SCR)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── SCR_KPI_Snapshot ────────────────────────────────────────────────
+  - query_variants:
+      - "average risk score"
+      - "overall vendor risk"
+      - "mean risk score"
+      - "how risky are vendors on average"
+    entity: SCR_KPI_Snapshot
+    fields: [avg_risk_score]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Avg Risk Score"
+    category: scr_kpi
+
+  - query_variants:
+      - "OTD"
+      - "on time delivery rate"
+      - "on time delivery percentage"
+      - "delivery performance"
+    entity: SCR_KPI_Snapshot
+    fields: [otd_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "On-Time Delivery"
+    category: scr_kpi
+
+  - query_variants:
+      - "single source materials count"
+      - "number of single sourced materials"
+      - "materials with one supplier"
+      - "single source risk count"
+    entity: SCR_KPI_Snapshot
+    fields: [single_source_count]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Single-Source Materials"
+    category: scr_kpi
+
+  - query_variants:
+      - "contract compliance"
+      - "contract compliance percentage"
+      - "compliance rate"
+      - "how compliant we are with contracts"
+    entity: SCR_KPI_Snapshot
+    fields: [contract_compliance_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Contract Compliance"
+    category: scr_kpi
+
+  # ─── SCR_Region_Summary ──────────────────────────────────────────────
+  - query_variants:
+      - "risk by region"
+      - "highest risk regions"
+      - "regional risk breakdown"
+      - "top 10 risky regions"
+    entity: SCR_Region_Summary
+    fields: [region, avg_risk]
+    orderBy: "avg_risk DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Risk by Region"
+    category: scr_region
+
+  # ─── SCR_Category_Summary ────────────────────────────────────────────
+  - query_variants:
+      - "risk by category"
+      - "vendor count per category"
+      - "category wise vendor count"
+      - "vendors per category"
+    entity: SCR_Category_Summary
+    fields: [category, vendor_count]
+    orderBy: "vendor_count DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Risk by Category"
+    category: scr_category
+
+  # ─── SCR_Vendor_Result (the user's exact use case) ───────────────────
+  - query_variants:
+      - "top 10 vendors by risk score"
+      - "show top 10 vendors by risk score"
+      - "highest risk vendors"
+      - "riskiest vendors"
+      - "top 10 risky vendors"
+      - "vendors ranked by risk"
+      - "highest risk score suppliers"
+      - "top risk score vendors"
+      - "vendors with highest risk rating"
+      - "top 10 suppliers by risk"
+    entity: SCR_Vendor_Result
+    fields: [vendor_name, risk_score]
+    orderBy: "risk_score DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top 10 Vendors by Risk Score"
+    category: scr_vendor
+
+  - query_variants:
+      - "vendor risk scores"
+      - "all vendor risk scores"
+      - "complete vendor risk listing"
+      - "detailed vendor risk view"
+    entity: SCR_Vendor_Result
+    fields: [vendor_name, region, risk_score, otd_pct, quality_score, financial_risk, single_source_materials]
+    orderBy: "risk_score DESC"
+    limit: 20
+    panel_type: table
+    title: "Vendor Risk Scores"
+    category: scr_vendor
+
+  - query_variants:
+      - "vendors with low on time delivery"
+      - "worst OTD vendors"
+      - "vendors missing delivery dates"
+      - "lowest OTD suppliers"
+    entity: SCR_Vendor_Result
+    fields: [vendor_name, otd_pct, risk_score]
+    orderBy: "otd_pct ASC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Vendors with Low OTD"
+    category: scr_vendor
+
+  - query_variants:
+      - "financial risk vendors"
+      - "vendors with financial issues"
+      - "highest financial risk suppliers"
+    entity: SCR_Vendor_Result
+    fields: [vendor_name, financial_risk, risk_score]
+    orderBy: "financial_risk DESC"
+    limit: 20
+    panel_type: table
+    title: "Financial Risk Vendors"
+    category: scr_vendor
+
+  # ─── SCR_Alert ───────────────────────────────────────────────────────
+  - query_variants:
+      - "supply chain risk alerts"
+      - "SCR alerts"
+      - "risk alerts"
+      - "supply chain disruption alerts"
+      - "supply risk warnings"
+    entity: SCR_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Risk Alerts"
+    category: scr_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 7: CUSTOMER 360 AND REVENUE GROWTH (C360)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── C360_KPI_Snapshot ───────────────────────────────────────────────
+  - query_variants:
+      - "average CLV"
+      - "customer lifetime value"
+      - "average lifetime value"
+      - "mean CLV"
+      - "how valuable are customers"
+    entity: C360_KPI_Snapshot
+    fields: [avg_clv]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Avg CLV"
+    category: c360_kpi
+
+  - query_variants:
+      - "churn risk"
+      - "current churn rate"
+      - "customer churn percentage"
+      - "how many customers are leaving"
+    entity: C360_KPI_Snapshot
+    fields: [churn_risk_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Churn Risk"
+    category: c360_kpi
+
+  - query_variants:
+      - "wallet share"
+      - "average wallet share"
+      - "share of wallet"
+      - "how much of customer spend we get"
+    entity: C360_KPI_Snapshot
+    fields: [wallet_share_avg]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Wallet Share"
+    category: c360_kpi
+
+  - query_variants:
+      - "cross sell rate"
+      - "cross selling percentage"
+      - "cross sell success"
+      - "how often we cross sell"
+    entity: C360_KPI_Snapshot
+    fields: [cross_sell_rate_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Cross-Sell Rate"
+    category: c360_kpi
+
+  # ─── C360_Segment_Summary ────────────────────────────────────────────
+  - query_variants:
+      - "CLV by segment"
+      - "lifetime value by customer segment"
+      - "segment wise CLV"
+      - "average CLV per segment"
+    entity: C360_Segment_Summary
+    fields: [segment, avg_clv]
+    orderBy: "avg_clv DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "CLV by Segment"
+    category: c360_segment
+
+  # ─── C360_Revenue_Summary ────────────────────────────────────────────
+  - query_variants:
+      - "revenue by region"
+      - "regional revenue breakdown"
+      - "revenue per region"
+      - "geographic revenue split"
+    entity: C360_Revenue_Summary
+    fields: [region, total_revenue]
+    orderBy: "total_revenue DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Revenue by Region"
+    category: c360_revenue
+
+  # ─── C360_Customer_Result ────────────────────────────────────────────
+  - query_variants:
+      - "customer profiles"
+      - "all customers ranked by CLV"
+      - "customer detail listing"
+      - "complete customer view"
+    entity: C360_Customer_Result
+    fields: [name, tier, region, clv, churn_score, wallet_share, cross_sell_count, ltv_segment]
+    orderBy: "clv DESC"
+    limit: 20
+    panel_type: table
+    title: "Customer Profiles"
+    category: c360_customer
+
+  - query_variants:
+      - "top customers by CLV"
+      - "highest value customers"
+      - "top 10 customers by lifetime value"
+      - "biggest customers"
+    entity: C360_Customer_Result
+    fields: [name, tier, clv]
+    orderBy: "clv DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top Customers by CLV"
+    category: c360_customer
+
+  - query_variants:
+      - "high churn risk customers"
+      - "customers likely to churn"
+      - "customers at risk of leaving"
+      - "top churn risk accounts"
+    entity: C360_Customer_Result
+    fields: [name, tier, region, clv, churn_score]
+    orderBy: "churn_score DESC"
+    limit: 20
+    panel_type: table
+    title: "High Churn Risk Customers"
+    category: c360_customer
+
+  - query_variants:
+      - "platinum tier customers"
+      - "all platinum customers"
+      - "top tier customers"
+      - "platinum accounts"
+    entity: C360_Customer_Result
+    fields: [name, region, clv, wallet_share]
+    filters:
+      - {field: tier, operator: eq, value: Platinum}
+    orderBy: "clv DESC"
+    limit: 50
+    panel_type: table
+    title: "Platinum Customers"
+    category: c360_customer
+
+  # ─── C360_Alert ──────────────────────────────────────────────────────
+  - query_variants:
+      - "customer alerts"
+      - "C360 alerts"
+      - "customer 360 alerts"
+      - "recent customer warnings"
+    entity: C360_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "Customer Alerts"
+    category: c360_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 8: ESG AND SUSTAINABILITY TRACKER (ESG)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── ESG_KPI_Snapshot ────────────────────────────────────────────────
+  - query_variants:
+      - "carbon intensity"
+      - "CO2 emissions per unit"
+      - "carbon footprint per unit"
+      - "current carbon intensity"
+    entity: ESG_KPI_Snapshot
+    fields: [carbon_intensity]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Carbon Intensity"
+    category: esg_kpi
+
+  - query_variants:
+      - "water ratio"
+      - "water usage per unit"
+      - "water consumption ratio"
+      - "liters of water per unit produced"
+    entity: ESG_KPI_Snapshot
+    fields: [water_ratio]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Water Ratio"
+    category: esg_kpi
+
+  - query_variants:
+      - "recycled content"
+      - "recycled material percentage"
+      - "amount of recycled content"
+      - "how much we recycle"
+    entity: ESG_KPI_Snapshot
+    fields: [recycled_content_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Recycled Content"
+    category: esg_kpi
+
+  - query_variants:
+      - "energy efficiency"
+      - "current energy efficiency"
+      - "energy use efficiency"
+      - "how energy efficient we are"
+    entity: ESG_KPI_Snapshot
+    fields: [energy_efficiency_pct]
+    orderBy: "processed_at DESC"
+    limit: 1
+    panel_type: kpi-card
+    title: "Energy Efficiency"
+    category: esg_kpi
+
+  # ─── ESG_Plant_Result ────────────────────────────────────────────────
+  - query_variants:
+      - "emissions by plant"
+      - "highest emitting plants"
+      - "top 10 plants by carbon emissions"
+      - "plant wise CO2 emissions"
+    entity: ESG_Plant_Result
+    fields: [plant_id, carbon_emissions]
+    orderBy: "carbon_emissions DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Emissions by Plant"
+    category: esg_plant
+
+  # ─── ESG_Category_Summary ────────────────────────────────────────────
+  - query_variants:
+      - "recycled content by category"
+      - "category wise recycling rate"
+      - "recyclability per category"
+    entity: ESG_Category_Summary
+    fields: [category, avg_recycled_pct]
+    orderBy: "avg_recycled_pct DESC"
+    limit: 10
+    panel_type: pie-chart
+    title: "Recycled Content by Category"
+    category: esg_category
+
+  # ─── ESG_Material_Summary ────────────────────────────────────────────
+  - query_variants:
+      - "material sustainability"
+      - "all materials by sustainability"
+      - "material carbon and recycling profile"
+      - "sustainability per material"
+    entity: ESG_Material_Summary
+    fields: [material_id, category, recycled_content_pct, recyclability_score, carbon_footprint]
+    orderBy: "carbon_footprint DESC"
+    limit: 20
+    panel_type: table
+    title: "Material Sustainability"
+    category: esg_material
+
+  - query_variants:
+      - "highest carbon footprint materials"
+      - "worst materials for carbon"
+      - "top carbon emitting materials"
+      - "biggest CO2 footprint materials"
+    entity: ESG_Material_Summary
+    fields: [material_id, category, carbon_footprint]
+    orderBy: "carbon_footprint DESC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Top Carbon Footprint Materials"
+    category: esg_material
+
+  - query_variants:
+      - "most recyclable materials"
+      - "best materials for recycling"
+      - "highest recyclability score materials"
+    entity: ESG_Material_Summary
+    fields: [material_id, category, recyclability_score]
+    orderBy: "recyclability_score DESC"
+    limit: 20
+    panel_type: bar-chart
+    title: "Most Recyclable Materials"
+    category: esg_material
+
+  # ─── ESG_Alert ───────────────────────────────────────────────────────
+  - query_variants:
+      - "ESG alerts"
+      - "sustainability alerts"
+      - "environmental alerts"
+      - "recent ESG warnings"
+    entity: ESG_Alert
+    fields: [job_id, processed_at, total_alerts, alerts]
+    orderBy: "processed_at DESC"
+    limit: 20
+    panel_type: alert-list
+    title: "ESG Alerts"
+    category: esg_alerts
+
+  # ════════════════════════════════════════════════════════════════════
+  # CORE SUPPLY-CHAIN ENTITIES (cross-solution patterns)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ─── Vendor_Master ───────────────────────────────────────────────────
+  - query_variants:
+      - "vendors by category"
+      - "vendor count per category"
+      - "category wise vendor distribution"
+      - "supplier breakdown by category"
+    entity: Vendor_Master
+    fields: [Category]
+    aggregation: {function: count, field: null}
+    groupBy: [Category]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Vendors by Category"
+    category: vendor_breakdown
+
+  - query_variants:
+      - "vendors by country"
+      - "vendor count per country"
+      - "country wise vendor distribution"
+      - "geographic vendor split"
+    entity: Vendor_Master
+    fields: [Country]
+    aggregation: {function: count, field: null}
+    groupBy: [Country]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Vendors by Country"
+    category: vendor_breakdown
+
+  - query_variants:
+      - "average lead time by vendor category"
+      - "lead time per category"
+      - "category wise lead times"
+      - "mean lead time by supplier category"
+    entity: Vendor_Master
+    fields: [Category, Lead_Time_Days]
+    aggregation: {function: avg, field: Lead_Time_Days}
+    groupBy: [Category]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Average Lead Time by Category"
+    category: vendor_performance
+
+  - query_variants:
+      - "active vendors count"
+      - "number of active vendors"
+      - "how many active suppliers"
+      - "active vendor total"
+    entity: Vendor_Master
+    fields: [Status]
+    filters:
+      - {field: Status, operator: eq, value: Active}
+    aggregation: {function: count, field: null}
+    panel_type: kpi-card
+    title: "Active Vendors"
+    category: vendor_kpi
+
+  # ─── Account ─────────────────────────────────────────────────────────
+  - query_variants:
+      - "top 10 accounts by credit limit"
+      - "biggest customers by credit"
+      - "highest credit limit accounts"
+      - "top accounts ranked by credit"
+    entity: Account
+    fields: [Account_ID, Name, Credit_Limit]
+    orderBy: "Credit_Limit DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top 10 Accounts by Credit Limit"
+    category: account_ranking
+
+  - query_variants:
+      - "accounts by tier"
+      - "tier wise account distribution"
+      - "customer count per tier"
+      - "accounts per tier"
+    entity: Account
+    fields: [Tier]
+    aggregation: {function: count, field: null}
+    groupBy: [Tier]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Accounts by Tier"
+    category: account_breakdown
+
+  - query_variants:
+      - "accounts by region"
+      - "region wise account count"
+      - "geographic account distribution"
+      - "customer count per region"
+    entity: Account
+    fields: [Region]
+    aggregation: {function: count, field: null}
+    groupBy: [Region]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Accounts by Region"
+    category: account_breakdown
+
+  - query_variants:
+      - "accounts by channel"
+      - "accounts by channel type"
+      - "channel wise account distribution"
+      - "customer count per channel"
+    entity: Account
+    fields: [Channel_Type]
+    aggregation: {function: count, field: null}
+    groupBy: [Channel_Type]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Accounts by Channel"
+    category: account_breakdown
+
+  - query_variants:
+      - "accounts on credit hold"
+      - "blocked accounts"
+      - "accounts in credit hold status"
+      - "customers on credit hold"
+    entity: Account
+    fields: [Account_ID, Name, Status, Credit_Limit]
+    filters:
+      - {field: Status, operator: eq, value: On_Credit_Hold}
+    panel_type: table
+    title: "Accounts on Credit Hold"
+    category: account_status
+
+  # ─── Opportunity ─────────────────────────────────────────────────────
+  - query_variants:
+      - "open opportunities by stage"
+      - "pipeline by stage"
+      - "deal count per stage"
+      - "stage wise pipeline distribution"
+    entity: Opportunity
+    fields: [Stage]
+    aggregation: {function: count, field: null}
+    groupBy: [Stage]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Opportunities by Stage"
+    category: pipeline
+
+  - query_variants:
+      - "total pipeline value by stage"
+      - "pipeline amount per stage"
+      - "stage wise revenue forecast"
+      - "deal value by stage"
+    entity: Opportunity
+    fields: [Stage, Amount]
+    aggregation: {function: sum, field: Amount}
+    groupBy: [Stage]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Pipeline Value by Stage"
+    category: pipeline
+
+  - query_variants:
+      - "top 10 opportunities by amount"
+      - "biggest deals"
+      - "largest opportunities"
+      - "highest value pipeline deals"
+    entity: Opportunity
+    fields: [Opportunity_ID, Name, Amount, Stage]
+    orderBy: "Amount DESC"
+    limit: 10
+    panel_type: table
+    title: "Top 10 Opportunities by Amount"
+    category: pipeline
+
+  # ─── Inventory_Position (raw, not solution result) ───────────────────
+  - query_variants:
+      - "top materials by inventory quantity"
+      - "biggest stock holdings"
+      - "highest inventory materials"
+      - "top SKUs by raw inventory"
+    entity: Inventory_Position
+    fields: [Material_ID, Quantity_On_Hand]
+    orderBy: "Quantity_On_Hand DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top Materials by Inventory"
+    category: inventory
+
+  - query_variants:
+      - "raw inventory by plant"
+      - "stock on hand per plant"
+      - "plant wise raw stock"
+      - "physical inventory per plant"
+    entity: Inventory_Position
+    fields: [Plant_ID, Quantity_On_Hand]
+    aggregation: {function: sum, field: Quantity_On_Hand}
+    groupBy: [Plant_ID]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Inventory by Plant"
+    category: inventory
+
+  # ─── Production_Order (raw) ──────────────────────────────────────────
+  - query_variants:
+      - "production orders by status"
+      - "status wise production orders"
+      - "production order count per status"
+    entity: Production_Order
+    fields: [Status]
+    aggregation: {function: count, field: null}
+    groupBy: [Status]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Production Orders by Status"
+    category: production
+
+  - query_variants:
+      - "production volume by plant"
+      - "production quantity per plant"
+      - "plant wise production output"
+      - "manufacturing volume by plant"
+    entity: Production_Order
+    fields: [Plant_ID, Quantity]
+    aggregation: {function: sum, field: Quantity}
+    groupBy: [Plant_ID]
+    orderBy: "value DESC"
+    panel_type: bar-chart
+    title: "Production Volume by Plant"
+    category: production
+
+  # ─── Quality_Inspection_Lot ──────────────────────────────────────────
+  - query_variants:
+      - "quality inspections by result"
+      - "inspection result distribution"
+      - "pass fail breakdown of inspections"
+      - "quality result counts"
+    entity: Quality_Inspection_Lot
+    fields: [Result]
+    aggregation: {function: count, field: null}
+    groupBy: [Result]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Quality Inspections by Result"
+    category: quality
+
+  # ─── AR (cross-solution) ──────────────────────────────────────
+  - query_variants:
+      - "top 10 customers by outstanding AR"
+      - "biggest AR balances"
+      - "customers with highest outstanding"
+      - "top AR exposures"
+    entity: AR_Customer
+    fields: [Customer_ID, Customer_Name, Outstanding_Balance]
+    orderBy: "Outstanding_Balance DESC"
+    limit: 10
+    panel_type: bar-chart
+    title: "Top 10 Customers by Outstanding AR"
+    category: ar
+
+  - query_variants:
+      - "overdue invoices"
+      - "past due invoices"
+      - "invoices in overdue status"
+      - "delinquent invoices"
+    entity: AR_Invoice
+    fields: [Invoice_ID, Customer_ID, Amount, Due_Date, Status]
+    filters:
+      - {field: Status, operator: eq, value: Overdue}
+    orderBy: "Amount DESC"
+    limit: 50
+    panel_type: table
+    title: "Overdue Invoices"
+    category: ar
+
+  - query_variants:
+      - "invoice amounts over time"
+      - "invoice volume trend"
+      - "billing trend over time"
+      - "monthly invoice totals"
+    entity: AR_Invoice
+    fields: [Invoice_Date, Amount]
+    aggregation: {function: sum, field: Amount}
+    groupBy: [Invoice_Date]
+    orderBy: "Invoice_Date ASC"
+    limit: 200
+    panel_type: time-series
+    title: "Invoice Amounts Over Time"
+    category: ar
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 9: TRADE CPQ (SELL-SIDE)
+  # ════════════════════════════════════════════════════════════════════
+
+  - query_variants:
+      - "open trade quotes"
+      - "quotes in draft or review"
+      - "active sales quotes"
+      - "all open CPQ quotes"
+    entity: Quote_Header
+    fields: [Quote_ID, Account_ID, Status, Total_Net, Discount_Pct, Margin_Pct, Validity_Date]
+    filters:
+      - {field: Status, operator: in, value: [Draft, In_Review, Approved]}
+    orderBy: "Total_Net DESC"
+    limit: 100
+    panel_type: table
+    title: "Open Trade Quotes"
+    category: cpq_sell
+
+  - query_variants:
+      - "quotes by stage"
+      - "trade quote pipeline by status"
+      - "quote funnel by stage"
+      - "pipeline of quotes by status"
+    entity: Quote_Header
+    fields: [Status]
+    aggregation: {function: count, field: null}
+    groupBy: [Status]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Quotes by Stage"
+    category: cpq_sell
+
+  - query_variants:
+      - "quote conversion rate"
+      - "won quote rate"
+      - "quote close rate"
+      - "what percent of quotes closed"
+    entity: Quote_Header
+    fields: [Status]
+    aggregation: {function: count, field: null}
+    groupBy: [Status]
+    panel_type: kpi-card
+    title: "Quote Conversion Rate"
+    category: cpq_sell
+
+  - query_variants:
+      - "average quote margin"
+      - "blended margin across quotes"
+      - "mean quote margin percent"
+      - "quote margin average"
+    entity: Quote_Header
+    fields: [Margin_Pct]
+    aggregation: {function: avg, field: Margin_Pct}
+    panel_type: kpi-card
+    title: "Average Quote Margin"
+    category: cpq_sell
+
+  - query_variants:
+      - "quotes below margin floor"
+      - "low margin quotes"
+      - "quotes under 15 percent margin"
+      - "margin floor breaches"
+    entity: Quote_Header
+    fields: [Quote_ID, Account_ID, Total_Net, Margin_Pct, Discount_Pct]
+    filters:
+      - {field: Margin_Pct, operator: lt, value: 15}
+    orderBy: "Margin_Pct ASC"
+    limit: 50
+    panel_type: table
+    title: "Quotes Below Margin Floor"
+    category: cpq_sell
+
+  - query_variants:
+      - "top discounts on open quotes"
+      - "biggest discount quotes"
+      - "highest discount percent on quotes"
+      - "deepest discount trade quotes"
+    entity: Quote_Header
+    fields: [Quote_ID, Account_ID, Discount_Pct, Total_Net, Status]
+    orderBy: "Discount_Pct DESC"
+    limit: 20
+    panel_type: table
+    title: "Top Discounts on Open Quotes"
+    category: cpq_sell
+
+  - query_variants:
+      - "active product offerings"
+      - "all active bundles"
+      - "list of trade offerings"
+      - "active offerings catalog"
+    entity: Product_Offering
+    fields: [Offering_ID, Name, Type, Channel_Eligibility, Status]
+    filters:
+      - {field: Status, operator: eq, value: Active}
+    orderBy: "Name ASC"
+    limit: 100
+    panel_type: table
+    title: "Active Product Offerings"
+    category: cpq_sell
+
+  # ════════════════════════════════════════════════════════════════════
+  # SOLUTION 10: SOURCING CPQ (BUY-SIDE)
+  # ════════════════════════════════════════════════════════════════════
+
+  - query_variants:
+      - "open RFx events"
+      - "active sourcing events"
+      - "RFQ events in progress"
+      - "sourcing campaigns currently open"
+    entity: RFx_Event
+    fields: [Event_ID, Title, Type, Category, Status, Open_Date, Close_Date]
+    filters:
+      - {field: Status, operator: in, value: [Published, Bidding, Evaluation]}
+    orderBy: "Close_Date ASC"
+    limit: 50
+    panel_type: table
+    title: "Open RFx Events"
+    category: cpq_buy
+
+  - query_variants:
+      - "RFx events by category"
+      - "sourcing volume by spend category"
+      - "RFx by procurement category"
+      - "sourcing events grouped by category"
+    entity: RFx_Event
+    fields: [Category]
+    aggregation: {function: count, field: null}
+    groupBy: [Category]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "RFx Events by Category"
+    category: cpq_buy
+
+  - query_variants:
+      - "vendor responses by status"
+      - "bid status distribution"
+      - "vendor quote status counts"
+      - "RFx response status pie"
+    entity: Vendor_Quote
+    fields: [Status]
+    aggregation: {function: count, field: null}
+    groupBy: [Status]
+    orderBy: "value DESC"
+    panel_type: pie-chart
+    title: "Vendor Quotes by Status"
+    category: cpq_buy
+
+  - query_variants:
+      - "pending sourcing awards"
+      - "awards awaiting approval"
+      - "draft sourcing awards"
+      - "awards in review"
+    entity: Sourcing_Award
+    fields: [Award_ID, Event_ID, Scenario_ID, Status, Approved_At]
+    filters:
+      - {field: Status, operator: in, value: [Pending_Approval]}
+    orderBy: "Award_ID ASC"
+    limit: 50
+    panel_type: table
+    title: "Pending Sourcing Awards"
+    category: cpq_buy
+
+  - query_variants:
+      - "savings vs should cost"
+      - "modeled savings by scenario"
+      - "sourcing scenario savings"
+      - "should cost variance"
+    entity: Sourcing_Scenario
+    fields: [Scenario_ID, Event_ID, Name, Modeled_Savings, Modeled_Risk_Score, Concentration_Pct]
+    orderBy: "Modeled_Savings DESC"
+    limit: 25
+    panel_type: bar-chart
+    title: "Savings vs Should-Cost by Scenario"
+    category: cpq_buy
+
+  - query_variants:
+      - "highest concentration scenarios"
+      - "single source heavy scenarios"
+      - "scenarios with concentration risk"
+      - "vendor concentration risk in awards"
+    entity: Sourcing_Scenario
+    fields: [Scenario_ID, Event_ID, Concentration_Pct, Modeled_Risk_Score]
+    filters:
+      - {field: Concentration_Pct, operator: gte, value: 60}
+    orderBy: "Concentration_Pct DESC"
+    limit: 25
+    panel_type: table
+    title: "High-Concentration Sourcing Scenarios"
+    category: cpq_buy
+
+  - query_variants:
+      - "should cost models"
+      - "list should cost benchmarks"
+      - "material should cost benchmarks"
+      - "should cost per material"
+    entity: Should_Cost_Model
+    fields: [Model_ID, Material_ID, Modeled_Cost, Confidence, Generated_At]
+    orderBy: "Generated_At DESC"
+    limit: 50
+    panel_type: table
+    title: "Should-Cost Models"
+    category: cpq_buy

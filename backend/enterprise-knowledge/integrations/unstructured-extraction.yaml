@@ -1,0 +1,185 @@
+id: INTEGRATION_UNSTRUCTURED_EXTRACT_V1_0
+name: Unstructured Data Extraction Pipeline
+version: "1.0"
+source_system: Google_Drive / File_Uploads
+target_system: Ontology_Layer
+sync_type: unidirectional
+frequency: "On-upload trigger + daily scan for missed documents"
+description: >
+  Unidirectional extraction pipeline from unstructured documents (PDFs, scans, Excel)
+  into the Ontology layer. Uses NLP, OCR, and LLM-based extraction with confidence
+  scoring. High-confidence extractions are auto-indexed; low-confidence items are
+  queued for human review.
+
+mappings:
+  - name: Contract Extraction
+    source_object: Google_Drive_PDFs
+    target_object: Contract_Document
+    direction: Google Drive → Ontology
+    conflict_resolution: "Human review wins on low-confidence extractions"
+    fields:
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.vendor
+        direction: "source_to_target"
+        transformation: "NLP pipeline identifies vendor entity from contract text"
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.contract_dates
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts start date, end date, renewal date"
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.pricing
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts pricing terms, rate cards, volume tiers"
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.sla_terms
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts SLA definitions and thresholds"
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.penalties
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts penalty clauses and conditions"
+      - source: Google_Drive_PDFs.document
+        target: Contract_Document.extraction_confidence
+        direction: "source_to_target"
+        constraint: "Confidence >0.85 auto-indexed; <0.85 queued for human review"
+
+  - name: Sustainability Report
+    source_object: Google_Drive_PDFs
+    target_object: Sustainability_Report
+    direction: Google Drive → Ontology
+    conflict_resolution: "Human review wins on low-confidence extractions"
+    fields:
+      - source: Google_Drive_PDFs.document
+        target: Sustainability_Report.kpis
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts sustainability KPI definitions and values"
+      - source: Google_Drive_PDFs.document
+        target: Sustainability_Report.targets
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts target metrics and timelines"
+      - source: Google_Drive_PDFs.document
+        target: Sustainability_Report.actuals
+        direction: "source_to_target"
+        transformation: "NLP pipeline extracts actual performance values"
+      - source: Google_Drive_PDFs.document
+        target: Sustainability_Report.framework_type
+        direction: "source_to_target"
+        transformation: "NLP pipeline classifies framework (GRI, SASB, TCFD, etc.)"
+      - source: Google_Drive_PDFs.document
+        target: Sustainability_Report.extraction_confidence
+        direction: "source_to_target"
+        constraint: "Confidence >0.85 auto-indexed; <0.85 queued for human review"
+
+  - name: Invoice OCR
+    source_object: File_Uploads_PDFs
+    target_object: Invoice_Upload
+    direction: File Uploads → Ontology
+    conflict_resolution: "Human review wins on low-confidence extractions"
+    fields:
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.vendor
+        direction: "source_to_target"
+        transformation: "OCR + LLM extraction identifies vendor from invoice"
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.invoice_number
+        direction: "source_to_target"
+        transformation: "OCR + LLM extraction captures invoice number"
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.amounts
+        direction: "source_to_target"
+        transformation: "OCR + LLM extraction captures total, tax, line item amounts"
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.line_items
+        direction: "source_to_target"
+        transformation: "OCR + LLM extraction parses individual line items"
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.po_match
+        direction: "source_to_target"
+        transformation: "Extracted PO number matched against existing purchase orders"
+      - source: File_Uploads_PDFs.document
+        target: Invoice_Upload.extraction_confidence
+        direction: "source_to_target"
+        constraint: "Confidence >0.7 auto-process; <0.7 routed to manual review"
+
+  - name: Lab Report
+    source_object: File_Uploads_PDFs_Excel
+    target_object: Lab_Report_Upload
+    direction: File Uploads → Ontology
+    conflict_resolution: "Human review wins on low-confidence extractions"
+    fields:
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.test_names
+        direction: "source_to_target"
+        transformation: "NLP/OCR extraction identifies test names and methods"
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.results
+        direction: "source_to_target"
+        transformation: "NLP/OCR extraction captures test results and units"
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.spec_compliance
+        direction: "source_to_target"
+        transformation: "Results compared against material specifications for pass/fail"
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.material_id
+        direction: "source_to_target"
+        transformation: "Matched to Material_ID from Material_Master"
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.batch_id
+        direction: "source_to_target"
+        transformation: "Matched to Batch_ID from Batch_Master"
+      - source: File_Uploads_PDFs_Excel.document
+        target: Lab_Report_Upload.extraction_confidence
+        direction: "source_to_target"
+        constraint: "Confidence >0.85 auto-populate QC records; <0.85 routed to manual review"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "unstructured-extraction-alerts@company.com"
+  fallback: "Failed extractions queued for manual processing; documents retained in source system"
+
+dependencies:
+  - entity: Contract_Document
+    system: Ontology_Layer
+    relationship: "Target entity for extracted contract data"
+  - entity: Sustainability_Report
+    system: Ontology_Layer
+    relationship: "Target entity for extracted sustainability data"
+  - entity: Invoice_Upload
+    system: Ontology_Layer
+    relationship: "Target entity for extracted invoice data"
+  - entity: Lab_Report_Upload
+    system: Ontology_Layer
+    relationship: "Target entity for extracted lab report data"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Required for vendor matching and validation"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Required for material matching in lab reports"
+  - entity: Batch_Master
+    system: SAP
+    relationship: "Required for batch matching in lab reports"
+  - entity: quality-policy
+    system: Internal
+    relationship: "Governs QC auto-population rules and confidence thresholds"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Governs invoice processing and PO matching rules"
+
+related_entities:
+  - Contract_Document
+  - Sustainability_Report
+  - Invoice_Upload
+  - Lab_Report_Upload
+triggered_by_workflows:
+  - Supplier Risk Scoring
+  - Invoice Processing
+  - Quality Deviation Response
+  - ESG Reporting
+used_by_apps:
+  - "Supply Chain Risk"
+  - "Procurement Analytics"
+  - "Production & Quality"
+  - "ESG Tracker"

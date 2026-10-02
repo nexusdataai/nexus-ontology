@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: get_inventory_position
+# Kind: read
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep -- pull rows that match a filter.
+#
+# What it does:
+#   Query inventory positions for a material/SKU across plants and
+#   warehouses. Returns stock levels, batch information, and days of
+#   supply from the supply chain ontology. Use this to check if
+#   rebalancing is needed.
+#
+# Inputs:    material_id, plant_id
+# Reads:     Inventory_Position, Material_Plant
+# Writes:    none
+# ============================================================================
+tool_id: get_inventory_position
+display_name: Get Inventory Position
+group: misc
+description: Query inventory positions for a material/SKU across plants and warehouses.
+  Returns stock levels, batch information, and days of supply from the supply chain
+  ontology. Use this to check if rebalancing is needed.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    material_id:
+      type: string
+      description: Material/SKU identifier (e.g. 'PEPSI_500ML', 'TROPICANA_1L')
+    plant_id:
+      type: string
+      description: Optional plant/warehouse ID to filter to a specific location
+  required:
+  - material_id
+connector_api: null
+consumes_entities:
+- Inventory_Position
+- Material_Plant
+produces_entities: []
+tags:
+- supply-chain
+- read
+example_invocation: null

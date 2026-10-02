@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: project_inventory_writeoff
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a static-analysis pass that totals up an exposure metric.
+#
+# What it does:
+#   Project the total inventory write-off exposure (in USD) across the horizon
+#   window, decomposed by category (near-expiry / slow-movers / obsolete).
+#   Powers the verify stage of liquidation playbooks.
+#
+# Inputs:    horizon_days, plant_id (optional)
+# Reads:     Inventory_Position, Sales_Velocity
+# Writes:    none
+# Returns:   {projected_writeoff_usd, by_category: {near_expiry, slow_movers, obsolete}, currency}
+# ============================================================================
+tool_id: project_inventory_writeoff
+display_name: Project Inventory Writeoff
+group: inventory
+tool_kind: analyze
+description: |
+  Total inventory write-off exposure projected across the horizon, decomposed
+  by category. Used to baseline and verify the impact of liquidation plays.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    horizon_days: { type: integer, description: "Lookahead in days (default 90)" }
+    plant_id: { type: string, description: "Optional plant filter" }
+  required: []
+consumes_entities: [Inventory_Position, Sales_Velocity]
+produces_entities: []
+tags: [inventory, writeoff, analyze]
+example_invocation:
+  horizon_days: 90

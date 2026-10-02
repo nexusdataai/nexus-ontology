@@ -1,0 +1,17 @@
+api_id: vdl.customer.get
+verb: read
+virtual_entity: Customer
+description: Read a Customer by id from the VDL layer, routed through mapping rules.
+risk_level: read_only
+parameters_schema:
+  type: object
+  properties:
+    customer_id:
+      type: string
+  required: [customer_id]
+direct_sql:
+  virtual_entity: Customer
+  filters:
+    customer_id: "${customer_id}"
+  limit: 1
+tags: [customer, read, c360]

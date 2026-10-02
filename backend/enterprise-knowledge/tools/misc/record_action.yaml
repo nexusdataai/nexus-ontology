@@ -1,0 +1,49 @@
+# ============================================================================
+# Tool: record_action
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter / type-checker -- score rows without writing.
+#
+# What it does:
+#   Append an O2C_Action_Log row recording an automation action that took
+#   effect.
+#
+# Inputs:    action_type, target_entity, target_id, status, notes
+# Reads:     none
+# Writes:    O2C_Action_Log, Audit_Event
+# ============================================================================
+tool_id: record_action
+display_name: Record Action
+group: misc
+description: Append an O2C_Action_Log row recording an automation action that took
+  effect.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    action_type:
+      type: string
+    target_entity:
+      type: string
+    target_id:
+      type: string
+    status:
+      type: string
+    notes:
+      type: string
+  required:
+  - action_type
+  - target_id
+  - status
+connector_api: null
+consumes_entities: []
+produces_entities:
+- O2C_Action_Log
+- Audit_Event
+tags:
+- o2c
+- audit
+- write
+example_invocation: null

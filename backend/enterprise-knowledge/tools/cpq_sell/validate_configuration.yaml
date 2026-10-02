@@ -1,0 +1,32 @@
+tool_id: validate_configuration
+display_name: Validate Configuration
+group: cpq_sell
+description: 'Evaluate the Configuration_Rule set against a quote: channel eligibility,
+  MOQ, pack/case, regional restrictions, and exclusion rules. Returns severities
+  and a blocking flag.'
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID to validate
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Configuration_Rule
+- Product_Offering
+- Account
+produces_entities:
+- CPQ_Validation_Result
+tags:
+- cpq-sell
+- configure
+- validate
+example_invocation:
+  quote_id: QT-00042

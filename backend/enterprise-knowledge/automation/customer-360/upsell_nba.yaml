@@ -1,0 +1,104 @@
+use_case_id: c360.upsell_nba
+title: Next-Best Upsell Action
+solution_id: customer-360
+bucket: customer-360
+description: 'Next-best upsell action for high-fit accounts. Identify upsell candidates
+  and route a tailored CSM outreach task with the recommended SKU. Email follow-up
+  consolidates the play.
+
+  '
+status: active
+tags:
+- c360
+- upsell
+- nba
+kpi_impact:
+- expansion_arr
+- win_rate
+consumes_entities:
+- Customer
+- Opportunity
+- Account
+produces_entities:
+- Task
+- Email_Campaign_Send
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_upsell_candidates
+    params:
+      top_n: 25
+- stage_id: diagnose
+  name: Diagnose
+  order: 2
+  description: Score / decompose the candidates.
+  steps:
+  - step_id: diag
+    name: Score / Project
+    order: 1
+    tool: score_customer_lifetime_value
+    params: {}
+- stage_id: decide
+  name: Decide
+  order: 3
+  description: 'Pair each customer with the highest-fit upsell SKU. LLM-only step;
+    no
+
+    tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 4
+  steps:
+  - step_id: act_1
+    name: Assign Csm Outreach
+    order: 1
+    tool: assign_csm_outreach
+    params:
+      account_id: ${item.customer_id}
+      subject: Recommended upsell -- ${item.recommended_sku}
+      outreach_type: upsell_play
+- stage_id: notify
+  name: Notify
+  order: 5
+  steps:
+  - step_id: notify_1
+    name: Send Email Campaign
+    order: 1
+    tool: send_email_campaign
+    params:
+      subject: A recommendation for your account
+      recipients: ${stage.resolve.list.results}
+- stage_id: verify
+  name: Verify
+  order: 6
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_upsell_candidates
+    params:
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: expansion_arr
+      kpi_before: 0
+      kpi_after: ${stage.verify.requery.count}

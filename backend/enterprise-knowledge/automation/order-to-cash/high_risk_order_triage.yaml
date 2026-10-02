@@ -1,0 +1,113 @@
+use_case_id: o2c.high_risk_order_triage
+title: High-Risk Order Triage
+solution_id: order-to-cash
+bucket: o2c
+description: 'Top anomaly-score orders are triaged: high-CLV but past-due accounts
+  get expedited; high-risk + low-tier accounts get credit hold or stricter payment
+  terms; the rest are monitored.
+
+  '
+status: active
+tags:
+- risk
+- triage
+- ar
+kpi_impact:
+- risk_score
+- dso
+- leakage_rate
+consumes_entities:
+- O2C_Order_Result
+- O2C_Anomaly_Score
+- Account
+produces_entities:
+- O2C_Action_Log
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Identify Top Risk Orders
+  order: 1
+  steps:
+  - step_id: top_anomaly
+    name: Top-20 Anomaly Orders
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: O2C_Order_Result
+      filter:
+        risk_rank:
+          lte: 20
+      limit: 20
+  - step_id: customer_history
+    name: Pull Customer Credit History
+    order: 2
+    tool: query_virtual_entity
+    params:
+      entity: AR_Customer
+      fields:
+      - Customer_ID
+      - Credit_Limit
+      - Payment_Terms
+      - Status
+- stage_id: decide
+  name: Risk Banding
+  order: 2
+  steps:
+  - step_id: band
+    name: Tier x Amount x History -> Risk Band
+    order: 1
+    tool: score_order_anomaly
+    params:
+      opportunity_id: ${item.opportunity_id}
+- stage_id: act
+  name: Take Action
+  order: 3
+  steps:
+  - step_id: hold_critical
+    name: Place Credit Hold (Critical)
+    order: 1
+    requires_approval: true
+    tool: place_credit_hold
+    params:
+      account_id: ${item.account_id}
+      reason: Critical risk band - automated triage
+  - step_id: alert_sales
+    name: Alert Sales Team
+    order: 2
+    tool: escalate_sla_breach
+    params:
+      opportunity_id: ${item.opportunity_id}
+      sla_pct: 100
+      escalation_level: regional_manager
+  - step_id: shorten_terms
+    name: Shorten Payment Terms (High Risk)
+    order: 3
+    requires_approval: true
+    tool: update_account_terms
+    params:
+      customer_id: ${item.account_id}
+      payment_terms: Net_30
+  - step_id: monitor
+    name: Monitor Medium-Risk
+    order: 4
+    tool: record_action
+    params:
+      action_type: risk:monitor
+      target_entity: account
+      target_id: ${item.account_id}
+      status: executed
+      notes: Medium risk band - monitor for 7 days
+- stage_id: verify
+  name: Verify
+  order: 4
+  steps:
+  - step_id: rescore
+    name: Re-Score After 7 Days
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: O2C_Anomaly_Score
+      fields:
+      - entity_id
+      - value
+      - timestamp

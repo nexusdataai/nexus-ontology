@@ -1,0 +1,7 @@
+{
+  "alert_data_bucket": "econet-alerts",
+  "athena_results_bucket": "external-access-athena-results-764119721991",
+  "athena_database": "econet",
+  "athena_table": "alerts", 
+  "aws_region": "us-east-1"
+}

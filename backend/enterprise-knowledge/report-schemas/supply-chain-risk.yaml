@@ -1,0 +1,80 @@
+solution_id: supply-chain-risk
+title: Supply Chain Risk Report
+icon: AlertTriangle
+
+summary_kpis:
+  - key: avg_risk_score
+    label: Avg Risk Score
+    icon: Activity
+    format: decimal
+    rollup: avg
+    source: Data.kpis.avg_risk_score
+    threshold:
+      warn: 60
+      critical: 80
+  - key: otd_pct
+    label: On-Time Delivery
+    icon: Clock
+    format: percent
+    rollup: avg
+    source: Data.kpis.otd_pct
+    threshold:
+      invert: true
+      warn: 90
+      critical: 80
+  - key: single_source_count
+    label: Single-Source Items
+    icon: GitBranch
+    format: integer
+    rollup: sum
+    source: Data.kpis.single_source_count
+  - key: contract_compliance_pct
+    label: Contract Compliance
+    icon: ShieldCheck
+    format: percent
+    rollup: avg
+    source: Data.kpis.contract_compliance_pct
+  - key: emergency_procurement_pct
+    label: Emergency Procurement
+    icon: Zap
+    format: percent
+    rollup: avg
+    source: Data.kpis.emergency_procurement_pct
+  - key: alerts_count
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.alerts_count
+
+sections:
+  - id: alerts
+    title: Risk Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        single_source: Single-Source
+        disruption_signal: Disruption Signal
+        contract_breach: Contract Breach
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: early_warning_days
+        label: Early-Warning Days
+        format: decimal
+        rollup: avg
+        source: Data.kpis.early_warning_days
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

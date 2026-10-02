@@ -1,0 +1,92 @@
+use_case_id: c360.renewal_negotiation
+title: Renewal Negotiation Play
+solution_id: customer-360
+bucket: customer-360
+description: 'Renewal negotiation with terms + discount levers. Score each renewal
+  by CLV, propose updated terms (or a renewal discount), and write the outcome back
+  to AR.
+
+  '
+status: active
+tags:
+- c360
+- renewal
+- negotiation
+kpi_impact:
+- renewal_rate
+- renewal_arr
+consumes_entities:
+- Customer
+- AR_Invoice
+- Opportunity
+produces_entities:
+- Oracle_AR_Promotion
+- O2C_Action_Log
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: score_customer_lifetime_value
+    params:
+      top_n: 25
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Per-account: terms change, discount, or status quo based on CLV.
+
+    LLM-only step; no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Update Account Terms
+    order: 1
+    requires_approval: true
+    tool: update_account_terms
+    params:
+      customer_id: ${item.customer_id}
+      payment_terms: Net_45
+  - step_id: act_2
+    name: Apply Promo Discount
+    order: 2
+    requires_approval: true
+    tool: apply_promo_discount
+    params:
+      name: Renewal Loyalty Discount
+      discount_pct: 7.5
+      applies_to:
+        segment: renewal
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: score_customer_lifetime_value
+    params:
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: renewal_arr
+      kpi_before: 0
+      kpi_after: ${stage.verify.requery.count}

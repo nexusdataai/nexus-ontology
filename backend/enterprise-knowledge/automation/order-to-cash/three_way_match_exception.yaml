@@ -1,0 +1,105 @@
+use_case_id: o2c.three_way_match_exception
+title: 3-Way Match Exception Resolution
+solution_id: order-to-cash
+bucket: o2c
+description: 'For orders failing the order-delivery-invoice three-way match, diagnose
+  the discrepancy class (qty / price / timing) and route to auto-accept, dispute,
+  or credit-note paths.
+
+  '
+status: active
+tags:
+- match
+- dispute
+- ar
+kpi_impact:
+- match_rate
+- leakage_rate
+consumes_entities:
+- O2C_Order_Result
+- Delivery_Document
+- AR_Invoice
+produces_entities:
+- O2C_Action_Log
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: List Mismatched Orders
+  order: 1
+  steps:
+  - step_id: list_mismatches
+    name: List Orders Failing Three-Way Match
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: O2C_Order_Result
+      filter:
+        match_status: missing_invoice
+      limit: 50
+- stage_id: diagnose
+  name: Per-Order Discrepancy
+  order: 2
+  steps:
+  - step_id: rerun_match
+    name: Re-Run Three-Way Match
+    order: 1
+    tool: match_order_delivery_invoice
+    params:
+      opportunity_id: ${item.opportunity_id}
+  - step_id: score_anomaly
+    name: Score Anomaly
+    order: 2
+    tool: score_order_anomaly
+    params:
+      opportunity_id: ${item.opportunity_id}
+- stage_id: act
+  name: Resolve
+  order: 3
+  steps:
+  - step_id: hold_invoice
+    name: Move Invoice To Under_Review
+    order: 1
+    requires_approval: true
+    tool: update_invoice_status
+    params:
+      invoice_id: ${item.invoice_id}
+      new_status: Under_Review
+  - step_id: dispute_open
+    name: Open Dispute Case
+    order: 2
+    requires_approval: true
+    tool: create_dispute_case
+    params:
+      opportunity_id: ${item.opportunity_id}
+      invoice_id: ${item.invoice_id}
+      dispute_reason: Three-way match exception
+  - step_id: credit_note
+    name: Issue Credit Note (if accepted)
+    order: 3
+    requires_approval: true
+    tool: process_credit_note
+    params:
+      invoice_id: ${item.invoice_id}
+      amount: ${item.discrepancy_amount}
+      reason: Three-way match exception accepted
+- stage_id: verify
+  name: Verify
+  order: 4
+  steps:
+  - step_id: confirm_reconciled
+    name: Confirm Reconciled
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: O2C_Order_Result
+      filter:
+        match_status: matched
+  - step_id: action_log
+    name: Append Action Log Row
+    order: 2
+    tool: record_action
+    params:
+      action_type: match:resolved
+      target_entity: invoice
+      target_id: ${item.invoice_id}
+      status: executed

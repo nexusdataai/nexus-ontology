@@ -1,0 +1,89 @@
+id: WORKFLOW_DEMAND_FORECAST_V1_0
+name: Demand Forecast Generation
+version: "1.0"
+system: Internal
+scor_process: Plan
+trigger:
+  object: Opportunity
+  event: "Scheduled weekly OR volume change detected"
+  condition: "Every Sunday 02:00 UTC, or Salesforce Opportunity volume change >10% week-over-week"
+description: >
+  Generates a consensus demand forecast by combining statistical time-series
+  models with ML ensembles, promotion overlays, and cannibalization adjustments.
+  Merges AI output with sales-team overrides and publishes the final
+  SKU x Region x Week demand plan to SAP MRP.
+
+steps:
+  - order: 1
+    name: Feature Engineering
+    system: Internal
+    action: "Aggregate sales history from Salesforce Opportunities, inventory levels from SAP, promotions from Campaigns, weather data, and social signals from Market_Signal"
+
+  - order: 2
+    name: Model Ensemble
+    system: Internal
+    action: "Run Prophet/ARIMA time-series and XGBoost/LightGBM ML models in parallel; combine via weighted average ensemble"
+
+  - order: 3
+    name: Promotion Overlay
+    system: Internal
+    action: "Apply learned promotion response curves per Campaign mechanic x category x region"
+
+  - order: 4
+    name: Cannibalization Adjustment
+    system: Internal
+    action: "Apply cross-product substitution factors derived from historical sales data"
+
+  - order: 5
+    name: Consensus Integration
+    system: Salesforce
+    action: "Merge AI-generated forecast with Forecast_Override entries submitted by sales team"
+
+  - order: 6
+    name: Publish Forecast
+    system: SAP
+    action: "Push SKU x Region x Week demand plan to SAP MRP via sf-sap-demand-sync integration"
+    retry: 3
+    failure_action: "Alert Supply Chain team; retry exhausted triggers manual review"
+
+dependencies:
+  - entity: Opportunity
+    system: Salesforce
+    relationship: "Sales history source for demand signals"
+  - entity: Material_Master
+    system: SAP
+    relationship: "SKU reference data for forecast granularity"
+  - entity: Campaign
+    system: Salesforce
+    relationship: "Promotion calendar for overlay adjustments"
+  - entity: Market_Signal
+    system: Social_Listening
+    relationship: "External demand signals (weather, social, events)"
+  - entity: Forecast_Override
+    system: Salesforce
+    relationship: "Sales-team manual adjustments to AI forecast"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Current stock levels as model input"
+  - entity: pricing-discount-policy
+    system: Internal
+    relationship: "Governs price-elasticity assumptions in forecast"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Defines maximum data staleness for model inputs"
+
+related_entities:
+  - Opportunity
+  - Opportunity_Line_Item
+  - Account
+  - Campaign
+  - Forecast_Override
+  - Material_Master
+  - Material_Plant
+  - Inventory_Position
+  - Market_Signal
+related_policies:
+  - pricing-discount-policy
+  - data-freshness-policy
+use_case: "Demand Forecasting & Planning Engine"
+scor_process: "Plan"

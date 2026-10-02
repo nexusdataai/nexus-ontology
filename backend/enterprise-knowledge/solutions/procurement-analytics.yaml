@@ -1,0 +1,25 @@
+solutionId: procurement-analytics
+title: Procurement & Spend Analytics
+description: |
+  Spend visibility, maverick detection, and intelligent invoice
+  processing. Illuminates rogue spend against contracts, catches
+  duplicate invoices, and speeds three-way match.
+priority: P1
+category: Finance
+timeToValue: 3 weeks
+verticals: [supply_chain]
+personas: [procurement_manager, ap_lead]
+color: "from-amber-500 to-orange-500"
+icon: FileText
+entities: [Purchase_Order, Goods_Receipt, AP_Invoice, Contract_Document]
+kpis:
+  - Maverick < 5%
+  - STP Rate > 80%
+  - Price Variance < 3%
+automations: [detect_maverick_spend, three_way_match]
+analytics: [spend_by_category_dashboard, contract_leakage_view]
+nlq_examples:
+  - Where are we spending outside contracts?
+  - Identify duplicate AP invoices this month
+  - Which suppliers have the worst price variance?
+journeyId: procurement_analytics

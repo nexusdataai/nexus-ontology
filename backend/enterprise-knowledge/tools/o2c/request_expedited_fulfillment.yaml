@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: request_expedited_fulfillment
+# Kind: mutate
+# Connector API: sap.delivery.expedite
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Set SAP delivery to express priority for high-risk or SLA-threatened
+#   orders.
+#
+# Inputs:    delivery_id, reason
+# Reads:     Delivery_Document
+# Writes:    Delivery_Document, Audit_Event
+# ============================================================================
+tool_id: request_expedited_fulfillment
+display_name: Request Expedited Fulfillment
+group: o2c
+description: Set SAP delivery to express priority for high-risk or SLA-threatened
+  orders.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    delivery_id:
+      type: string
+      description: SAP Delivery Document ID
+    reason:
+      type: string
+      description: Reason for expediting
+  required:
+  - delivery_id
+connector_api: sap.delivery.expedite
+consumes_entities:
+- Delivery_Document
+produces_entities:
+- Delivery_Document
+- Audit_Event
+tags:
+- o2c
+- fulfillment
+- write
+example_invocation: null

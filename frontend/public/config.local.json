@@ -1,0 +1,11 @@
+{
+  "api": {
+    "baseUrl": "",
+    "timeout": 30000
+  },
+  "bypassAuth": true,
+  "dataSource": "api",
+  "enableFallback": true,
+  "deploymentMode": "local",
+  "_comment": "Empty baseUrl = same-origin requests via Vite dev proxy (/api -> localhost:8000). Works for localhost:8080 AND remote IP:8080 access."
+}

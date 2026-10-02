@@ -1,0 +1,162 @@
+id: INTEGRATION_SAP_INVENTORY_FEED_V1_0
+name: SAP Inventory Feed
+version: "1.0"
+source_system: SAP
+target_system: Ontology_Layer
+sync_type: unidirectional
+frequency: "Daily full extract at 06:00 UTC + near real-time delta updates (within 15 minutes)"
+description: >
+  Unidirectional feed from SAP into the Ontology layer for inventory, batch,
+  production, and master data. Combines daily full extracts with near real-time
+  delta updates to ensure data freshness for analytics and decision-making.
+
+mappings:
+  - name: Inventory Snapshot
+    source_object: Inventory_Position
+    target_object: Ontology_Inventory_Position
+    direction: SAP → Ontology
+    conflict_resolution: "SAP wins"
+    fields:
+      - source: Inventory_Position.Material_ID
+        target: Ontology_Inventory_Position.material_id
+        direction: "source_to_target"
+      - source: Inventory_Position.Plant_ID
+        target: Ontology_Inventory_Position.plant_id
+        direction: "source_to_target"
+      - source: Inventory_Position.Batch_ID
+        target: Ontology_Inventory_Position.batch_id
+        direction: "source_to_target"
+      - source: Inventory_Position.Unrestricted_Qty
+        target: Ontology_Inventory_Position.unrestricted_qty
+        direction: "source_to_target"
+      - source: Inventory_Position.Blocked_Qty
+        target: Ontology_Inventory_Position.blocked_qty
+        direction: "source_to_target"
+      - source: Inventory_Position.In_Transit_Qty
+        target: Ontology_Inventory_Position.in_transit_qty
+        direction: "source_to_target"
+        note: "Full daily extract of all SKU × Plant × Batch positions at 06:00 UTC; delta updates for movements within 15 minutes"
+
+  - name: Batch Data
+    source_object: Batch_Master
+    target_object: Ontology_Batch_Master
+    direction: SAP → Ontology
+    conflict_resolution: "SAP wins"
+    fields:
+      - source: Batch_Master.Batch_ID
+        target: Ontology_Batch_Master.batch_id
+        direction: "source_to_target"
+      - source: Batch_Master.Material_ID
+        target: Ontology_Batch_Master.material_id
+        direction: "source_to_target"
+      - source: Batch_Master.Production_Date
+        target: Ontology_Batch_Master.production_date
+        direction: "source_to_target"
+      - source: Batch_Master.Expiry_Date
+        target: Ontology_Batch_Master.expiry_date
+        direction: "source_to_target"
+      - source: Batch_Master.Status
+        target: Ontology_Batch_Master.status
+        direction: "source_to_target"
+        note: "Daily sync + immediate push on status change"
+
+  - name: Production Output
+    source_object: Production_Order
+    target_object: Ontology_Production_Order
+    direction: SAP → Ontology
+    conflict_resolution: "SAP wins"
+    fields:
+      - source: Production_Order.Order_ID
+        target: Ontology_Production_Order.order_id
+        direction: "source_to_target"
+      - source: Production_Order.Material_ID
+        target: Ontology_Production_Order.material_id
+        direction: "source_to_target"
+      - source: Production_Order.Qty_Produced
+        target: Ontology_Production_Order.qty_produced
+        direction: "source_to_target"
+      - source: Production_Order.Yield_Pct
+        target: Ontology_Production_Order.yield_pct
+        direction: "source_to_target"
+      - source: Production_Order.Status
+        target: Ontology_Production_Order.status
+        direction: "source_to_target"
+        note: "Near real-time sync on production order confirmation"
+
+  - name: Master Data
+    source_object: Material_Master
+    target_object: Ontology_Material_Master
+    direction: SAP → Ontology
+    conflict_resolution: "SAP wins"
+    fields:
+      - source: Material_Master.*
+        target: Ontology_Material_Master.*
+        direction: "source_to_target"
+      - source: Material_Plant.*
+        target: Ontology_Material_Plant.*
+        direction: "source_to_target"
+      - source: Plant_Master.*
+        target: Ontology_Plant_Master.*
+        direction: "source_to_target"
+      - source: Vendor_Master.*
+        target: Ontology_Vendor_Master.*
+        direction: "source_to_target"
+      - source: Source_List.*
+        target: Ontology_Source_List.*
+        direction: "source_to_target"
+        note: "On-change push + daily full sync for all master data entities"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "inventory-feed-alerts@company.com"
+  fallback: "SAP is authoritative; stale Ontology data flagged with last_sync_timestamp for downstream consumers"
+
+dependencies:
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Source entity for inventory snapshots and deltas"
+  - entity: Batch_Master
+    system: SAP
+    relationship: "Source entity for batch tracking data"
+  - entity: Production_Order
+    system: SAP
+    relationship: "Source entity for production output"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Source master data entity"
+  - entity: Material_Plant
+    system: SAP
+    relationship: "Source master data entity for material-plant assignments"
+  - entity: Plant_Master
+    system: SAP
+    relationship: "Source master data entity for plant definitions"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Source master data entity for vendor information"
+  - entity: Source_List
+    system: SAP
+    relationship: "Source master data entity for approved vendor-material sourcing"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Governs acceptable data latency thresholds and staleness alerts"
+
+related_entities:
+  - Inventory_Position
+  - Batch_Master
+  - Production_Order
+  - Material_Master
+  - Material_Plant
+  - Plant_Master
+  - Vendor_Master
+  - Source_List
+triggered_by_workflows:
+  - Inventory Rebalancing
+  - Expiry Management
+  - Production Scheduling
+  - ESG Reporting
+used_by_apps:
+  - "Inventory Optimization"
+  - "Production & Quality"
+  - "ESG Tracker"

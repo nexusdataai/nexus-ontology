@@ -1,0 +1,48 @@
+tool_id: launch_rfx
+display_name: Launch RFx
+group: cpq_buy
+description: Create an RFx_Event row for a category and plant list. Returns the
+  new Event_ID and a hint to invite vendors next.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    category:
+      type: string
+      description: Spend category (Raw_Material, Packaging, Co_Packer, Logistics, Services, Equipment)
+    plants:
+      type: array
+      items:
+        type: string
+      description: Buyer plant IDs
+    target_qty:
+      type: number
+      description: Aggregate target quantity (optional)
+    due_date:
+      type: string
+      description: Bidding close date YYYY-MM-DD
+    title:
+      type: string
+      description: Event title (optional)
+  required:
+  - category
+connector_api: sourcing.rfx.create
+consumes_entities:
+- Purchase_Requisition
+- Material_Master
+- Plant_Master
+produces_entities:
+- RFx_Event
+- Audit_Event
+tags:
+- cpq-buy
+- rfx
+- write
+example_invocation:
+  category: Packaging
+  plants:
+  - PLT-001
+  - PLT-002
+  due_date: '2026-06-15'

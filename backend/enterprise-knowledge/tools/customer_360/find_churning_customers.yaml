@@ -1,0 +1,42 @@
+# ============================================================================
+# Tool: find_churning_customers
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep over a codebase, ranked by relevance.
+#
+# What it does:
+#   Reads Customer + Activity_Log + AR_Invoice + Support_Case for the past
+#   `horizon_days` days and computes a churn-risk score per customer
+#   (recency / frequency / monetary delta + sentiment proxy + payment-
+#   lateness trend), returning the top-N at-risk customers with feature
+#   attributions.
+#
+# Inputs:    horizon_days, top_n, segment_filter (optional)
+# Reads:     Customer, Activity_Log, AR_Invoice, Support_Case
+# Writes:    none
+# Returns:   {count, results: [{customer_id, churn_score, top_features, last_touch}]}
+# ============================================================================
+tool_id: find_churning_customers
+display_name: Find Churning Customers
+group: customer_360
+tool_kind: analyze
+description: |
+  Identify customers most likely to churn within the lookback horizon. Combines
+  payment-lateness, NPS / health-score deltas, support-ticket trend and usage
+  decline into a single churn risk score.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    horizon_days: { type: integer, description: "Lookback in days (default 90)" }
+    top_n:        { type: integer, description: "Max ranked rows (default 20)" }
+    segment_filter: { type: string, description: "Optional segment / tier filter" }
+  required: []
+consumes_entities: [Customer, Activity_Log, AR_Invoice, Support_Case]
+produces_entities: []
+tags: [c360, churn, analyze]
+example_invocation:
+  horizon_days: 90
+  top_n: 20

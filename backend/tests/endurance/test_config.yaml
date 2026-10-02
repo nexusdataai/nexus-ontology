@@ -1,0 +1,38 @@
+# Quick Test Configuration for BDD Endurance Testing
+
+endurance:
+  # Short duration for testing
+  duration_minutes: 1
+  
+  # Test strategy
+  test_strategy:
+    type: "sequential"  # Use sequential for predictable testing
+  
+  # Single instance for debugging
+  parallel_instances: 1
+  
+  # Continue even if tests fail
+  continue_on_failure: true
+  
+  # Health monitoring with relaxed thresholds
+  health_monitoring:
+    enabled: true
+    interval_seconds: 5
+  
+  # Relaxed thresholds for test environment
+  thresholds:
+    cpu_percent: 90.0
+    memory_gb: 10.0  # Increased for current system
+    memory_growth_mb_per_hour: 500
+    swap_percent: 50.0
+    file_descriptors: 2000
+    threads: 1000
+    response_time_ms: 10000
+    error_rate_percent: 50.0  # Allow higher error rate for testing
+    disk_usage_percent: 95.0
+  
+  # Simple reporting
+  reporting:
+    output_dir: "/opt/mycode/ptr/ai-job-engine/test_reports/endurance"
+    formats: ["json"]
+    generate_on_interrupt: true

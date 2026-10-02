@@ -1,0 +1,49 @@
+# Development Dockerfile for Alert Engine - S3-Based Reporting Only
+# Quick iteration builds for reporting tools development
+FROM public.ecr.aws/docker/library/python:3.12-slim
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gcc \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Copy application source
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY mcp_http_gateway.py ./
+
+# Set environment variables (removed ALERT_DATA_PATH - using S3)
+ENV PYTHONPATH=/app/src \
+    API_HOST=0.0.0.0 \
+    API_PORT=8000 \
+    LOG_LEVEL=DEBUG \
+    LOG_DIR=/app/logs \
+    PYTHONUNBUFFERED=1 \
+    AWS_DEFAULT_REGION=us-east-1
+
+# AWS credentials via boto3 chain:
+# - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+# - IAM role (ECS/EC2/Lambda)
+# - AWS_PROFILE with mounted ~/.aws/credentials
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Development command with auto-reload and debug logging
+CMD ["uvicorn", "mcp_http_gateway:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]

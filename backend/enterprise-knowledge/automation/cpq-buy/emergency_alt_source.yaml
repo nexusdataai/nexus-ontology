@@ -1,0 +1,88 @@
+use_case_id: cpq_buy.emergency_alt_source
+title: Emergency Alternative Sourcing
+solution_id: sourcing-cpq
+bucket: cpq-buy
+description: 'Triggered by a Critical Market_Signal (port congestion, vendor
+  failure, regulatory hold). Launches an emergency RFx to qualified alternate
+  vendors, scores their bids, and recommends a fast award split. Chains into
+  the existing disruption-response workflow.
+
+  '
+status: active
+tags:
+- cpq
+- sourcing
+- emergency
+- disruption
+kpi_impact:
+- time_to_alternate
+- supply_continuity
+consumes_entities:
+- Market_Signal
+- Vendor_Master
+- Source_List
+- Material_Master
+- Should_Cost_Model
+produces_entities:
+- RFx_Event
+- RFx_Line
+- RFx_Invitation
+- Sourcing_Scenario
+- Audit_Event
+stages:
+- stage_id: detect
+  name: Detect Disruption
+  order: 1
+  steps:
+  - step_id: critical_signals
+    name: Critical Market Signals
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: Market_Signal
+      filter:
+        Severity: Critical
+      limit: 10
+- stage_id: launch
+  name: Launch Emergency RFx
+  order: 2
+  steps:
+  - step_id: launch
+    name: Create Emergency RFx
+    order: 1
+    requires_approval: true
+    tool: launch_rfx
+    params:
+      category: ${context.category}
+      plants: ${context.plants}
+      target_qty: ${context.urgent_qty}
+      title: 'Emergency RFx — ${item.Event_Type}'
+      due_date: ${context.fast_close_date}
+- stage_id: invite
+  name: Invite Alternates
+  order: 3
+  steps:
+  - step_id: panel
+    name: Recommend Vendor Panel
+    order: 1
+    tool: recommend_vendor_panel
+    params:
+      event_id: ${stage.launch.launch.event_id}
+      top_n: 6
+  - step_id: solicit
+    name: Solicit Vendors
+    order: 2
+    tool: solicit_vendors
+    params:
+      event_id: ${stage.launch.launch.event_id}
+      vendor_ids: ${stage.invite.panel.panel}
+- stage_id: award
+  name: Rapid Award
+  order: 4
+  steps:
+  - step_id: recommend_split
+    name: Recommend Award Split
+    order: 1
+    tool: recommend_award_split
+    params:
+      event_id: ${stage.launch.launch.event_id}

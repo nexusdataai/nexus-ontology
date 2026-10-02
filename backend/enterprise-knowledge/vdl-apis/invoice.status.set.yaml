@@ -1,0 +1,22 @@
+api_id: vdl.invoice.status.set
+verb: write
+virtual_entity: Invoice
+description: Update the status of an AR invoice in the ERP of record.
+risk_level: high_risk_write
+parameters_schema:
+  type: object
+  properties:
+    invoice_id:
+      type: string
+    new_status:
+      type: string
+    reason:
+      type: string
+  required: [invoice_id, new_status]
+impl:
+  - connector_api_id: oracle.invoice.status.set
+    arg_mapping:
+      invoice_id: invoice_id
+      new_status: new_status
+      reason: reason
+tags: [invoice, ar, status, o2c]

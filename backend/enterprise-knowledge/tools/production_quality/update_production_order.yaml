@@ -1,0 +1,42 @@
+# ============================================================================
+# Tool: update_production_order
+# Kind: mutate
+# Connector API: sap.production_order.update
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- mutate a live production order in SAP.
+#
+# What it does:
+#   Update a production order's status, planned quantity, or shift
+#   assignment. High-risk write because it commits shop-floor scheduling
+#   changes.
+#
+# Inputs:    production_order_id, status (optional), quantity (optional), shift_id (optional)
+# Reads:     Production_Order
+# Writes:    Production_Order, Audit_Event
+# Returns:   {action, production_order_id, ...patch}
+# ============================================================================
+tool_id: update_production_order
+display_name: Update Production Order
+group: production_quality
+tool_kind: mutate
+description: |
+  Update an SAP production order (status / planned quantity / shift). Used
+  by OEE-recovery, line-rebalance, and quality-hold playbooks.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: sap.production_order.update
+parameters:
+  type: object
+  properties:
+    production_order_id: { type: string }
+    status: { type: string }
+    quantity: { type: integer }
+    shift_id: { type: string }
+  required: [production_order_id]
+consumes_entities: [Production_Order]
+produces_entities: [Production_Order, Audit_Event]
+tags: [pq, production, write]
+example_invocation:
+  production_order_id: PRO-2026-0042
+  status: Released

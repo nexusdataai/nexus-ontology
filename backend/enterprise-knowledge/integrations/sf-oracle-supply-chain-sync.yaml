@@ -1,0 +1,131 @@
+id: INTEGRATION_SF_ORACLE_SC_V1_0
+name: Salesforce to Oracle Supply Chain Sync
+version: "1.0"
+source_system: Salesforce
+target_system: Oracle
+sync_type: bidirectional
+frequency: "Near real-time (15-minute sync interval)"
+description: >
+  Bidirectional integration between Salesforce CRM and Oracle ERP for supply chain operations.
+  Salesforce is the source of truth for customer and order data.
+  Oracle is the source of truth for financial transactions including AR balances and credit notes.
+
+mappings:
+  - name: Customer Sync
+    source_object: Account
+    target_object: AR_Customer
+    direction: Salesforce → Oracle
+    conflict_resolution: "Salesforce wins for customer data; Oracle wins for financial data"
+    fields:
+      - source: Account.Name
+        target: AR_Customer.customer_name
+        direction: "source_to_target"
+      - source: Account.Channel_Type__c
+        target: AR_Customer.channel_type
+        direction: "source_to_target"
+      - source: Account.Tier__c
+        target: AR_Customer.collection_priority
+        direction: "source_to_target"
+        transformation: "Platinum→Priority, Gold→Standard, Silver→Monitored, Bronze→Basic"
+      - source: Account.Credit_Limit__c
+        target: AR_Customer.credit_limit
+        direction: "source_to_target"
+        requires_approval: true
+        constraint: "Only syncs after credit approval workflow completes"
+      - source: Account.Payment_Terms__c
+        target: AR_Customer.payment_terms
+        direction: "source_to_target"
+      - source: Account.Status
+        target: AR_Customer.customer_status
+        direction: "source_to_target"
+        constraint: "Deactivation blocked if AR balance > 0"
+      - source: AR_Customer.ar_balance
+        target: Account.AR_Balance__c
+        direction: "target_to_source"
+        read_only: true
+        note: "Oracle AR balance synced back to Salesforce for visibility"
+      - source: AR_Customer.collection_priority
+        target: Account.Collection_Priority__c
+        direction: "target_to_source"
+        read_only: true
+        note: "Oracle collection priority synced back to Salesforce for visibility"
+
+  - name: Order Sync
+    source_object: Opportunity
+    target_object: Oracle_Internal_Reference
+    direction: Salesforce → Oracle
+    conflict_resolution: "Salesforce wins"
+    fields:
+      - source: Opportunity.Opportunity_ID
+        target: Oracle_Internal_Reference.sf_opportunity_id
+        direction: "source_to_target"
+      - source: Opportunity.Account_ID
+        target: Oracle_Internal_Reference.customer_id
+        direction: "source_to_target"
+      - source: Opportunity.Total_Value__c
+        target: Oracle_Internal_Reference.total_value
+        direction: "source_to_target"
+      - source: Opportunity.Close_Date
+        target: Oracle_Internal_Reference.close_date
+        direction: "source_to_target"
+      - source: Opportunity.Stage
+        target: Oracle_Internal_Reference.order_stage
+        direction: "source_to_target"
+        note: "Closed Won stage triggers billing workflow in Oracle"
+
+  - name: Credit Note Sync
+    source_object: AR_Credit_Note
+    target_object: Credit_Note__c
+    direction: Oracle → Salesforce
+    conflict_resolution: "Oracle wins"
+    fields:
+      - source: AR_Credit_Note.credit_note_id
+        target: Credit_Note__c.Credit_Note_ID__c
+        direction: "source_to_target"
+        read_only: true
+      - source: AR_Credit_Note.amount
+        target: Credit_Note__c.Amount__c
+        direction: "source_to_target"
+        read_only: true
+      - source: AR_Credit_Note.reason
+        target: Credit_Note__c.Reason__c
+        direction: "source_to_target"
+        read_only: true
+        note: "Credit notes synced to Salesforce for visibility only"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "supply-chain-integration-alerts@company.com"
+  fallback: "Salesforce is authoritative for customer/order data; Oracle is authoritative for financial data; manual reconciliation required on failure"
+
+dependencies:
+  - entity: Account
+    system: Salesforce
+    relationship: "Source entity for customer data"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Target entity for customer data; source for AR balance"
+  - entity: Opportunity
+    system: Salesforce
+    relationship: "Source entity for order data"
+  - entity: Credit Approval Flow
+    system: Internal
+    relationship: "Must complete before credit limit sync"
+  - entity: order-fulfillment-policy
+    system: Internal
+    relationship: "Governs order sync rules and billing triggers"
+
+related_entities:
+  - Account
+  - AR_Customer
+  - Opportunity
+  - AR_Invoice
+triggered_by_workflows:
+  - Order-to-Cash Monitoring
+  - Customer Churn Prediction
+  - Credit Approval Flow
+used_by_apps:
+  - "Order-to-Cash Monitor"
+  - "Customer 360"

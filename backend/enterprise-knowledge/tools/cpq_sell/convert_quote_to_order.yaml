@@ -1,0 +1,33 @@
+tool_id: convert_quote_to_order
+display_name: Convert Quote To Order
+group: cpq_sell
+description: Transition an Approved quote to Won_Converted and emit the kickoff
+  event for the quote-to-order workflow, which materializes the Salesforce
+  Opportunity and SAP Delivery and chains into order-to-cash-monitoring.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+  required:
+  - quote_id
+connector_api: tpm.quote.convert_to_order
+consumes_entities:
+- Quote_Header
+- Quote_Line
+produces_entities:
+- Quote_Header
+- Opportunity
+- Opportunity_Line_Item
+- Delivery_Document
+- Audit_Event
+tags:
+- cpq-sell
+- convert
+- write
+example_invocation:
+  quote_id: QT-00042

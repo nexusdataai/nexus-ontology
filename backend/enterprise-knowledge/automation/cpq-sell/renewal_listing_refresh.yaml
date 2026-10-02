@@ -1,0 +1,83 @@
+use_case_id: cpq_sell.renewal_listing_refresh
+title: Renewal & Listing Refresh
+solution_id: trade-cpq
+bucket: cpq-sell
+description: 'For expired and expiring trade quotes, refresh listings: re-validate
+  the configuration, re-price against the current Price_Book, apply active
+  Campaigns, and forecast win probability so the seller can prioritize re-quote
+  outreach.
+
+  '
+status: active
+tags:
+- cpq
+- renewal
+- listing
+kpi_impact:
+- win_rate
+- quote_cycle_time
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Campaign
+- Price_Book_Entry
+- Configuration_Rule
+produces_entities:
+- Quote_Header
+- CPQ_Pricing_Waterfall
+- Audit_Event
+stages:
+- stage_id: scope
+  name: Identify Renewal Candidates
+  order: 1
+  steps:
+  - step_id: list_expiring
+    name: List Quotes Near Expiry
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: Quote_Header
+      filter:
+        Status: Expired
+      limit: 50
+- stage_id: refresh
+  name: Refresh Each Quote
+  order: 2
+  steps:
+  - step_id: validate
+    name: Validate Configuration
+    order: 1
+    tool: validate_configuration
+    params:
+      quote_id: ${item.Quote_ID}
+  - step_id: price
+    name: Re-Price
+    order: 2
+    tool: price_quote
+    params:
+      quote_id: ${item.Quote_ID}
+      scenario: renewal
+  - step_id: promo
+    name: Re-Apply Active Promotion
+    order: 3
+    tool: apply_promotion
+    params:
+      quote_id: ${item.Quote_ID}
+      campaign_id: ${item.Suggested_Campaign_ID}
+- stage_id: prioritize
+  name: Prioritize Outreach
+  order: 3
+  steps:
+  - step_id: forecast
+    name: Forecast Win Probability
+    order: 1
+    tool: forecast_quote_win_probability
+    params:
+      quote_id: ${item.Quote_ID}
+  - step_id: proposal
+    name: Generate Refreshed Proposal
+    order: 2
+    tool: generate_proposal_doc
+    params:
+      quote_id: ${item.Quote_ID}
+      template: renewal

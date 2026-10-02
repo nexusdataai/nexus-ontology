@@ -1,0 +1,25 @@
+solutionId: customer-360
+title: Customer 360 & Revenue Growth
+description: |
+  Unified customer profiles with churn prediction and cross-sell
+  recommendations. Combines CRM, ERP, and sentiment signals to surface
+  at-risk accounts and prioritise CSM outreach.
+priority: P1
+category: Revenue
+timeToValue: 4 weeks
+verticals: [crm, supply_chain]
+personas: [csm, sales_lead]
+color: "from-sky-500 to-blue-500"
+icon: Users
+entities: [Account, Contact, Opportunity, AR_Customer, Brand_Sentiment]
+kpis:
+  - Churn < 5%
+  - Wallet Share > 60%
+  - CLV +15%
+automations: [find_churning_customers, assign_csm_outreach, apply_promo_discount]
+analytics: [customer_health_dashboard, churn_risk_view]
+nlq_examples:
+  - Which enterprise customers are churning next quarter?
+  - Recommend cross-sell opportunities for the top 20 accounts
+  - Assign CSM outreach to declining accounts
+journeyId: customer_360

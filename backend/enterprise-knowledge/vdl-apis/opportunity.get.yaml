@@ -1,0 +1,17 @@
+api_id: vdl.opportunity.get
+verb: read
+virtual_entity: Opportunity
+description: Read a sales Opportunity by id from the VDL layer.
+risk_level: read_only
+parameters_schema:
+  type: object
+  properties:
+    opportunity_id:
+      type: string
+  required: [opportunity_id]
+direct_sql:
+  virtual_entity: Opportunity
+  filters:
+    opportunity_id: "${opportunity_id}"
+  limit: 1
+tags: [opportunity, read, o2c]

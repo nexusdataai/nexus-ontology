@@ -1,0 +1,91 @@
+solution_id: customer-360
+title: Customer 360 Report
+icon: Users
+
+summary_kpis:
+  - key: avg_clv
+    label: Avg CLV
+    icon: Wallet
+    format: currency
+    rollup: avg
+    source: Data.kpis.avg_clv
+  - key: churn_risk_pct
+    label: Churn Risk
+    icon: AlertTriangle
+    format: percent
+    rollup: avg
+    source: Data.kpis.churn_risk_pct
+    threshold:
+      warn: 8
+      critical: 15
+  - key: wallet_share_avg
+    label: Wallet Share
+    icon: Target
+    format: percent
+    rollup: avg
+    source: Data.kpis.wallet_share_avg
+  - key: cross_sell_rate_pct
+    label: Cross-Sell Rate
+    icon: TrendingUp
+    format: percent
+    rollup: avg
+    source: Data.kpis.cross_sell_rate_pct
+  - key: total_accounts
+    label: Accounts Analyzed
+    icon: Users
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_accounts
+  - key: alerts_count
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.alerts_count
+
+sections:
+  - id: churn
+    title: Churn Watch
+    kind: kpi_grid
+    kpis:
+      - key: high_churn_count
+        label: High-Risk Accounts
+        format: integer
+        rollup: sum
+        source: Data.kpis.high_churn_count
+      - key: avg_nps
+        label: Avg NPS
+        format: decimal
+        rollup: avg
+        source: Data.kpis.avg_nps
+      - key: customer_profitability_avg
+        label: Avg Profitability
+        format: currency
+        rollup: avg
+        source: Data.kpis.customer_profitability_avg
+
+  - id: alerts
+    title: Customer Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        churn_risk: Churn Risk
+        upsell_opportunity: Upsell Opportunity
+        nps_decline: NPS Decline
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

@@ -1,0 +1,69 @@
+use_case_id: cpq_sell.bundle_recommendation
+title: Bundle Recommendation
+solution_id: trade-cpq
+bucket: cpq-sell
+description: 'For an account about to receive a quote, propose bundle configurations
+  by mining Opportunity_Line_Item history and Material_Master overlap. Validates
+  each candidate bundle against Configuration_Rule before surfacing it to the rep.
+
+  '
+status: active
+tags:
+- cpq
+- ai
+- recommend
+kpi_impact:
+- win_rate
+- average_quote_value
+consumes_entities:
+- Account
+- Opportunity_Line_Item
+- Product_Offering
+- Offering_Component
+- Configuration_Rule
+- Brand_Sentiment
+produces_entities:
+- CPQ_Recommendation_Set
+stages:
+- stage_id: analyse
+  name: Account Buying Pattern
+  order: 1
+  steps:
+  - step_id: history
+    name: Historic Line Items
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: Opportunity_Line_Item
+      filter:
+        Account_ID: ${context.account_id}
+      limit: 200
+- stage_id: configure
+  name: Build Candidate Bundles
+  order: 2
+  steps:
+  - step_id: bundles
+    name: Configure Candidate Offerings
+    order: 1
+    tool: configure_bundle
+    params:
+      account_id: ${context.account_id}
+      target_materials: ${stage.analyse.history.top_materials}
+      channel: ${context.channel}
+- stage_id: validate
+  name: Validate Each Bundle
+  order: 3
+  steps:
+  - step_id: rules
+    name: Validate Configuration
+    order: 1
+    tool: validate_configuration
+    params:
+      quote_id: ${context.draft_quote_id}
+  - step_id: cross_sell
+    name: Cross-Sell Recommendations
+    order: 2
+    tool: suggest_upsell_crosssell
+    params:
+      quote_id: ${context.draft_quote_id}
+      top_n: 5

@@ -1,0 +1,52 @@
+# ============================================================================
+# Tool: bundle_skus_for_liquidation
+# Kind: mutate
+# Connector API: oracle.kit.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- assemble a new artefact (here, a sellable kit).
+#
+# What it does:
+#   Bundle multiple SKUs (typically slow-movers + near-expiry stock) into a
+#   single Oracle Kit so the bundle can be discounted and sold as one unit.
+#
+# Inputs:    name, components: [{sku, quantity}], kit_sku (optional),
+#            list_price (optional), discount_pct (optional)
+# Reads:     none
+# Writes:    Oracle_Kit, Audit_Event
+# Returns:   {action, kit_id, kit_sku, components, discount_pct}
+# ============================================================================
+tool_id: bundle_skus_for_liquidation
+display_name: Bundle SKUs For Liquidation
+group: inventory
+tool_kind: mutate
+description: |
+  Create a sellable kit by bundling multiple SKUs into a single Oracle Kit so
+  the bundle can be discounted as one unit. Used by inventory liquidation plays.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: oracle.kit.create
+parameters:
+  type: object
+  properties:
+    name: { type: string }
+    components:
+      type: array
+      items:
+        type: object
+        properties:
+          sku: { type: string }
+          quantity: { type: integer }
+    kit_sku: { type: string }
+    list_price: { type: number }
+    discount_pct: { type: number }
+  required: [name, components]
+consumes_entities: []
+produces_entities: [Oracle_Kit, Audit_Event]
+tags: [inventory, kit, liquidation, write]
+example_invocation:
+  name: "Q2 Clearance Bundle"
+  components:
+    - { sku: MAT-00109, quantity: 50 }
+    - { sku: MAT-00204, quantity: 30 }
+  discount_pct: 35

@@ -1,0 +1,47 @@
+# Fallback report schema. Used for any solution_id that doesn't have
+# a dedicated YAML file in this directory -- includes Copilot Saved
+# journeys before their copilot-saved.yaml schema is matched, plus any
+# new solution-type the platform hasn't catalogued yet.
+solution_id: _default
+title: Journey Report
+icon: BarChart3
+
+summary_kpis:
+  - key: total_jobs
+    label: Total Jobs
+    icon: Layers
+    format: integer
+    rollup: last
+    source: derived.total_jobs
+  - key: completed_jobs
+    label: Completed
+    icon: CheckCircle
+    format: integer
+    rollup: last
+    source: derived.completed_jobs
+  - key: failed_jobs
+    label: Failed
+    icon: XCircle
+    format: integer
+    rollup: last
+    source: derived.failed_jobs
+  - key: success_rate
+    label: Success Rate
+    icon: TrendingUp
+    format: percent
+    rollup: last
+    source: derived.success_rate
+  - key: avg_duration
+    label: Avg Duration
+    icon: Clock
+    format: duration
+    rollup: last
+    source: derived.avg_duration_seconds
+
+sections:
+  - id: step_breakdown
+    title: Step Breakdown
+    kind: step_breakdown
+  - id: timeline
+    title: Run Timeline
+    kind: timeline

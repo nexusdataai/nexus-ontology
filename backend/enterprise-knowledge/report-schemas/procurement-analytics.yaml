@@ -1,0 +1,80 @@
+solution_id: procurement-analytics
+title: Procurement Analytics Report
+icon: FileBarChart
+
+summary_kpis:
+  - key: total_spend
+    label: Total Spend
+    icon: Wallet
+    format: currency
+    rollup: sum
+    source: Data.kpis.total_spend
+  - key: maverick_spend_pct
+    label: Maverick Spend
+    icon: AlertTriangle
+    format: percent
+    rollup: avg
+    source: Data.kpis.maverick_spend_pct
+    threshold:
+      warn: 10
+      critical: 20
+  - key: stp_rate_pct
+    label: Straight-Through %
+    icon: Zap
+    format: percent
+    rollup: avg
+    source: Data.kpis.stp_rate_pct
+    threshold:
+      invert: true
+      warn: 80
+      critical: 65
+  - key: price_variance_pct
+    label: Price Variance
+    icon: Activity
+    format: percent
+    rollup: avg
+    source: Data.kpis.price_variance_pct
+  - key: vendor_concentration_idx
+    label: Vendor Concentration
+    icon: Users
+    format: decimal
+    rollup: avg
+    source: Data.kpis.vendor_concentration_idx
+  - key: alerts_count
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.alerts_count
+
+sections:
+  - id: anomaly_alerts
+    title: Procurement Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        maverick_purchase: Maverick Purchase
+        price_anomaly: Price Anomaly
+        invoice_mismatch: Invoice Mismatch
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_processing_days
+        label: Avg Processing Days
+        format: decimal
+        rollup: avg
+        source: Data.kpis.avg_processing_days
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

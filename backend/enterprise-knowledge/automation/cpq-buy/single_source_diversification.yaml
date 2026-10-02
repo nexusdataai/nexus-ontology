@@ -1,0 +1,83 @@
+use_case_id: cpq_buy.single_source_diversification
+title: Single-Source Diversification
+solution_id: sourcing-cpq
+bucket: cpq-buy
+description: 'For ABC-class A materials with only one approved vendor, launch a
+  qualification RFx targeting alternative vendors per sourcing-award-policy
+  Section 2. Closes a known supply-risk hole.
+
+  '
+status: active
+tags:
+- cpq
+- sourcing
+- risk
+- diversification
+kpi_impact:
+- single_source_count
+- vendor_concentration
+consumes_entities:
+- Source_List
+- Material_Plant
+- Material_Master
+- Vendor_Master
+produces_entities:
+- RFx_Event
+- RFx_Line
+- RFx_Invitation
+- Audit_Event
+stages:
+- stage_id: detect
+  name: Detect Single-Source ABC-A
+  order: 1
+  steps:
+  - step_id: list_abc_a
+    name: List ABC-Class A Materials
+    order: 1
+    tool: query_virtual_entity
+    params:
+      entity: Material_Plant
+      filter:
+        ABC_Classification: A
+      limit: 200
+  - step_id: list_source_list
+    name: List Source List Rows
+    order: 2
+    tool: query_virtual_entity
+    params:
+      entity: Source_List
+      filter:
+        Status: Active
+      limit: 500
+- stage_id: launch
+  name: Launch Qualification RFx
+  order: 2
+  steps:
+  - step_id: launch
+    name: Launch RFx For Material
+    order: 1
+    requires_approval: true
+    tool: launch_rfx
+    params:
+      category: Raw_Material
+      plants: ${context.plants}
+      target_qty: ${item.qty_target}
+      title: 'Diversification RFx for ${item.Material_ID}'
+- stage_id: invite
+  name: Invite Alternates
+  order: 3
+  steps:
+  - step_id: panel
+    name: Recommend Vendor Panel
+    order: 1
+    tool: recommend_vendor_panel
+    params:
+      event_id: ${stage.launch.launch.event_id}
+      top_n: 4
+  - step_id: solicit
+    name: Solicit Alternative Vendors
+    order: 2
+    tool: solicit_vendors
+    params:
+      event_id: ${stage.launch.launch.event_id}
+      vendor_ids: ${stage.invite.panel.panel}

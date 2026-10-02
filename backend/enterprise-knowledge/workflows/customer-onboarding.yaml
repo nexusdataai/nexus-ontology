@@ -1,0 +1,99 @@
+id: WORKFLOW_CUSTOMER_ONBOARDING_V1_0
+name: B2B Customer Onboarding
+version: "1.0"
+system: Cross-System
+trigger:
+  object: Lead
+  field: Status
+  condition: "Lead converted to Account"
+description: >
+  End-to-end process for onboarding a new B2B enterprise customer
+  across Salesforce and Oracle ERP. Includes account creation,
+  risk assessment, credit provisioning, and ERP setup.
+
+steps:
+  - order: 1
+    name: Create Salesforce Account
+    system: Salesforce
+    action: "Convert Lead to Account with required fields"
+    required_fields:
+      - Name
+      - Industry
+      - BillingAddress
+      - Phone
+      - Website
+
+  - order: 2
+    name: Data Enrichment
+    system: Salesforce
+    action: "Enrich account with external data (D&B, credit bureau)"
+    optional: true
+
+  - order: 3
+    name: Risk Assessment
+    system: Salesforce
+    action: "Run risk scoring to determine Risk_Tier__c"
+    dependencies:
+      - "Account must be created"
+      - "Industry must be populated"
+
+  - order: 4
+    name: Set Initial Credit Limit
+    system: Salesforce
+    action: "Set Credit_Limit__c based on Risk_Tier and industry benchmarks"
+    rules:
+      - "Low risk → 500,000 USD"
+      - "Medium risk → 250,000 USD"
+      - "High risk → 50,000 USD"
+      - "Critical risk → 0 (credit hold)"
+
+  - order: 5
+    name: Provision Oracle Customer
+    system: Oracle
+    action: "Create AR_Customer record with synced data"
+    synced_fields:
+      - "Account.Name → AR_Customer.customer_name"
+      - "Account.Credit_Limit__c → AR_Customer.credit_limit"
+      - "Account.Risk_Tier__c → AR_Customer.collection_priority"
+      - "Account.BillingAddress → AR_Customer.billing_address"
+
+  - order: 6
+    name: Create Oracle Payment Terms
+    system: Oracle
+    action: "Set default payment terms based on Risk_Tier"
+    rules:
+      - "Low risk → Net 60"
+      - "Medium risk → Net 30"
+      - "High risk → Prepayment"
+
+  - order: 7
+    name: Verification & Activation
+    system: Cross-System
+    action: "Verify all systems are consistent; activate customer"
+    failure_action: "Rollback — delete Oracle customer, revert Salesforce account to draft"
+
+sequence_constraints:
+  - "Step 3 must complete before Step 4"
+  - "Step 4 must complete before Step 5"
+  - "Step 5 must complete before Step 6"
+  - "All steps must complete before Step 7"
+
+dependencies:
+  - entity: Account
+    relationship: "Created entity"
+  - entity: Lead
+    relationship: "Source entity"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "ERP provisioning target"
+
+related_entities:
+  - Account
+  - Contact
+  - Lead
+  - AR_Customer
+related_policies:
+  - credit-policy
+  - rbac-policy
+use_case: "Customer 360 & Revenue Growth Intelligence"
+scor_process: "Deliver"

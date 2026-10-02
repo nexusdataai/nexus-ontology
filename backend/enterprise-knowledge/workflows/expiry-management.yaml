@@ -1,0 +1,90 @@
+id: WORKFLOW_EXPIRY_MANAGEMENT_V1_0
+name: Expiry Management
+version: "1.0"
+system: SAP
+scor_process: Plan/Return
+trigger:
+  object: Batch_Master
+  field: Shelf_Life_Remaining_Days
+  condition: "Batch enters 90-day, 60-day, or 30-day expiry window"
+description: >
+  Daily lifecycle management for near-expiry inventory batches. Scores waste
+  risk, classifies action windows, and executes the appropriate response —
+  accelerated sales, markdown, redistribution, donation, or destruction —
+  to minimize waste and comply with sustainability policy.
+
+steps:
+  - order: 1
+    name: Scan Batches
+    system: SAP
+    action: "Daily scan of all Batch_Master records; calculate Shelf_Life_Remaining_Days against Expiry_Date"
+
+  - order: 2
+    name: Score Waste Risk
+    system: Internal
+    action: "For near-expiry batches, calculate waste probability based on current stock qty, sell-through rate, and demand forecast"
+
+  - order: 3
+    name: Classify Action Window
+    system: Internal
+    action: "Route batch to appropriate action track based on remaining shelf life"
+    rules:
+      - "90 days → flag for accelerated sales"
+      - "60 days → recommend markdown or redistribution"
+      - "30 days → mandatory action (markdown/donate/destroy)"
+      - "Batches >$5K value require Supply Chain Manager notification"
+
+  - order: 4
+    name: Execute Markdown
+    system: Salesforce
+    action: "If markdown selected, update pricing via Campaign; notify sales team"
+
+  - order: 5
+    name: Execute Redistribution
+    system: SAP
+    action: "If transfer feasible, create Warehouse_Transfer to higher-demand location"
+
+  - order: 6
+    name: Process Donation or Destruction
+    system: SAP
+    action: "If <7 days remaining and unsold, route to donation partner or schedule destruction; update Batch_Master status to Blocked"
+
+  - order: 7
+    name: Notify
+    system: Internal
+    action: "Generate alerts per severity; update dashboard"
+
+dependencies:
+  - entity: Batch_Master
+    system: SAP
+    relationship: "Source entity — expiry dates and batch status"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Current stock qty for waste-risk scoring"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Product metadata and shelf-life configuration"
+  - entity: Warehouse_Transfer
+    system: SAP
+    relationship: "Created when redistribution is selected"
+  - entity: Campaign
+    system: Salesforce
+    relationship: "Markdown pricing vehicle"
+  - entity: inventory-policy
+    system: Internal
+    relationship: "Defines expiry action thresholds and escalation rules"
+  - entity: sustainability-policy
+    system: Internal
+    relationship: "Governs donation eligibility and waste-reduction targets"
+
+related_entities:
+  - Batch_Master
+  - Inventory_Position
+  - Material_Master
+  - Warehouse_Transfer
+  - Campaign
+related_policies:
+  - inventory-policy
+  - sustainability-policy
+use_case: "Inventory Optimization & Distribution Intelligence"
+scor_process: "Plan/Return"

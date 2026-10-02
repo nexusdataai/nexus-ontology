@@ -1,0 +1,45 @@
+# ============================================================================
+# Tool: update_invoice_status
+# Kind: mutate
+# Connector API: oracle.invoice.status.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Change Oracle AR invoice status (Disputed, On_Hold, Released,
+#   Credit_Applied).
+#
+# Inputs:    invoice_id, new_status
+# Reads:     AR_Invoice
+# Writes:    AR_Invoice, Audit_Event
+# ============================================================================
+tool_id: update_invoice_status
+display_name: Update Invoice Status
+group: o2c
+description: Change Oracle AR invoice status (Disputed, On_Hold, Released, Credit_Applied).
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    invoice_id:
+      type: string
+      description: Invoice ID to update
+    new_status:
+      type: string
+      description: New status value
+  required:
+  - invoice_id
+  - new_status
+connector_api: oracle.invoice.status.set
+consumes_entities:
+- AR_Invoice
+produces_entities:
+- AR_Invoice
+- Audit_Event
+tags:
+- o2c
+- ar
+- write
+example_invocation: null

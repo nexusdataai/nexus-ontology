@@ -1,0 +1,105 @@
+# Order-to-Cash report. Sources match the ``_kpis`` dict
+# o2c_processor populates in step_workflow_actions /
+# step_action_summary (carried through to Data.kpis by the
+# job_executor's complete_job path).
+solution_id: order-to-cash
+title: Order-to-Cash Report
+icon: ShoppingCart
+
+summary_kpis:
+  - key: match_rate
+    label: Match Rate
+    icon: CheckCircle
+    format: percent
+    rollup: avg
+    source: Data.kpis.match_rate
+  - key: dso
+    label: DSO
+    icon: Clock
+    format: decimal
+    rollup: avg
+    source: Data.kpis.dso
+    threshold:
+      warn: 45
+      critical: 60
+  - key: total_open_ar
+    label: Open AR
+    icon: Wallet
+    format: currency
+    rollup: sum
+    source: Data.kpis.total_open_ar
+  - key: at_risk_amount
+    label: At-Risk AR
+    icon: AlertTriangle
+    format: currency
+    rollup: sum
+    source: Data.kpis.at_risk_amount
+  - key: total_actions
+    label: Actions Executed
+    icon: Activity
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_actions
+  - key: total_alerts
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_alerts
+
+sections:
+  - id: collections
+    title: Collections Mix
+    kind: kpi_grid
+    kpis:
+      - key: dunning_notices
+        label: Dunning Notices
+        format: integer
+        rollup: sum
+        source: Data.kpis.dunning_notices
+      - key: projected_weekly
+        label: Projected Weekly Collections
+        format: currency
+        rollup: sum
+        source: Data.kpis.projected_weekly_total
+      - key: mismatched_value
+        label: Mismatched Value
+        format: currency
+        rollup: sum
+        source: Data.kpis.mismatched_value
+
+  - id: anomaly_alerts
+    title: Anomaly Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        invoice_mismatch: Invoice Mismatch
+        delivery_delay: Delivery Delay
+        payment_risk: Payment Risk
+        high_value_anomaly: High-Value Anomaly
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: success_rate
+        label: Success Rate
+        format: percent
+        rollup: last
+        source: derived.success_rate
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs
+
+  - id: timeline
+    title: Run Timeline
+    kind: timeline

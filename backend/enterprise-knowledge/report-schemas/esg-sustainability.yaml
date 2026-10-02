@@ -1,0 +1,106 @@
+solution_id: esg-sustainability
+title: ESG Sustainability Report
+icon: Leaf
+
+summary_kpis:
+  - key: total_carbon_tons
+    label: Total CO2 (t)
+    icon: Cloud
+    format: decimal
+    rollup: sum
+    source: Data.kpis.total_carbon_tons
+  - key: carbon_intensity
+    label: Carbon Intensity
+    icon: Activity
+    format: decimal
+    rollup: avg
+    source: Data.kpis.carbon_intensity
+  - key: water_ratio
+    label: Water Ratio
+    icon: Droplet
+    format: percent
+    rollup: avg
+    source: Data.kpis.water_ratio
+  - key: recycled_content_pct
+    label: Recycled Content
+    icon: RefreshCw
+    format: percent
+    rollup: avg
+    source: Data.kpis.recycled_content_pct
+    threshold:
+      invert: true
+      warn: 30
+      critical: 15
+  - key: energy_efficiency_pct
+    label: Energy Efficiency
+    icon: Zap
+    format: percent
+    rollup: avg
+    source: Data.kpis.energy_efficiency_pct
+  - key: reporting_completeness_pct
+    label: Reporting Completeness
+    icon: FileCheck
+    format: percent
+    rollup: avg
+    source: Data.kpis.reporting_completeness_pct
+    threshold:
+      invert: true
+      warn: 90
+      critical: 75
+
+sections:
+  - id: footprint
+    title: Footprint Totals
+    kind: kpi_grid
+    kpis:
+      - key: total_water_m3
+        label: Total Water (m3)
+        format: decimal
+        rollup: sum
+        source: Data.kpis.total_water_m3
+      - key: total_energy_kwh
+        label: Total Energy (kWh)
+        format: decimal
+        rollup: sum
+        source: Data.kpis.total_energy_kwh
+      - key: plants_analyzed
+        label: Plants Analyzed
+        format: integer
+        rollup: sum
+        source: Data.kpis.plants_analyzed
+      - key: materials_analyzed
+        label: Materials Analyzed
+        format: integer
+        rollup: sum
+        source: Data.kpis.materials_analyzed
+
+  - id: alerts
+    title: Sustainability Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        emissions_breach: Emissions Breach
+        water_exceedance: Water Exceedance
+        regulatory_gap: Regulatory Gap
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: sustainability_sentiment
+        label: Sustainability Sentiment
+        format: text
+        rollup: last
+        source: Data.kpis.sustainability_sentiment
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

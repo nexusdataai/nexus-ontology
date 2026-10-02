@@ -1,0 +1,21 @@
+
+@import 'mapbox-gl/dist/mapbox-gl.css';
+@import './theme.css';
+@import './components.css';
+@import './maps.css';
+@import './charts.css';
+@import './utils.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+}

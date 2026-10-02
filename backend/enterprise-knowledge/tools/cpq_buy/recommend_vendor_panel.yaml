@@ -1,0 +1,33 @@
+tool_id: recommend_vendor_panel
+display_name: Recommend Vendor Panel
+group: cpq_buy
+description: Pick top vendor candidates for an RFx_Event from Source_List intersected
+  with active Vendor_Master, ranked by risk score and certifications. Excludes
+  critical-risk vendors per supply-chain-risk-policy.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    event_id:
+      type: string
+      description: RFx_Event ID
+    top_n:
+      type: integer
+      description: Number of panel candidates
+  required:
+  - event_id
+connector_api: null
+consumes_entities:
+- RFx_Line
+- Source_List
+- Vendor_Master
+produces_entities: []
+tags:
+- cpq-buy
+- vendor
+- analyze
+example_invocation:
+  event_id: RFX-00007
+  top_n: 5

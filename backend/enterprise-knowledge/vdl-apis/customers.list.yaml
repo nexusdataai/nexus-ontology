@@ -1,0 +1,18 @@
+api_id: vdl.customers.list
+verb: read
+virtual_entity: Customer
+description: List customers with optional filters (region, tier).
+risk_level: read_only
+parameters_schema:
+  type: object
+  properties:
+    region:
+      type: string
+    tier:
+      type: string
+    limit:
+      type: integer
+direct_sql:
+  virtual_entity: Customer
+  limit: 200
+tags: [customer, list, c360]

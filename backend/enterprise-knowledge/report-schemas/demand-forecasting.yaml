@@ -1,0 +1,100 @@
+solution_id: demand-forecasting
+title: Demand Forecasting Report
+icon: TrendingUp
+
+summary_kpis:
+  - key: mape
+    label: MAPE
+    icon: Target
+    format: percent
+    rollup: avg
+    source: Data.kpis.mape
+    threshold:
+      warn: 15
+      critical: 25
+  - key: bias
+    label: Bias
+    icon: Activity
+    format: percent
+    rollup: avg
+    source: Data.kpis.bias
+  - key: stockout_rate_pct
+    label: Stockout Risk
+    icon: AlertTriangle
+    format: percent
+    rollup: avg
+    source: Data.kpis.stockout_rate_pct
+    threshold:
+      warn: 5
+      critical: 10
+  - key: sku_region_combos
+    label: SKU x Region
+    icon: Layers
+    format: integer
+    rollup: sum
+    source: Data.kpis.sku_region_combos
+  - key: total_forecast_qty
+    label: Forecast Units
+    icon: BarChart3
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_forecast_qty
+  - key: alerts_count
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.alerts_count
+
+sections:
+  - id: volumes
+    title: Forecast Volumes
+    kind: kpi_grid
+    kpis:
+      - key: total_base_qty
+        label: Baseline Units
+        format: integer
+        rollup: sum
+        source: Data.kpis.total_base_qty
+      - key: total_forecast_qty
+        label: Forecast Units
+        format: integer
+        rollup: sum
+        source: Data.kpis.total_forecast_qty
+      - key: override_count
+        label: Overrides Applied
+        format: integer
+        rollup: sum
+        source: Data.kpis.override_count
+      - key: forecast_horizon_weeks
+        label: Horizon (weeks)
+        format: integer
+        rollup: last
+        source: Data.kpis.forecast_horizon_weeks
+
+  - id: alerts
+    title: Demand Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        demand_spike: Demand Spike
+        seasonal_ramp: Seasonal Ramp
+        promotion_conflict: Promotion Conflict
+        forecast_degradation: Forecast Degradation
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

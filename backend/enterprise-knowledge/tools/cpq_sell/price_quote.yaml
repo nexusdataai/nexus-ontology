@@ -1,0 +1,37 @@
+tool_id: price_quote
+display_name: Price Quote
+group: cpq_sell
+description: 'Build the pricing waterfall for a quote: list price, channel/tier discount,
+  applied discount, unit net, listing and slotting fees, line net, blended margin.
+  Flags floor breaches and margin breaches.'
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+    scenario:
+      type: string
+      description: Pricing scenario label (default 'default')
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- Price_Book
+- Price_Book_Entry
+- Account
+- Campaign
+- Cost_Accounting
+produces_entities:
+- CPQ_Pricing_Waterfall
+tags:
+- cpq-sell
+- price
+example_invocation:
+  quote_id: QT-00042
+  scenario: default

@@ -1,0 +1,38 @@
+# ============================================================================
+# Tool: find_slow_movers
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter ranking by a velocity metric.
+#
+# What it does:
+#   Rank materials by weekly sell-through velocity and surface the slowest
+#   movers (anything below `velocity_threshold`). Used by liquidation playbooks
+#   and inter-plant rebalance plays.
+#
+# Inputs:    velocity_threshold, top_n, plant_id (optional)
+# Reads:     Material, Inventory_Position
+# Writes:    none
+# Returns:   {count, results: [{material_id, weekly_velocity, on_hand_qty, plant}]}
+# ============================================================================
+tool_id: find_slow_movers
+display_name: Find Slow Movers
+group: inventory
+tool_kind: analyze
+description: |
+  Rank materials by weekly sell-through velocity and surface the slowest
+  movers; powers slow-mover-liquidation and inter-plant rebalance playbooks.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    velocity_threshold: { type: number, description: "Weekly velocity threshold (default 0.5)" }
+    top_n: { type: integer, description: "Max rows (default 50)" }
+    plant_id: { type: string, description: "Optional plant filter" }
+  required: []
+consumes_entities: [Material, Inventory_Position]
+produces_entities: []
+tags: [inventory, slow-movers, analyze]
+example_invocation:
+  velocity_threshold: 0.5

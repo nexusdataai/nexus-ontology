@@ -1,0 +1,35 @@
+tool_id: apply_promotion
+display_name: Apply Promotion
+group: cpq_sell
+description: Overlay a Salesforce Campaign as a Quote_Promotion onto the quote. Enforces
+  the 25 percent stacking cap from pricing-discount-policy and per-stacking_group
+  exclusivity.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+    campaign_id:
+      type: string
+      description: Campaign_ID to apply
+  required:
+  - quote_id
+  - campaign_id
+connector_api: tpm.quote.promotion.apply
+consumes_entities:
+- Campaign
+- Quote_Promotion
+produces_entities:
+- Quote_Promotion
+- Audit_Event
+tags:
+- cpq-sell
+- promotion
+- write
+example_invocation:
+  quote_id: QT-00042
+  campaign_id: CMP-014

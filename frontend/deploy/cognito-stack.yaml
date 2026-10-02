@@ -1,0 +1,296 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Nexus Telco QA Dashboard - Cognito User Pool with RBAC Groups'
+
+Parameters:
+  AppName:
+    Type: String
+    Default: nexus-qa-dashboard
+    Description: Application name for resource naming
+  
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+    
+  CallbackURL:
+    Type: String
+    Default: http://localhost:5173/auth/callback
+    Description: OAuth callback URL for the application
+    
+  LogoutURL:
+    Type: String  
+    Default: http://localhost:5173/login
+    Description: OAuth logout URL for the application
+
+Resources:
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AppName}-${Environment}"
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: 'Your Nexus Telco QA Dashboard verification code is {####}'
+      EmailVerificationSubject: 'Nexus Telco QA Dashboard - Email Verification'
+      
+      # Password Policy
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+          
+      # Custom Attributes for RBAC
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: role
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+          DeveloperOnlyAttribute: false
+        - Name: department
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+          DeveloperOnlyAttribute: false
+        - Name: manager_id
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+          DeveloperOnlyAttribute: false
+        - Name: employee_id
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+          DeveloperOnlyAttribute: false
+        - Name: team_ids
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+          DeveloperOnlyAttribute: false
+          
+      # Account Recovery
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+            
+      # Admin Create User Config
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+
+  # User Pool App Client
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub "${AppName}-client-${Environment}"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - !Ref CallbackURL
+      LogoutURLs:
+        - !Ref LogoutURL
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+        - aws.cognito.signin.user.admin
+      AllowedOAuthFlowsUserPoolClient: true
+      PreventUserExistenceErrors: ENABLED
+      
+      # Token Validity
+      AccessTokenValidity: 8  # 8 hours
+      IdTokenValidity: 8      # 8 hours  
+      RefreshTokenValidity: 30 # 30 days
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  # User Pool Domain (optional)
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !Sub "${AppName}-${Environment}-${AWS::AccountId}"
+
+  # RBAC Groups
+  ExecutiveGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: Executive
+      Description: Executive users with full system access
+      Precedence: 1
+
+  SalesManagerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: SalesManager
+      Description: Sales managers with team access and individual call analysis
+      Precedence: 2
+
+  RepGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: Rep
+      Description: Sales representatives with individual access only
+      Precedence: 3
+
+  # Test Users (optional - remove in production)
+  ExecutiveTestUser:
+    Type: AWS::Cognito::UserPoolUser
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: executive@nexus.totogicore.com
+      UserAttributes:
+        - Name: email
+          Value: executive@nexus.totogicore.com
+        - Name: name
+          Value: Nexus Telco Executive
+        - Name: custom:role
+          Value: Executive
+        - Name: custom:department
+          Value: Management
+
+  SalesManagerTestUser:
+    Type: AWS::Cognito::UserPoolUser
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: salesmanager@nexus.totogicore.com
+      UserAttributes:
+        - Name: email
+          Value: salesmanager@nexus.totogicore.com
+        - Name: name
+          Value: Nexus Telco Sales Manager
+        - Name: custom:role
+          Value: SalesManager
+        - Name: custom:department
+          Value: Sales
+
+  RepTestUser:
+    Type: AWS::Cognito::UserPoolUser
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: rep@nexus.totogicore.com
+      UserAttributes:
+        - Name: email
+          Value: rep@nexus.totogicore.com
+        - Name: name
+          Value: Nexus Telco Sales Rep
+        - Name: custom:role
+          Value: Rep
+        - Name: custom:department
+          Value: Sales
+        - Name: custom:manager_id
+          Value: salesmanager@nexus.totogicore.com
+
+  # Add test users to groups
+  ExecutiveGroupMembership:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref ExecutiveTestUser
+      GroupName: !Ref ExecutiveGroup
+
+  SalesManagerGroupMembership:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref SalesManagerTestUser
+      GroupName: !Ref SalesManagerGroup
+
+  RepGroupMembership:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Condition: CreateTestUsers
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref RepTestUser
+      GroupName: !Ref RepGroup
+
+Conditions:
+  CreateTestUsers: !Or
+    - !Equals [!Ref Environment, dev]
+    - !Equals [!Ref Environment, prod]
+
+Outputs:
+  UserPoolId:
+    Description: User Pool ID for the application
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolId"
+      
+  UserPoolClientId:
+    Description: User Pool Client ID for the application
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolClientId"
+      
+  UserPoolDomain:
+    Description: User Pool Domain for OAuth
+    Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolDomain"
+      
+  Region:
+    Description: AWS Region
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub "${AWS::StackName}-Region"
+      
+  CallbackURL:
+    Description: Configured callback URL
+    Value: !Ref CallbackURL
+    Export:
+      Name: !Sub "${AWS::StackName}-CallbackURL"
+
+  # Environment variables for your application
+  EnvVarUserPoolId:
+    Description: Environment variable for User Pool ID
+    Value: !Sub "VITE_COGNITO_USER_POOL_ID=${UserPool}"
+    
+  EnvVarClientId:
+    Description: Environment variable for Client ID  
+    Value: !Sub "VITE_COGNITO_CLIENT_ID=${UserPoolClient}"
+    
+  EnvVarRegion:
+    Description: Environment variable for AWS Region
+    Value: !Sub "VITE_AWS_REGION=${AWS::Region}"
+    
+  EnvVarDomain:
+    Description: Environment variable for Cognito Domain
+    Value: !Sub "VITE_COGNITO_DOMAIN=${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+    
+  # Test User Credentials (if created)
+  TestUsersInfo:
+    Condition: CreateTestUsers
+    Description: Test user credentials for login (passwords set by deployment script)
+    Value: !Sub |
+      Executive: executive@nexus.totogicore.com / TempPassword123!
+      Sales Manager: salesmanager@nexus.totogicore.com / TempPassword123!  
+      Sales Rep: rep@nexus.totogicore.com / TempPassword123!
+      (Temporary passwords - you'll be prompted to change on first login)

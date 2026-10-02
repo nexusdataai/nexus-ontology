@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_maverick_spend
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: ripgrep with a "no matching contract" filter.
+#
+# What it does:
+#   Surface invoice-line spend that bypassed an active contract (maverick
+#   spend). Returns vendors and categories ranked by uncontrolled dollar
+#   exposure for the period.
+#
+# Inputs:    period (default 'last_quarter'), top_n
+# Reads:     Invoice_Line, Contract
+# Writes:    none
+# Returns:   {count, results: [{vendor_id, vendor_name, off_contract_spend_usd, contract_id, category}]}
+# ============================================================================
+tool_id: find_maverick_spend
+display_name: Find Maverick Spend
+group: procurement
+tool_kind: analyze
+description: |
+  Identify vendors / categories with off-contract spend in the reporting period.
+  Drives the maverick-spend-capture playbook.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    period: { type: string, description: "Reporting period (default 'last_quarter')" }
+    top_n: { type: integer, description: "Max rows (default 25)" }
+  required: []
+consumes_entities: [Invoice_Line, Contract]
+produces_entities: []
+tags: [procurement, maverick, analyze]
+example_invocation:
+  period: last_quarter

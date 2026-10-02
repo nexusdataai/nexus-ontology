@@ -1,0 +1,25 @@
+solutionId: esg-sustainability
+title: ESG & Sustainability Tracker
+description: |
+  Carbon footprint tracking, water monitoring, and ESG compliance
+  reporting. Aggregates plant-level sensor and material data into
+  audit-ready sustainability disclosures.
+priority: P2
+category: ESG
+timeToValue: 4 weeks
+verticals: [supply_chain]
+personas: [sustainability_officer, plant_manager]
+color: "from-teal-500 to-green-500"
+icon: Leaf
+entities: [Sustainability_Report, Material_Master, Plant_Master, Brand_Sentiment]
+kpis:
+  - CO₂ -30%
+  - Water Ratio < 2L
+  - Recycled > 80%
+automations: [compile_carbon_disclosure, alert_water_threshold]
+analytics: [carbon_emissions_dashboard, esg_scorecard_view]
+nlq_examples:
+  - What is our year-over-year CO₂ trend by plant?
+  - Which plants exceeded water intensity limits?
+  - Show recycled-content ratio by material family
+journeyId: esg_sustainability

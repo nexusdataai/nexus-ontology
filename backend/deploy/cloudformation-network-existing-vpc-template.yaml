@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS MCP Server Network Infrastructure - For Existing VPC'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: 'Name of the project (e.g., alert-engine)'
+    Default: 'alert-engine'
+  
+  Environment:
+    Type: String
+    Description: 'Environment name (dev, stage, prod)'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  
+  # Existing VPC Configuration (REQUIRED)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Existing VPC ID'
+  
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Existing public subnet ID in AZ1'
+  
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Existing public subnet ID in AZ2'
+  
+  PrivateSubnet1:
+    Type: String
+    Description: 'Optional: Existing private subnet ID in AZ1 (leave empty if not using)'
+    Default: ''
+  
+  PrivateSubnet2:
+    Type: String
+    Description: 'Optional: Existing private subnet ID in AZ2 (leave empty if not using)'
+    Default: ''
+  
+  LogRetentionDays:
+    Type: Number
+    Description: 'CloudWatch log retention in days'
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+
+Conditions:
+  HasPrivateSubnets: !Not [!Equals [!Ref PrivateSubnet1, '']]
+  HasMultiplePrivateSubnets: !And
+    - !Condition HasPrivateSubnets
+    - !Not [!Equals [!Ref PrivateSubnet2, '']]
+
+Resources:
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ProjectName}-cluster-${Environment}'
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enhanced
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-cluster-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Log Group for ECS
+  ECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ecs/${ProjectName}-${Environment}'
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for ALB (create first so ECS can reference it)
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Security group for ${ProjectName} Application Load Balancer - ${Environment}'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTP traffic from internet'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTPS traffic from internet'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow all outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-alb-sg-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for ECS Service (references ALB security group)
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Security group for ${ProjectName} ECS tasks - ${Environment}'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: 'Allow inbound traffic on port 8000 from ALB'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow HTTP traffic from internet'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow all outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-ecs-sg-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StackName:
+    Description: 'Network stack name'
+    Value: !Ref 'AWS::StackName'
+
+  VpcId:
+    Description: 'VPC ID (from existing VPC)'
+    Value: !Ref VpcId
+    Export:
+      Name: !Sub '${ProjectName}-vpc-id-${Environment}'
+
+  ClusterName:
+    Description: 'ECS Cluster Name'
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${ProjectName}-cluster-name-${Environment}'
+
+  ClusterArn:
+    Description: 'ECS Cluster ARN'
+    Value: !GetAtt ECSCluster.Arn
+    Export:
+      Name: !Sub '${ProjectName}-cluster-arn-${Environment}'
+
+  PublicSubnet1Id:
+    Description: 'Public Subnet 1 ID (from existing VPC)'
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-public-subnet-1-id-${Environment}'
+
+  PublicSubnet2Id:
+    Description: 'Public Subnet 2 ID (from existing VPC)'
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-public-subnet-2-id-${Environment}'
+
+  PrivateSubnet1Id:
+    Condition: HasPrivateSubnets
+    Description: 'Private Subnet 1 ID (from existing VPC)'
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-private-subnet-1-id-${Environment}'
+
+  PrivateSubnet2Id:
+    Condition: HasMultiplePrivateSubnets
+    Description: 'Private Subnet 2 ID (from existing VPC)'
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-private-subnet-2-id-${Environment}'
+
+  PublicSubnets:
+    Description: 'Public Subnets (comma separated)'
+    Value: !Sub '${PublicSubnet1},${PublicSubnet2}'
+    Export:
+      Name: !Sub '${ProjectName}-public-subnets-${Environment}'
+
+  PrivateSubnets:
+    Condition: HasPrivateSubnets
+    Description: 'Private Subnets (comma separated)'
+    Value: !If 
+      - HasMultiplePrivateSubnets
+      - !Sub '${PrivateSubnet1},${PrivateSubnet2}'
+      - !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-private-subnets-${Environment}'
+
+  ECSSecurityGroupId:
+    Description: 'ECS Security Group ID'
+    Value: !Ref ECSSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-ecs-sg-id-${Environment}'
+
+  ALBSecurityGroupId:
+    Description: 'ALB Security Group ID'
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-alb-sg-id-${Environment}'
+
+  LogGroupName:
+    Description: 'CloudWatch Log Group Name'
+    Value: !Ref ECSLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-log-group-name-${Environment}'
+
+  LogGroupArn:
+    Description: 'CloudWatch Log Group ARN'
+    Value: !GetAtt ECSLogGroup.Arn
+    Export:
+      Name: !Sub '${ProjectName}-log-group-arn-${Environment}'
+

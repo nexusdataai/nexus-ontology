@@ -1,0 +1,50 @@
+# ============================================================================
+# Tool: escalate_sla_breach
+# Kind: mutate
+# Connector API: external.alert.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Create escalation for SLA breach: 80% = fulfillment team, 100% =
+#   Regional SC Manager, 120% = VP Supply Chain.
+#
+# Inputs:    opportunity_id, sla_pct, escalation_level
+# Reads:     AR_Invoice, Account
+# Writes:    Alert, Audit_Event
+# ============================================================================
+tool_id: escalate_sla_breach
+display_name: Escalate Sla Breach
+group: misc
+description: 'Create escalation for SLA breach: 80% = fulfillment team, 100% = Regional
+  SC Manager, 120% = VP Supply Chain.'
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    opportunity_id:
+      type: string
+      description: Order/Opportunity ID
+    sla_pct:
+      type: number
+      description: SLA elapsed percentage (e.g. 85.0)
+    escalation_level:
+      type: string
+      description: 'Level: fulfillment_team, regional_manager, vp_supply_chain'
+  required:
+  - opportunity_id
+  - sla_pct
+connector_api: external.alert.create
+consumes_entities:
+- AR_Invoice
+- Account
+produces_entities:
+- Alert
+- Audit_Event
+tags:
+- o2c
+- sla
+- write
+example_invocation: null

@@ -1,0 +1,80 @@
+use_case_id: esg.co2_pathway_correction
+title: CO2 Pathway Correction
+solution_id: esg-sustainability
+bucket: esg
+description: 'Correct facility CO2 pathway breaches. Identify facilities breaching
+  their CO2 target and block high-emission suppliers; approve alternative low-emission
+  POs.
+
+  '
+status: active
+tags:
+- esg
+- co2
+- pathway
+kpi_impact:
+- scope1_co2_t
+- co2_target_breach_pct
+consumes_entities:
+- Facility
+- Emission_Reading
+produces_entities:
+- Oracle_Supplier
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_co2_breach_facilities
+    params:
+      top_n: 25
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide which suppliers to block and which alternatives to approve.
+
+    LLM-only step; no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Block Supplier Orders
+    order: 1
+    requires_approval: true
+    tool: block_supplier_orders
+    params:
+      supplier_id: ${item.facility_id}
+      block: true
+      reason: CO2 pathway breach
+- stage_id: verify
+  name: Verify
+  order: 4
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_co2_breach_facilities
+    params:
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: scope1_co2_t
+      kpi_before: 0
+      kpi_after: 0

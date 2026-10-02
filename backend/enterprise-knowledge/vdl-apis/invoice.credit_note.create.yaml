@@ -1,0 +1,25 @@
+api_id: vdl.invoice.credit_note.create
+verb: write
+virtual_entity: Invoice
+description: Create a credit note against an existing invoice in the ERP.
+risk_level: high_risk_write
+parameters_schema:
+  type: object
+  properties:
+    customer_id:
+      type: string
+    invoice_id:
+      type: string
+    amount:
+      type: number
+    reason:
+      type: string
+  required: [customer_id, invoice_id, amount, reason]
+impl:
+  - connector_api_id: oracle.credit_note.create
+    arg_mapping:
+      customer_id: customer_id
+      invoice_id: invoice_id
+      amount: amount
+      reason: reason
+tags: [invoice, ar, credit-note, o2c]

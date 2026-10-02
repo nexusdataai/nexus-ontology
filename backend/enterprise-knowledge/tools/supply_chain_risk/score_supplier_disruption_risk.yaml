@@ -1,0 +1,38 @@
+# ============================================================================
+# Tool: score_supplier_disruption_risk
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter scoring a per-file metric.
+#
+# What it does:
+#   Score a vendor (or rank all vendors) by composite disruption risk:
+#   delivery performance, financial health, geographic exposure, contract
+#   concentration. Used by tier-2 stress, single-source de-risking, and
+#   geopolitical hedge playbooks.
+#
+# Inputs:    vendor_id (optional single-vendor mode), top_n
+# Reads:     Supplier, Geopolitical_Event
+# Writes:    none
+# Returns:   {result | results: [{vendor_id, vendor_name, risk_score, drivers}]}
+# ============================================================================
+tool_id: score_supplier_disruption_risk
+display_name: Score Supplier Disruption Risk
+group: supply_chain_risk
+tool_kind: analyze
+description: |
+  Composite supplier disruption risk score (delivery perf + financial health +
+  geographic exposure + contract concentration).
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    vendor_id: { type: string, description: "Optional single-vendor mode" }
+    top_n: { type: integer, description: "Max rows when ranking (default 20)" }
+  required: []
+consumes_entities: [Supplier, Geopolitical_Event]
+produces_entities: []
+tags: [scr, supplier, analyze]
+example_invocation:
+  top_n: 20

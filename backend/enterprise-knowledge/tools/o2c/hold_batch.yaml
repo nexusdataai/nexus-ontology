@@ -1,0 +1,51 @@
+# ============================================================================
+# Tool: hold_batch
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter / type-checker -- score rows without writing.
+#
+# What it does:
+#   Place a quality hold on a batch, blocking it from shipment or sale.
+#   Sets Batch_Master.Status to Blocked in SAP. Triggers
+#   quality-deviation-response workflow. HIGH RISK — requires
+#   justification.
+#
+# Inputs:    batch_id, material_id, reason
+# Reads:     Batch_Master
+# Writes:    Batch_Master, Audit_Event
+# ============================================================================
+tool_id: hold_batch
+display_name: Hold Batch
+group: o2c
+description: "Place a quality hold on a batch, blocking it from shipment or sale.\
+  \ Sets Batch_Master.Status to Blocked in SAP. Triggers quality-deviation-response\
+  \ workflow. HIGH RISK \u2014 requires justification."
+risk_level: high_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    batch_id:
+      type: string
+      description: Batch/lot ID to hold
+    material_id:
+      type: string
+      description: Material/SKU of the batch
+    reason:
+      type: string
+      description: Reason for the quality hold
+  required:
+  - batch_id
+  - material_id
+  - reason
+connector_api: null
+consumes_entities:
+- Batch_Master
+produces_entities:
+- Batch_Master
+- Audit_Event
+tags:
+- quality
+- write
+example_invocation: null

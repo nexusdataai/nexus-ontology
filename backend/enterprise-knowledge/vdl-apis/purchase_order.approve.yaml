@@ -1,0 +1,20 @@
+api_id: vdl.purchase_order.approve
+verb: write
+virtual_entity: PurchaseOrder
+description: Approve or cancel a purchase order.
+risk_level: high_risk_write
+parameters_schema:
+  type: object
+  properties:
+    po_id:
+      type: string
+    status:
+      type: string
+      enum: [approved, cancelled]
+  required: [po_id, status]
+impl:
+  - connector_api_id: oracle.purchase_order.approve
+    arg_mapping:
+      po_id: po_id
+      status: status
+tags: [procurement, po]

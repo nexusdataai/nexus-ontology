@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_volatile_skus
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a custom query over commit history (here: weekly demand).
+#
+# What it does:
+#   Identify SKUs whose week-over-week demand has high coefficient of
+#   variation (CoV). These are stockout-prevention candidates because their
+#   demand is hard to forecast accurately.
+#
+# Inputs:    top_n, region (optional)
+# Reads:     Sales_Order, Forecast
+# Writes:    none
+# Returns:   {count, results: [{product_id, region, coefficient_of_variation, weeks_observed}]}
+# ============================================================================
+tool_id: find_volatile_skus
+display_name: Find Volatile SKUs
+group: demand_forecast
+tool_kind: analyze
+description: |
+  Surface SKUs with high coefficient of variation in weekly demand; candidates
+  for stockout-prevention plays.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    top_n: { type: integer, description: "Max rows (default 25)" }
+    region: { type: string, description: "Optional region filter" }
+  required: []
+consumes_entities: [Sales_Order, Forecast]
+produces_entities: []
+tags: [forecast, volatility, analyze]
+example_invocation:
+  top_n: 25

@@ -1,0 +1,96 @@
+id: WORKFLOW_RFX_LAUNCH_V1_0
+name: RFx Launch
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: RFx_Event
+  field: Status
+  condition: "RFx_Event status transitions from Draft to Published"
+description: >
+  Compose and publish a sourcing event: aggregate Purchase_Requisitions
+  for a category, derive the should-cost model from Commodity_Price,
+  identify candidate vendors from Source_List filtered by risk and
+  certifications, and dispatch RFx_Invitations.
+
+steps:
+  - order: 1
+    name: Aggregate Requisitions
+    system: SAP
+    action: "Cluster open Purchase_Requisitions by category and plant; create RFx_Lines for each Material_ID with summed Qty_Target"
+
+  - order: 2
+    name: Build Should-Cost Model
+    system: Internal
+    action: "For each RFx_Line.Material_ID, compute Should_Cost_Model from Commodity_Price + labor + overhead + freight; persist with confidence score"
+
+  - order: 3
+    name: Select Vendor Panel
+    system: SAP
+    action: "Read Source_List for the materials, filter by Vendor_Master Status=Active and Risk_Score, prefer certifications matching RFx_Line.Required_Cert"
+    rules:
+      - "Single-source ABC-A blocked per sourcing-award-policy"
+      - "Critical-risk vendors excluded per supply-chain-risk-policy"
+
+  - order: 4
+    name: Send Invitations
+    system: Internal
+    action: "Create RFx_Invitation per selected vendor; emit invitation event/email"
+
+  - order: 5
+    name: Open Bidding Window
+    system: Internal
+    action: "Set RFx_Event.Status = Published; record Open_Date and Close_Date; schedule auto-close at Close_Date"
+
+  - order: 6
+    name: Audit Trail
+    system: Internal
+    action: "Write an Audit_Event capturing the panel, should-cost models, and SLAs"
+
+dependencies:
+  - entity: RFx_Event
+    system: Sourcing
+    relationship: "Subject of the workflow"
+  - entity: RFx_Line
+    system: Sourcing
+    relationship: "Composed from requisition cluster"
+  - entity: RFx_Invitation
+    system: Sourcing
+    relationship: "Created per invited vendor"
+  - entity: Purchase_Requisition
+    system: SAP
+    relationship: "Aggregated into RFx_Lines"
+  - entity: Source_List
+    system: SAP
+    relationship: "Candidate vendor pool"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Vendor filter (status, risk, certs)"
+  - entity: Commodity_Price
+    system: Social_Listening
+    relationship: "Should-cost input"
+  - entity: Should_Cost_Model
+    system: Sourcing
+    relationship: "Computed per RFx_Line"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Competitive bidding and vendor approval rules"
+  - entity: sourcing-award-policy
+    system: Internal
+    relationship: "Single-source and risk tier rules"
+
+related_entities:
+  - RFx_Event
+  - RFx_Line
+  - RFx_Invitation
+  - Purchase_Requisition
+  - Source_List
+  - Vendor_Master
+  - Should_Cost_Model
+  - Commodity_Price
+related_policies:
+  - procurement-policy
+  - sourcing-award-policy
+  - supply-chain-risk-policy
+use_case: "Sourcing CPQ"
+scor_process: "Source"

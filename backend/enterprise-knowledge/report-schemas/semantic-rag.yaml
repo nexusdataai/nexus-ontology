@@ -1,0 +1,116 @@
+solution_id: semantic-rag
+title: Knowledge Indexing Report
+icon: Brain
+
+summary_kpis:
+  # NOTE: semantic-rag's domain metrics (total_onto_documents etc.) live
+  # on the processor's ``_metrics`` dict. BaseStage.effective_kpis()
+  # picks that up and the job_executor persists it on ``Data.kpis``.
+  # The legacy ``Data.metrics.*`` field is the call-processing baseline
+  # (availableCalls etc.) and is NOT useful for semantic-rag.
+  - key: total_onto_documents
+    label: Documents Indexed
+    icon: FileText
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_onto_documents
+  - key: embedding_chunks
+    label: Embedding Chunks
+    icon: Layers
+    format: integer
+    rollup: sum
+    source: Data.kpis.embedding_chunks
+  - key: vector_upserted
+    label: Vectors Upserted
+    icon: Database
+    format: integer
+    rollup: sum
+    source: Data.kpis.vector_upserted
+  - key: nlq_exemplars_upserted
+    label: NLQ Exemplars
+    icon: MessageSquare
+    format: integer
+    rollup: sum
+    source: Data.kpis.nlq_exemplars_upserted
+  - key: enriched_documents
+    label: Enriched Docs
+    icon: Sparkles
+    format: integer
+    rollup: sum
+    source: Data.kpis.enriched_documents
+  - key: validation_avg_score
+    label: Validation Score
+    icon: ShieldCheck
+    format: percent
+    rollup: avg
+    source: Data.kpis.validation_avg_score
+
+sections:
+  - id: sources
+    title: Source Breakdown
+    kind: kpi_grid
+    kpis:
+      - key: unified_schema_documents
+        label: Schema Docs
+        format: integer
+        rollup: sum
+        source: Data.kpis.unified_schema_documents
+      - key: fdw_documents
+        label: FDW Docs
+        format: integer
+        rollup: sum
+        source: Data.kpis.fdw_documents
+      - key: mapping_rules_enriched
+        label: Mapping Rules
+        format: integer
+        rollup: sum
+        source: Data.kpis.mapping_rules_enriched
+      - key: policy_documents
+        label: Policy Docs
+        format: integer
+        rollup: sum
+        source: Data.kpis.policy_documents
+      - key: workflow_documents
+        label: Workflow Docs
+        format: integer
+        rollup: sum
+        source: Data.kpis.workflow_documents
+      - key: integration_documents
+        label: Integration Docs
+        format: integer
+        rollup: sum
+        source: Data.kpis.integration_documents
+
+  - id: cost
+    title: Enrichment Cost
+    kind: kpi_grid
+    kpis:
+      - key: llm_tokens_used
+        label: LLM Tokens Used
+        format: integer
+        rollup: sum
+        source: Data.kpis.llm_tokens_used
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: success_rate
+        label: Success Rate
+        format: percent
+        rollup: last
+        source: derived.success_rate
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs
+
+  - id: timeline
+    title: Run Timeline
+    kind: timeline

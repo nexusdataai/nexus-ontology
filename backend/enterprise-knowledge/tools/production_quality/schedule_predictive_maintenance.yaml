@@ -1,0 +1,46 @@
+# ============================================================================
+# Tool: schedule_predictive_maintenance
+# Kind: mutate
+# Connector API: sap.maintenance.schedule
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- schedule a maintenance order in SAP.
+#
+# What it does:
+#   Schedule a predictive-maintenance work order in SAP for a piece of
+#   equipment. Used after `predict_equipment_failure` to convert the
+#   prediction into a concrete maintenance plan.
+#
+# Inputs:    equipment_id, scheduled_for, maintenance_type, estimated_hours,
+#            priority, reason
+# Reads:     none
+# Writes:    Maintenance_Order, Audit_Event
+# Returns:   {action, maintenance_order_id, equipment_id, scheduled_for}
+# ============================================================================
+tool_id: schedule_predictive_maintenance
+display_name: Schedule Predictive Maintenance
+group: production_quality
+tool_kind: mutate
+description: |
+  Schedule a SAP maintenance work order to address a predicted equipment
+  failure or OEE decline.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: sap.maintenance.schedule
+parameters:
+  type: object
+  properties:
+    equipment_id: { type: string }
+    scheduled_for: { type: string, description: "ISO timestamp" }
+    maintenance_type: { type: string, description: "Preventive | Corrective | Predictive" }
+    estimated_hours: { type: number }
+    priority: { type: string }
+    reason: { type: string }
+  required: [equipment_id, scheduled_for]
+consumes_entities: []
+produces_entities: [Maintenance_Order, Audit_Event]
+tags: [pq, maintenance, predictive, write]
+example_invocation:
+  equipment_id: EQ-Filler-04
+  scheduled_for: "2026-05-25T08:00:00Z"
+  maintenance_type: Predictive

@@ -1,0 +1,82 @@
+# Call Processing -- legacy baseline. Sources are paths on the
+# JobExecution row's ``Data.metrics`` so call-processing jobs that ran
+# BEFORE the report framework landed (and therefore have no
+# ``Data.kpis``) keep rendering exactly like they used to.
+solution_id: call-processing
+title: Call Processing Report
+icon: Phone
+
+summary_kpis:
+  - key: totalCalls
+    label: Total Calls
+    icon: Phone
+    format: integer
+    rollup: sum
+    source: Data.metrics.availableCalls
+  - key: processed
+    label: Processed
+    icon: CheckCircle
+    format: integer
+    rollup: sum
+    source: Data.metrics.newTasks
+  - key: transcribed
+    label: Transcribed
+    icon: Mic
+    format: integer
+    rollup: sum
+    source: Data.metrics.transcriptsCollected
+  - key: analyzed
+    label: Analyzed
+    icon: Brain
+    format: integer
+    rollup: sum
+    source: Data.metrics.analyzed
+  - key: success
+    label: Success
+    icon: Award
+    format: integer
+    rollup: sum
+    source: Data.metrics.successfulProcessing
+  - key: failed
+    label: Failed
+    icon: XCircle
+    format: integer
+    rollup: sum
+    source: Data.metrics.failedProcessing
+  - key: no_recording
+    label: No Recording
+    icon: FileWarning
+    format: integer
+    rollup: sum
+    source: Data.metrics.noRecording
+  - key: skipped
+    label: Skipped
+    icon: SkipForward
+    format: integer
+    rollup: sum
+    source: Data.metrics.skippedTasks
+
+sections:
+  - id: performance
+    title: Processing Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: success_rate
+        label: Success Rate
+        format: percent
+        rollup: last
+        source: derived.success_rate
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs
+
+  - id: timeline
+    title: Run Timeline
+    kind: timeline

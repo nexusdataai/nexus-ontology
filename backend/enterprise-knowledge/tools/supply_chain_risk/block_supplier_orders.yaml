@@ -1,0 +1,44 @@
+# ============================================================================
+# Tool: block_supplier_orders
+# Kind: mutate
+# Connector API: oracle.supplier.block
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- enforce a hard block in the system of record.
+#
+# What it does:
+#   Block (or unblock) a supplier from receiving new POs. Used by maverick-
+#   spend capture, vendor risk escalation, ESG breach response, and the
+#   geopolitical-hedge action playbooks.
+#
+# Inputs:    supplier_id, block (true/false), reason (optional),
+#            block_until (optional ISO date)
+# Reads:     none
+# Writes:    Oracle_Supplier, Audit_Event
+# Returns:   {action, supplier_id, status, reason}
+# ============================================================================
+tool_id: block_supplier_orders
+display_name: Block Supplier Orders
+group: supply_chain_risk
+tool_kind: mutate
+description: |
+  Block (or unblock) a supplier from receiving new POs. High-risk write because
+  it stops procurement immediately; approval required.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: oracle.supplier.block
+parameters:
+  type: object
+  properties:
+    supplier_id: { type: string }
+    block: { type: boolean, description: "True to block, false to unblock" }
+    reason: { type: string }
+    block_until: { type: string, description: "ISO date the block expires" }
+  required: [supplier_id]
+consumes_entities: []
+produces_entities: [Oracle_Supplier, Audit_Event]
+tags: [scr, supplier, block, write]
+example_invocation:
+  supplier_id: VND-1004
+  block: true
+  reason: "ESG audit breach"

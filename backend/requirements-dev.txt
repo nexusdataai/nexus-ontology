@@ -1,0 +1,42 @@
+uv # Development dependencies for TMF ODA Transformer MCP Server
+# Includes both production and test dependencies for local development
+
+# Production dependencies
+-r requirements.txt
+
+# Test dependencies
+-r tests/requirements-test.txt
+
+# Development tools
+ipython>=8.0.0  # Interactive Python shell
+ipdb>=0.13.0  # Interactive debugger
+black>=23.0.0  # Code formatter
+flake8>=6.0.0  # Linter
+mypy>=1.5.0  # Type checker
+pre-commit>=3.5.0  # Git hooks for code quality
+
+# Documentation tools
+mkdocs>=1.5.0  # Documentation generator
+mkdocs-material>=9.0.0  # Material theme for MkDocs
+mkdocstrings[python]>=0.24.0  # Auto-generate docs from docstrings
+
+# Performance profiling
+line-profiler>=4.0.0  # Line-by-line profiling
+memory-profiler>=0.61.0  # Memory usage profiling
+
+# Security scanning
+bandit>=1.7.0  # Security linter
+safety>=2.3.0  # Check for known security vulnerabilities
+
+# CLI development helpers
+rich>=13.0.0  # Rich terminal formatting
+typer>=0.9.0  # CLI application framework
+questionary>=2.0.0  # Interactive CLI prompts
+
+# Notebook support (for testing and experimentation)
+jupyter>=1.0.0
+notebook>=7.0.0
+
+# Additional BDD testing helpers
+behave-html-formatter>=0.9.10  # HTML report generation for behave
+allure-behave>=2.13.0  # Allure reports for behave (optional)

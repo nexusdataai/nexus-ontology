@@ -1,0 +1,117 @@
+use_case_id: c360.churn_prevention
+title: Churn Prevention Outreach
+solution_id: customer-360
+bucket: customer-360
+description: 'Pre-empt churn with a retention bundle and outreach. When churn risk
+  crosses the threshold, attach a retention bundle and push a multi-channel outreach
+  (WhatsApp + email).
+
+  '
+status: active
+tags:
+- c360
+- churn
+- prevention
+kpi_impact:
+- churn_rate
+- save_rate
+consumes_entities:
+- Customer
+- Activity_Log
+- Support_Case
+produces_entities:
+- Oracle_AR_Promotion
+- WhatsApp_Campaign_Send
+- Email_Campaign_Send
+- O2C_Outcome_Tracker
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_churning_customers
+    params:
+      horizon_days: 90
+      top_n: 25
+- stage_id: diagnose
+  name: Diagnose
+  order: 2
+  description: Score / decompose the candidates.
+  steps:
+  - step_id: diag
+    name: Score / Project
+    order: 1
+    tool: score_customer_lifetime_value
+    params: {}
+- stage_id: decide
+  name: Decide
+  order: 3
+  description: 'Pick a personalised retention bundle per customer. LLM-only step;
+    no
+
+    tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 4
+  steps:
+  - step_id: act_1
+    name: Apply Promo Discount
+    order: 1
+    requires_approval: true
+    tool: apply_promo_discount
+    params:
+      name: Churn Prevention Bundle
+      discount_pct: 15.0
+      applies_to:
+        segment: at_risk
+- stage_id: notify
+  name: Notify
+  order: 5
+  steps:
+  - step_id: notify_1
+    name: Send Whatsapp Campaign
+    order: 1
+    requires_approval: true
+    tool: send_whatsapp_campaign
+    params:
+      template_id: churn_prev_q2
+      recipients: ${stage.resolve.list.results}
+  - step_id: notify_2
+    name: Send Email Campaign
+    order: 2
+    tool: send_email_campaign
+    params:
+      subject: We'd love to keep you
+      recipients: ${stage.resolve.list.results}
+- stage_id: verify
+  name: Verify
+  order: 6
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_churning_customers
+    params:
+      horizon_days: 90
+      top_n: 25
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: churn_rate
+      kpi_before: ${stage.resolve.list.count}
+      kpi_after: ${stage.verify.requery.count}

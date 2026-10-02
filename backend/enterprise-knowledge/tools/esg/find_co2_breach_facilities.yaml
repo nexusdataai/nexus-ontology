@@ -1,0 +1,36 @@
+# ============================================================================
+# Tool: find_co2_breach_facilities
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a lint pass over an emission target table.
+#
+# What it does:
+#   Identify facilities whose scope-1 CO2 emissions are breaching the
+#   quarterly target. Returns ranked sites with breach percentage and the
+#   gap to the target. Drives the CO2-pathway-correction playbook.
+#
+# Inputs:    quarter (optional, e.g. '2026-Q2'), top_n
+# Reads:     Facility, Emission_Reading
+# Writes:    none
+# Returns:   {count, results: [{facility_id, name, scope1_co2_t, target_t, breach_pct}]}
+# ============================================================================
+tool_id: find_co2_breach_facilities
+display_name: Find CO2 Breach Facilities
+group: esg
+tool_kind: analyze
+description: |
+  Surface facilities currently breaching their scope-1 CO2 quarterly target.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    quarter: { type: string, description: "Quarter label (e.g. '2026-Q2')" }
+    top_n: { type: integer, description: "Max rows (default 25)" }
+  required: []
+consumes_entities: [Facility, Emission_Reading]
+produces_entities: []
+tags: [esg, co2, analyze]
+example_invocation:
+  quarter: 2026-Q2

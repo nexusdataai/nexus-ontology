@@ -1,0 +1,429 @@
+{
+  "total_calls_analyzed": 2,
+  "analysis_timestamp": "2026-01-07T07:19:07.933177",
+  "individual_call_analyses": [
+    {
+      "compliance": {
+        "pdpa_pass": true,
+        "breaches": []
+      },
+      "grading": {
+        "total_score_percent": 85,
+        "pass": true,
+        "elements": [
+          {
+            "element": "Greetings & Intro",
+            "weight": 5,
+            "score": 100,
+            "evidence": "Agent greeted the customer and confirmed their name."
+          },
+          {
+            "element": "Call Closing",
+            "weight": 5,
+            "score": 100,
+            "evidence": "Agent thanked the customer and said goodbye."
+          },
+          {
+            "element": "Verification & Validation",
+            "weight": 5,
+            "score": 100,
+            "evidence": "Agent confirmed the customer's name and email address."
+          },
+          {
+            "element": "Needs Assessment",
+            "weight": 10,
+            "score": 80,
+            "evidence": "Agent asked about the type of phone and confirmed it was a new number."
+          },
+          {
+            "element": "Product/Service Presentation",
+            "weight": 10,
+            "score": 90,
+            "evidence": "Agent presented the Smart UC Lite subscription options clearly."
+          },
+          {
+            "element": "Objection Handling",
+            "weight": 10,
+            "score": 70,
+            "evidence": "Agent provided information on pricing when asked about a 24-month contract."
+          },
+          {
+            "element": "Sales Tenacity & Determination",
+            "weight": 10,
+            "score": 80,
+            "evidence": "Agent followed up on the customer's request for an email with details."
+          },
+          {
+            "element": "Closing Technique & Follow-Up",
+            "weight": 10,
+            "score": 90,
+            "evidence": "Agent confirmed the next steps for sending the email and onboarding."
+          },
+          {
+            "element": "Upsell & Cross-sell",
+            "weight": 10,
+            "score": 50,
+            "evidence": "Agent did not explore additional services or products."
+          },
+          {
+            "element": "Clarity of Verbal Expression",
+            "weight": 5,
+            "score": 100,
+            "evidence": "Agent communicated clearly throughout the call."
+          },
+          {
+            "element": "Active Listening",
+            "weight": 5,
+            "score": 90,
+            "evidence": "Agent acknowledged customer responses and confirmed details."
+          },
+          {
+            "element": "Telephony Skill & Etiquette",
+            "weight": 10,
+            "score": 100,
+            "evidence": "Agent maintained a polite and professional tone."
+          },
+          {
+            "element": "NPS Prompt",
+            "weight": 10,
+            "score": 0,
+            "evidence": "Agent did not ask for a Net Promoter Score."
+          },
+          {
+            "element": "Activity Log",
+            "weight": 15,
+            "score": 100,
+            "evidence": "Agent logged the customer's email and details for follow-up."
+          },
+          {
+            "element": "Opportunity Handling",
+            "weight": 15,
+            "score": 80,
+            "evidence": "Agent handled the opportunity well but missed upsell chances."
+          },
+          {
+            "element": "Respond to Customer Queries",
+            "weight": 15,
+            "score": 90,
+            "evidence": "Agent responded effectively to customer inquiries about pricing."
+          }
+        ]
+      },
+      "qualifying_questions": {
+        "asked": [
+          {
+            "question": "Is it a new number or an existing line?",
+            "answer": "It's a new number."
+          },
+          {
+            "question": "Are you using an analog phone or exploring soft phone options?",
+            "answer": "No, like an analog."
+          }
+        ],
+        "missed": [
+          "Pain points with existing service",
+          "Budget range",
+          "Decision timeline",
+          "Number of users/employees",
+          "Current contract status",
+          "Decision makers involved",
+          "Current service provider",
+          "Business goals and objectives",
+          "Compliance/security requirements"
+        ]
+      },
+      "script_adherence": {
+        "adherence_percentage": 80,
+        "missed_elements": [
+          "NPS Prompt",
+          "Upsell & Cross-sell"
+        ],
+        "well_executed": [
+          "Greetings & Intro",
+          "Verification & Validation",
+          "Product/Service Presentation",
+          "Closing Technique & Follow-Up"
+        ]
+      },
+      "products": [
+        {
+          "product_name": "Smart UC Lite",
+          "product_type": "Subscription",
+          "bandwidth": "N/A",
+          "contract_length": "24 months / 36 months",
+          "estimated_monthly_cost": 12,
+          "estimated_license_count": 1,
+          "features": [
+            "One new Nexus Telco number",
+            "Free incoming calls",
+            "Off-peak and peak hour rates for outgoing calls"
+          ],
+          "customer_interest": "high"
+        }
+      ],
+      "deal_potential": {
+        "estimated_value": 288,
+        "probability": 0.8,
+        "risk_factors": [
+          "Customer may choose a competitor",
+          "Customer may delay decision"
+        ],
+        "next_steps": [
+          "Send email with details",
+          "Await customer confirmation on contract length"
+        ]
+      },
+      "product_recommendations": {
+        "recommendation_type": "upsell",
+        "existing_products": "None mentioned",
+        "recommended_offers": [
+          "Soft phone options",
+          "Additional lines or services"
+        ],
+        "recommendation_rationale": "Customer is currently only interested in a basic analog line; exploring soft phone options could enhance their flexibility."
+      },
+      "recommendations": [
+        "Follow up with the customer promptly after sending the email.",
+        "Ask qualifying questions to better understand customer needs.",
+        "Introduce additional products or services that may benefit the customer.",
+        "Encourage the customer to consider a longer contract for better pricing.",
+        "Implement an NPS prompt to gauge customer satisfaction."
+      ],
+      "call_type": "Sales Call",
+      "analysis_method": "gpt-4o-mini",
+      "call_id": "14c1139a-db7b-4970-a48f-5760612462e8",
+      "agent_name": "Agent",
+      "customer_company": "",
+      "call_duration": "0:00",
+      "call_date": "2026-01-07T07:18:18.686628",
+      "call_metrics": {
+        "talk_to_listen_ratio": 1.0,
+        "customer_interruption_count": 0,
+        "silence_periods": 0,
+        "speaking_pace_wpm": 150,
+        "energy_level": 0.65,
+        "voice_clarity": 0.85
+      },
+      "sentiment_analysis": {
+        "overall_sentiment": 0.74,
+        "customer_satisfaction": 0.5,
+        "sentiment_progression": [
+          0.74
+        ],
+        "key_sentiment_moments": []
+      },
+      "analysis_timestamp": "2026-01-07T07:18:42.585757"
+    },
+    {
+      "compliance": {
+        "pdpa_pass": false,
+        "breaches": [
+          "The agent requested the customer's email address without confirming the purpose of data collection or ensuring that the customer was aware of how their personal data would be used."
+        ]
+      },
+      "grading": {
+        "total_score_percent": 75,
+        "pass": true,
+        "elements": [
+          {
+            "element": "Greetings & Intro",
+            "weight": 5,
+            "score": 80,
+            "evidence": "Agent introduced himself and the purpose of the call."
+          },
+          {
+            "element": "Call Closing",
+            "weight": 5,
+            "score": 80,
+            "evidence": "Agent thanked the customer and wished them a nice day."
+          },
+          {
+            "element": "Verification & Validation",
+            "weight": 5,
+            "score": 70,
+            "evidence": "Agent confirmed the number of lines needed."
+          },
+          {
+            "element": "Needs Assessment",
+            "weight": 10,
+            "score": 80,
+            "evidence": "Agent assessed the customer's need for additional landlines."
+          },
+          {
+            "element": "Product/Service Presentation",
+            "weight": 10,
+            "score": 70,
+            "evidence": "Agent mentioned the value-added service of auto-attendant."
+          },
+          {
+            "element": "Objection Handling",
+            "weight": 10,
+            "score": 60,
+            "evidence": "Agent did not adequately address the customer's concerns about the timeline."
+          },
+          {
+            "element": "Sales Tenacity & Determination",
+            "weight": 10,
+            "score": 70,
+            "evidence": "Agent encouraged the customer to confirm their requirements."
+          },
+          {
+            "element": "Closing Technique & Follow-Up",
+            "weight": 10,
+            "score": 80,
+            "evidence": "Agent asked the customer to reply via email for follow-up."
+          },
+          {
+            "element": "Upsell & Cross-sell",
+            "weight": 10,
+            "score": 50,
+            "evidence": "Agent did not attempt to upsell additional services."
+          },
+          {
+            "element": "Clarity of Verbal Expression",
+            "weight": 5,
+            "score": 70,
+            "evidence": "Agent's communication was mostly clear but had moments of confusion."
+          },
+          {
+            "element": "Active Listening",
+            "weight": 5,
+            "score": 80,
+            "evidence": "Agent repeated back the customer's needs for confirmation."
+          },
+          {
+            "element": "Telephony Skill & Etiquette",
+            "weight": 10,
+            "score": 80,
+            "evidence": "Agent maintained a polite and professional tone."
+          },
+          {
+            "element": "NPS Prompt",
+            "weight": 10,
+            "score": 0,
+            "evidence": "No NPS prompt was made during the call."
+          },
+          {
+            "element": "Activity Log",
+            "weight": 15,
+            "score": 80,
+            "evidence": "Agent documented the customer's requirements."
+          },
+          {
+            "element": "Opportunity Handling",
+            "weight": 15,
+            "score": 70,
+            "evidence": "Agent identified the opportunity for additional lines but did not fully explore it."
+          },
+          {
+            "element": "Respond to Customer Queries",
+            "weight": 15,
+            "score": 70,
+            "evidence": "Agent answered the customer's questions but could have provided more detail."
+          }
+        ]
+      },
+      "qualifying_questions": {
+        "asked": [
+          {
+            "question": "Can I know how many landlines exactly?",
+            "answer": "Yes, exactly. I got two. One is for fax machine. Another one is for office phone number."
+          },
+          {
+            "question": "Is there any deadline that you needed?",
+            "answer": "Maybe this month."
+          }
+        ],
+        "missed": [
+          "Pain points with existing service",
+          "Budget range",
+          "Decision timeline",
+          "Current contract status",
+          "Decision makers involved",
+          "Current service provider",
+          "Business goals and objectives",
+          "Compliance/security requirements"
+        ]
+      },
+      "script_adherence": {
+        "adherence_percentage": 70,
+        "missed_elements": [
+          "NPS Prompt",
+          "Detailed objection handling"
+        ],
+        "well_executed": [
+          "Greetings & Intro",
+          "Needs Assessment",
+          "Call Closing"
+        ]
+      },
+      "products": [
+        {
+          "product_name": "Landline Service",
+          "product_type": "Telecommunication",
+          "bandwidth": "N/A",
+          "contract_length": "N/A",
+          "estimated_monthly_cost": 0,
+          "estimated_license_count": 6,
+          "features": [
+            "Auto-attendant",
+            "Multiple lines"
+          ],
+          "customer_interest": "high"
+        }
+      ],
+      "deal_potential": {
+        "estimated_value": 600,
+        "probability": 0.8,
+        "risk_factors": [
+          "Customer's urgency for installation",
+          "Potential delays in credit check"
+        ],
+        "next_steps": [
+          "Customer to confirm the number of lines via email",
+          "Agent to send application forms"
+        ]
+      },
+      "product_recommendations": {
+        "recommendation_type": "upsell",
+        "existing_products": "Landline Service",
+        "recommended_offers": [
+          "VoIP Services",
+          "Internet Bundles"
+        ],
+        "recommendation_rationale": "The customer is expanding their landline needs, indicating potential for additional telecommunication services."
+      },
+      "recommendations": [
+        "Ensure compliance with PDPA by clarifying data usage.",
+        "Follow up with the customer promptly after receiving their email.",
+        "Explore upsell opportunities during the next interaction.",
+        "Provide clearer timelines and expectations regarding installation.",
+        "Encourage customer feedback to improve service."
+      ],
+      "call_type": "Sales Call",
+      "analysis_method": "gpt-4o-mini",
+      "call_id": "56c62bdb-1f5e-4545-affc-b63db7fde277",
+      "agent_name": "Agent",
+      "customer_company": "",
+      "call_duration": "0:00",
+      "call_date": "2026-01-07T07:18:42.585959",
+      "call_metrics": {
+        "talk_to_listen_ratio": 1.0,
+        "customer_interruption_count": 0,
+        "silence_periods": 0,
+        "speaking_pace_wpm": 150,
+        "energy_level": 0.65,
+        "voice_clarity": 0.85
+      },
+      "sentiment_analysis": {
+        "overall_sentiment": 0.6,
+        "customer_satisfaction": 0.5,
+        "sentiment_progression": [
+          0.6
+        ],
+        "key_sentiment_moments": []
+      },
+      "analysis_timestamp": "2026-01-07T07:19:07.932979"
+    }
+  ]
+}

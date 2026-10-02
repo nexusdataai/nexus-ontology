@@ -1,0 +1,161 @@
+id: INTEGRATION_SAP_ORACLE_FINANCE_V1_0
+name: SAP to Oracle Finance Sync
+version: "1.0"
+source_system: SAP
+target_system: Oracle
+sync_type: bidirectional
+frequency: "Near real-time (15-minute sync interval)"
+description: >
+  Bidirectional integration between SAP operations and Oracle financials.
+  SAP is the source of truth for operational data (goods receipts, production, inventory, deliveries).
+  Oracle is the source of truth for financial posting (AP, cost accounting, GL, AR).
+
+mappings:
+  - name: Goods Receipt to AP
+    source_object: Goods_Receipt
+    target_object: AP_Invoice
+    direction: SAP → Oracle
+    conflict_resolution: "SAP wins for operational data; Oracle wins for financial posting"
+    fields:
+      - source: Goods_Receipt.GRN_ID
+        target: AP_Invoice.grn_reference
+        direction: "source_to_target"
+      - source: Goods_Receipt.PO_ID
+        target: AP_Invoice.po_reference
+        direction: "source_to_target"
+      - source: Goods_Receipt.Material_ID
+        target: AP_Invoice.item_id
+        direction: "source_to_target"
+      - source: Goods_Receipt.Qty_Received
+        target: AP_Invoice.quantity_received
+        direction: "source_to_target"
+      - source: Goods_Receipt.Receipt_Date
+        target: AP_Invoice.receipt_date
+        direction: "source_to_target"
+        note: "Triggers three-way match validation (PO, GRN, Invoice) in Oracle AP"
+
+  - name: Production Costs
+    source_object: Production_Order
+    target_object: Cost_Accounting
+    direction: SAP → Oracle
+    conflict_resolution: "SAP wins for production data; Oracle wins for cost allocation"
+    fields:
+      - source: Production_Order.Order_ID
+        target: Cost_Accounting.production_order_ref
+        direction: "source_to_target"
+      - source: Production_Order.Material_ID
+        target: Cost_Accounting.material_id
+        direction: "source_to_target"
+      - source: Production_Order.Qty_Produced
+        target: Cost_Accounting.quantity_produced
+        direction: "source_to_target"
+      - source: Production_Order.Qty_Scrapped
+        target: Cost_Accounting.quantity_scrapped
+        direction: "source_to_target"
+      - source: Production_Order.Qty_Produced
+        target: Cost_Accounting.material_cost
+        direction: "source_to_target"
+        transformation: "Mapped to Material_Cost based on standard cost rates"
+      - source: Production_Order.Qty_Produced
+        target: Cost_Accounting.labor_cost
+        direction: "source_to_target"
+        transformation: "Mapped to Labor_Cost based on work center rates"
+      - source: Production_Order.Qty_Produced
+        target: Cost_Accounting.overhead_cost
+        direction: "source_to_target"
+        transformation: "Mapped to Overhead_Cost based on cost center allocation"
+
+  - name: Inventory Valuation
+    source_object: Inventory_Position
+    target_object: GL_Journal
+    direction: SAP → Oracle
+    conflict_resolution: "SAP wins for inventory quantities; Oracle wins for GL posting"
+    fields:
+      - source: Inventory_Position.Material_ID
+        target: GL_Journal.material_id
+        direction: "source_to_target"
+      - source: Inventory_Position.Plant_ID
+        target: GL_Journal.plant_id
+        direction: "source_to_target"
+      - source: Inventory_Position.Unrestricted_Qty
+        target: GL_Journal.inventory_value
+        direction: "source_to_target"
+        transformation: "Unrestricted_Qty × Valuation_Price = inventory value posted to GL inventory accounts"
+
+  - name: Delivery to AR
+    source_object: Delivery_Document
+    target_object: AR_Invoice
+    direction: SAP → Oracle
+    conflict_resolution: "SAP wins for delivery data; Oracle wins for invoice posting"
+    fields:
+      - source: Delivery_Document.Delivery_ID
+        target: AR_Invoice.delivery_reference
+        direction: "source_to_target"
+      - source: Delivery_Document.Ship_To_Account_ID
+        target: AR_Invoice.customer_id
+        direction: "source_to_target"
+      - source: Delivery_Document.Material_ID
+        target: AR_Invoice.item_id
+        direction: "source_to_target"
+      - source: Delivery_Document.Qty
+        target: AR_Invoice.quantity
+        direction: "source_to_target"
+      - source: Delivery_Document.Ship_Date
+        target: AR_Invoice.ship_date
+        direction: "source_to_target"
+        note: "Creates invoice in Oracle AR upon delivery confirmation"
+
+failure_handling:
+  retry_count: 3
+  retry_interval: "5 minutes"
+  dead_letter_queue: true
+  alert_on_failure: "finance-integration-alerts@company.com"
+  fallback: "SAP is authoritative for operational data; Oracle is authoritative for financial postings; manual journal entry required on failure"
+
+dependencies:
+  - entity: Goods_Receipt
+    system: SAP
+    relationship: "Source entity for AP matching"
+  - entity: Production_Order
+    system: SAP
+    relationship: "Source entity for production cost allocation"
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Source entity for inventory valuation"
+  - entity: Delivery_Document
+    system: SAP
+    relationship: "Source entity for AR invoice creation"
+  - entity: AP_Invoice
+    system: Oracle
+    relationship: "Target entity for accounts payable"
+  - entity: Cost_Accounting
+    system: Oracle
+    relationship: "Target entity for cost allocation"
+  - entity: GL_Journal
+    system: Oracle
+    relationship: "Target entity for general ledger postings"
+  - entity: AR_Invoice
+    system: Oracle
+    relationship: "Target entity for accounts receivable"
+  - entity: close-window-policy
+    system: Internal
+    relationship: "Governs financial close cutoff rules and sync freezes"
+
+related_entities:
+  - Goods_Receipt
+  - AP_Invoice
+  - Production_Order
+  - Cost_Accounting
+  - Inventory_Position
+  - Delivery_Document
+  - AR_Invoice
+triggered_by_workflows:
+  - Order-to-Cash Monitoring
+  - Procurement Spend Analysis
+  - Production Scheduling
+  - ESG Reporting
+used_by_apps:
+  - "Order-to-Cash Monitor"
+  - "Procurement Analytics"
+  - "Production & Quality"
+  - "ESG Tracker"

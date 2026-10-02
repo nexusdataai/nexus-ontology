@@ -1,0 +1,29 @@
+tool_id: check_credit_and_margin
+display_name: Check Credit & Margin
+group: cpq_sell
+description: Read the customer's credit limit and AR balance, compute credit utilization,
+  and surface the quote's blended margin with a floor-breach indicator.
+risk_level: read_only
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    quote_id:
+      type: string
+      description: Quote_ID
+  required:
+  - quote_id
+connector_api: null
+consumes_entities:
+- Quote_Header
+- Quote_Line
+- AR_Customer
+- Price_Book_Entry
+produces_entities: []
+tags:
+- cpq-sell
+- credit
+- margin
+example_invocation:
+  quote_id: QT-00042

@@ -1,0 +1,100 @@
+id: WORKFLOW_PROCUREMENT_SPEND_V1_0
+name: Procurement Spend Analysis
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: Purchase_Order
+  event: "Scheduled weekly OR high-value PO detected"
+  condition: "Every Monday 06:00 UTC, or new Purchase_Order value exceeds $100K"
+description: >
+  Consolidates procurement spend across Oracle and SAP, enriches with contract
+  intelligence via NLP, detects maverick spending against approved vendor lists
+  and contracted prices, performs three-way match validation, and identifies
+  vendor consolidation opportunities with projected savings.
+
+steps:
+  - order: 1
+    name: Spend Aggregation
+    system: Internal
+    action: "Consolidate all Purchase_Order data; enrich with SAP Material_Master categories and Vendor_Master classifications; build spend cube (vendor x material x plant x period)"
+
+  - order: 2
+    name: Contract Intelligence
+    system: Internal
+    action: "Extract pricing terms, volume tiers, and validity from Contract_Document via NLP; match to PO line items"
+
+  - order: 3
+    name: Maverick Detection
+    system: Internal
+    action: "Compare each PO against Source_List (approved vendors) and Contract_Document (contracted prices); flag exceptions"
+    rules:
+      - "Non-contracted vendor → flag"
+      - "Price above contract +5% → flag"
+      - "Unapproved material → flag"
+
+  - order: 4
+    name: Three-Way Match
+    system: Internal
+    action: "For received POs: match Purchase_Order qty vs Goods_Receipt qty vs AP_Invoice amount; route exceptions to AP team"
+    rules:
+      - ">2% qty variance → exception"
+      - ">5% price variance → exception"
+    failure_action: "Route unmatched items to AP team for manual resolution"
+
+  - order: 5
+    name: Consolidation Analysis
+    system: Internal
+    action: "Cluster vendor x material combinations; identify materials sourced from 4+ vendors with >10% price spread; model savings from consolidation"
+
+  - order: 6
+    name: Generate Reports
+    system: Internal
+    action: "Produce spend dashboard, maverick report, consolidation recommendations, price variance alerts"
+
+dependencies:
+  - entity: Purchase_Order
+    system: Oracle
+    relationship: "Primary spend data source"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Vendor classification and enrichment data"
+  - entity: Material_Master
+    system: SAP
+    relationship: "Material category enrichment for spend cube"
+  - entity: Source_List
+    system: SAP
+    relationship: "Approved vendor list for maverick detection"
+  - entity: Goods_Receipt
+    system: SAP
+    relationship: "Receipt quantities for three-way match"
+  - entity: AP_Invoice
+    system: Oracle
+    relationship: "Invoice amounts for three-way match"
+  - entity: AP_Payment
+    system: Oracle
+    relationship: "Payment data for spend reconciliation"
+  - entity: Contract_Document
+    system: Google_Drive
+    relationship: "Contract terms for price compliance and NLP extraction"
+  - entity: Commodity_Price
+    system: Social_Listening
+    relationship: "Market pricing benchmarks for variance analysis"
+  - entity: procurement-policy
+    system: Internal
+    relationship: "Governs maverick thresholds and approval requirements"
+
+related_entities:
+  - Purchase_Order
+  - Vendor_Master
+  - Material_Master
+  - Source_List
+  - Goods_Receipt
+  - AP_Invoice
+  - AP_Payment
+  - Contract_Document
+  - Commodity_Price
+related_policies:
+  - procurement-policy
+use_case: "Procurement & Spend Analytics"
+scor_process: "Source"

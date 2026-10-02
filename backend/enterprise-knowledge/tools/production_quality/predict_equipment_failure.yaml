@@ -1,0 +1,38 @@
+# ============================================================================
+# Tool: predict_equipment_failure
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: a static-analysis prediction over sensor history.
+#
+# What it does:
+#   Predict equipment failure probability over the horizon window using
+#   vibration / temperature / torque sensor signals. Returns at-risk assets
+#   with leading indicators so they can be scheduled for maintenance.
+#
+# Inputs:    equipment_id (optional), horizon_days, top_n
+# Reads:     Equipment, Sensor_Reading
+# Writes:    none
+# Returns:   {result | results: [{equipment_id, failure_probability, expected_failure_window, leading_signals}]}
+# ============================================================================
+tool_id: predict_equipment_failure
+display_name: Predict Equipment Failure
+group: production_quality
+tool_kind: analyze
+description: |
+  Per-asset failure probability forecast based on sensor trend signals; pairs
+  with `schedule_predictive_maintenance` for the action stage.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    equipment_id: { type: string, description: "Optional single-asset mode" }
+    horizon_days: { type: integer, description: "Prediction horizon (default 30)" }
+    top_n: { type: integer, description: "Max rows (default 20)" }
+  required: []
+consumes_entities: [Equipment, Sensor_Reading]
+produces_entities: []
+tags: [pq, maintenance, analyze]
+example_invocation:
+  horizon_days: 30

@@ -1,0 +1,26 @@
+solutionId: order-to-cash
+title: Order-to-Cash Monitor
+description: |
+  End-to-end visibility and anomaly detection across the order-to-cash
+  lifecycle. Detects revenue leakage, delivery-invoice mismatches,
+  overdue payments, and credit exposure across Salesforce, SAP and
+  Oracle systems.
+priority: P0
+category: Finance
+timeToValue: 2 weeks
+verticals: [supply_chain, crm]
+personas: [ar_manager, cfo, sales_ops]
+color: "from-blue-500 to-cyan-500"
+icon: ShoppingCart
+entities: [Opportunity, Delivery_Document, AR_Invoice, AR_Payment]
+kpis:
+  - DSO < 35 days
+  - Match Rate > 95%
+  - Leakage < 0.5%
+automations: [detect_underbilling, past_due_recovery, sudden_deal_drop_alert]
+analytics: [o2c_health_dashboard, dso_trend_view]
+nlq_examples:
+  - Which invoices are over 60 days past due?
+  - Show revenue leakage last quarter
+  - Alert me on deliveries without a matching AR invoice
+journeyId: order_to_cash

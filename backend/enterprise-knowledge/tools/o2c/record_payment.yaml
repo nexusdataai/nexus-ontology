@@ -1,0 +1,43 @@
+# ============================================================================
+# Tool: record_payment
+# Kind: mutate
+# Connector API: oracle.payment.record
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a settlement into Oracle AR.
+#
+# What it does:
+#   Record a customer payment against an open invoice. Triggers AR-aging
+#   reconciliation and updates DSO downstream.
+#
+# Inputs:    invoice_id, customer_id, amount, payment_method (Wire/ACH/Check)
+# Reads:     Oracle_AR_Invoice
+# Writes:    Oracle_AR_Payment, Audit_Event
+# Returns:   {action, payment_id, invoice_id, amount}
+# ============================================================================
+tool_id: record_payment
+display_name: Record Customer Payment
+group: o2c
+tool_kind: mutate
+description: |
+  Record a customer payment against an open invoice. Used by collections,
+  early-pay-discount, and dunning playbooks.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: oracle.payment.record
+parameters:
+  type: object
+  properties:
+    invoice_id: { type: string }
+    customer_id: { type: string }
+    amount: { type: number }
+    payment_method: { type: string, description: "e.g. Wire, ACH, Check" }
+  required: [invoice_id, customer_id, amount]
+consumes_entities: [Oracle_AR_Invoice]
+produces_entities: [Oracle_AR_Payment, Audit_Event]
+tags: [o2c, ar, payment, write]
+example_invocation:
+  invoice_id: INV-2026-0001
+  customer_id: ACC-1042
+  amount: 12500.00
+  payment_method: Wire

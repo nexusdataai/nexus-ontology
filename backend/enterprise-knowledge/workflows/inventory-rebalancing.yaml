@@ -1,0 +1,82 @@
+id: WORKFLOW_INVENTORY_REBALANCING_V1_0
+name: Inventory Rebalancing
+version: "1.0"
+system: SAP
+scor_process: Plan
+trigger:
+  object: Inventory_Position
+  field: Stock_Days_Supply
+  condition: "Stock imbalance detected — Plant A >45 days supply while Plant B <5 days for same Material_ID"
+description: >
+  Detects inter-plant stock imbalances and orchestrates optimized transfers.
+  Calculates optimal transfer quantities considering safety stock, in-transit
+  inventory, and demand forecasts, then generates and executes SAP transfer
+  orders with route optimization.
+
+steps:
+  - order: 1
+    name: Identify Imbalance
+    system: SAP
+    action: "Scan Inventory_Position records; flag SKU-plant combinations where surplus/deficit exceeds policy thresholds"
+
+  - order: 2
+    name: Calculate Transfer Quantity
+    system: Internal
+    action: "Determine optimal transfer qty considering safety stock at both ends, in-transit stock, and demand forecast"
+
+  - order: 3
+    name: Validate Receiving Capacity
+    system: SAP
+    action: "Check destination Plant_Master capacity and Storage_Location availability"
+    failure_action: "Skip transfer for this SKU-plant pair; alert planner"
+
+  - order: 4
+    name: Generate Transfer Order
+    system: SAP
+    action: "Create Warehouse_Transfer record with From_Plant, To_Plant, Material_ID, Batch_ID (FIFO), Qty"
+
+  - order: 5
+    name: Route Optimization
+    system: Internal
+    action: "Optimize delivery route using VRP solver considering distance, vehicle capacity, and delivery windows"
+
+  - order: 6
+    name: Execute Transfer
+    system: SAP
+    action: "Release transfer order in SAP; update Inventory_Position at both plants upon goods receipt"
+
+dependencies:
+  - entity: Inventory_Position
+    system: SAP
+    relationship: "Source data for imbalance detection and post-transfer update"
+  - entity: Material_Plant
+    system: SAP
+    relationship: "SKU-plant assignment and replenishment parameters"
+  - entity: Plant_Master
+    system: SAP
+    relationship: "Capacity and storage constraints at destination"
+  - entity: Warehouse_Transfer
+    system: SAP
+    relationship: "Created transfer order document"
+  - entity: Batch_Master
+    system: SAP
+    relationship: "FIFO batch selection for transferred material"
+  - entity: inventory-policy
+    system: Internal
+    relationship: "Defines surplus/deficit thresholds and safety-stock rules"
+  - entity: data-freshness-policy
+    system: Internal
+    relationship: "Defines maximum data staleness for inventory scans"
+
+related_entities:
+  - Inventory_Position
+  - Material_Plant
+  - Plant_Master
+  - Warehouse_Transfer
+  - Batch_Master
+  - Storage_Location
+related_policies:
+  - inventory-policy
+  - data-freshness-policy
+use_case: "Inventory Optimization & Distribution Intelligence"
+scor_process: "Plan"

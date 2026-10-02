@@ -1,0 +1,31 @@
+solutionId: sourcing-cpq
+title: Sourcing CPQ
+description: |
+  AI-first buy-side CPQ - launch RFx, score bids vs should-cost, run
+  award scenarios, and draft contracts. Cuts sourcing cycle time and
+  identifies savings faster.
+priority: P1
+category: CPQ
+timeToValue: 6-8 weeks
+verticals: [supply_chain]
+personas: [category_manager, sourcing_analyst]
+color: "from-indigo-500 to-blue-500"
+icon: ClipboardList
+entities:
+  - RFx_Event
+  - Vendor_Quote
+  - Should_Cost_Model
+  - Sourcing_Scenario
+  - Sourcing_Award
+  - Contract_Document
+kpis:
+  - Cycle < 10 days
+  - Savings > 5%
+  - Single-Source < 2%
+automations: [launch_rfx_event, score_bids_against_should_cost]
+analytics: [rfx_pipeline_view, savings_realisation_dashboard]
+nlq_examples:
+  - Launch an RFx for the top 5 packaging suppliers
+  - Score vendor bids against my should-cost model
+  - How much have we saved through RFx this quarter?
+journeyId: sourcing_cpq

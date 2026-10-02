@@ -1,0 +1,67 @@
+# LocalStack Docker Compose configuration for nexus-backend
+# Provides local AWS service emulation for development and testing
+
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: nexus-localstack
+    ports:
+      - "4566:4566"           # LocalStack Gateway (all services)
+      - "4510-4559:4510-4559" # External services port range
+    environment:
+      - SERVICES=dynamodb,s3,cloudwatch,logs,sts,athena
+      - DEBUG=1
+      - DATA_DIR=/var/lib/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=us-east-1
+      - PERSISTENCE=1
+      - EAGER_SERVICE_LOADING=1
+    volumes:
+      - "./localstack-data:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nexus-local
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - nexus-local
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: nexus-dynamodb-admin
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      localstack:
+        condition: service_healthy
+    networks:
+      - nexus-local
+
+networks:
+  nexus-local:
+    driver: bridge
+
+volumes:
+  localstack-data:
+    driver: local

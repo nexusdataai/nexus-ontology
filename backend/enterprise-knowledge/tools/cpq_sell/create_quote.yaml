@@ -1,0 +1,60 @@
+tool_id: create_quote
+display_name: Create Quote
+group: cpq_sell
+description: Create a brand-new Draft Quote_Header plus initial Quote_Line for
+  an account. Resolves material_query to Material_IDs, picks the best matching
+  active offering for the requested channel, persists the quote, and returns
+  the new quote_id. Use this tool to START a quote when the user asks to
+  "build a quote", "create a quote", or "quote N units of X".
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    account_id:
+      type: string
+      description: Salesforce Account ID
+    channel:
+      type: string
+      description: Optional channel override (HORECA, Modern_Trade, etc.)
+    material_query:
+      type: string
+      description: Free-text material description (e.g. "Cola 330ml")
+    target_materials:
+      type: array
+      items:
+        type: string
+      description: Optional explicit Material_IDs
+    qty:
+      type: integer
+      description: Quantity for the initial Quote_Line
+    discount_pct:
+      type: number
+      description: Initial discount percentage
+    validity_days:
+      type: integer
+      description: Validity in days (default 30)
+  required:
+  - account_id
+connector_api: tpm.quote.create
+consumes_entities:
+- Account
+- Material_Master
+- Product_Offering
+- Offering_Component
+- Price_Book_Entry
+produces_entities:
+- Quote_Header
+- Quote_Line
+- Audit_Event
+tags:
+- cpq-sell
+- quote
+- write
+example_invocation:
+  account_id: ACC-00012
+  channel: HORECA
+  material_query: Cola 330ml
+  qty: 5000
+  discount_pct: 14

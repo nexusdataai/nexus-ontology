@@ -1,0 +1,113 @@
+use_case_id: io.slow_mover_liquidation
+title: Slow-Mover Liquidation
+solution_id: inventory-optimization
+bucket: supply-chain
+description: 'Liquidate slow-moving SKUs as discounted bundles. Rank SKUs by velocity,
+  bundle the slowest movers, and discount the bundle. Notify channel partners via
+  email.
+
+  '
+status: active
+tags:
+- inventory
+- slow-movers
+- liquidation
+kpi_impact:
+- sell_through_rate
+- obsolete_writeoff_usd
+consumes_entities:
+- Material
+- Inventory_Position
+produces_entities:
+- Oracle_Kit
+- Oracle_AR_Promotion
+- Email_Campaign_Send
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_slow_movers
+    params:
+      velocity_threshold: 0.5
+      top_n: 50
+- stage_id: diagnose
+  name: Diagnose
+  order: 2
+  description: Score / decompose the candidates.
+  steps:
+  - step_id: diag
+    name: Score / Project
+    order: 1
+    tool: project_inventory_writeoff
+    params: {}
+- stage_id: decide
+  name: Decide
+  order: 3
+  description: 'Decide bundle composition + discount tier per SKU group. LLM-only
+
+    step; no tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 4
+  steps:
+  - step_id: act_1
+    name: Bundle Skus For Liquidation
+    order: 1
+    tool: bundle_skus_for_liquidation
+    params:
+      name: Slow-Mover Bundle
+      components: ${stage.decide.choose_bundle.components}
+  - step_id: act_2
+    name: Apply Promo Discount
+    order: 2
+    requires_approval: true
+    tool: apply_promo_discount
+    params:
+      name: Slow-Mover Clearance
+      discount_pct: 30.0
+      applies_to:
+        segment: clearance
+- stage_id: notify
+  name: Notify
+  order: 5
+  steps:
+  - step_id: notify_1
+    name: Send Email Campaign
+    order: 1
+    tool: send_email_campaign
+    params:
+      subject: Limited-time clearance bundle
+      recipients: ${stage.resolve.list.results}
+- stage_id: verify
+  name: Verify
+  order: 6
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_slow_movers
+    params:
+      velocity_threshold: 0.5
+      top_n: 50
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: obsolete_writeoff_usd
+      kpi_before: ${stage.diagnose.diag.projected_writeoff_usd}
+      kpi_after: ${stage.verify.requery.projected_writeoff_usd}

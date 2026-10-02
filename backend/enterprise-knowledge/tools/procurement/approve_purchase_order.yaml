@@ -1,0 +1,40 @@
+# ============================================================================
+# Tool: approve_purchase_order
+# Kind: mutate
+# Connector API: oracle.purchase_order.approve
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- commit an approval decision into Oracle ERP.
+#
+# What it does:
+#   Approve (or cancel) an Oracle Purchase Order. High-risk write because it
+#   releases spend authorization downstream into receiving + invoice match.
+#
+# Inputs:    po_id, status (Approved | Cancelled | ...)
+# Reads:     Oracle_Purchase_Order
+# Writes:    Oracle_Purchase_Order, Audit_Event
+# Returns:   {action, po_id, previous_status, status}
+# ============================================================================
+tool_id: approve_purchase_order
+display_name: Approve Purchase Order
+group: procurement
+tool_kind: mutate
+description: |
+  Approve / cancel an Oracle Purchase Order. Used by maverick-spend capture and
+  procurement-approval playbooks. High-risk write because it commits spend
+  authorization.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: oracle.purchase_order.approve
+parameters:
+  type: object
+  properties:
+    po_id: { type: string, description: "Purchase Order ID" }
+    status: { type: string, description: "New status (e.g. Approved, Cancelled)" }
+  required: [po_id, status]
+consumes_entities: [Oracle_Purchase_Order]
+produces_entities: [Oracle_Purchase_Order, Audit_Event]
+tags: [procurement, po, write]
+example_invocation:
+  po_id: PO-2026-0042
+  status: Approved

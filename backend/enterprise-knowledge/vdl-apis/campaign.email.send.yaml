@@ -1,0 +1,22 @@
+api_id: vdl.campaign.email.send
+verb: write
+virtual_entity: Campaign
+description: Send a customer-facing campaign email (dunning / renewal / recovery).
+risk_level: low_risk_write
+parameters_schema:
+  type: object
+  properties:
+    campaign_id:
+      type: string
+    customer_id:
+      type: string
+    template:
+      type: string
+  required: [campaign_id, customer_id]
+impl:
+  - connector_api_id: external.email.send_campaign
+    arg_mapping:
+      campaign_id: campaign_id
+      customer_id: customer_id
+      template: template
+tags: [campaign, email, external]

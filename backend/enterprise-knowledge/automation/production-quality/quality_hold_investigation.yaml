@@ -1,0 +1,102 @@
+use_case_id: pq.quality_hold_investigation
+title: Quality Hold + Investigation
+solution_id: production-quality
+bucket: supply-chain
+description: 'Hold suspect batches and open a CAPA investigation. When quality recurrence
+  is detected, place a hold on the affected batch and open a CAPA workflow.
+
+  '
+status: active
+tags:
+- pq
+- quality-hold
+- capa
+kpi_impact:
+- batch_hold_count
+- capa_open_count
+consumes_entities:
+- Quality_Event
+- CAPA
+- Batch
+produces_entities:
+- Batch_Master
+- CAPA
+- Slack_Message
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_capa_recurrence
+    params:
+      horizon_days: 90
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide hold scope + CAPA severity per recurrence. LLM-only step; no
+
+    tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Hold Batch
+    order: 1
+    requires_approval: true
+    tool: hold_batch
+    params:
+      batch_id: ${context.batch_id}
+      material_id: ${context.material_id}
+      reason: Quality recurrence detected
+  - step_id: act_2
+    name: Open Capa Workflow
+    order: 2
+    requires_approval: true
+    tool: open_capa_workflow
+    params:
+      subject: ${item.description}
+      severity: high
+- stage_id: notify
+  name: Notify
+  order: 4
+  steps:
+  - step_id: notify_1
+    name: Send Slack Alert
+    order: 1
+    tool: send_slack_alert
+    params:
+      channel: '#pq-ops'
+      message: Quality hold placed
+      severity: critical
+- stage_id: verify
+  name: Verify
+  order: 5
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_capa_recurrence
+    params:
+      horizon_days: 90
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: batch_hold_count
+      kpi_before: 0
+      kpi_after: 0

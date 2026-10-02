@@ -1,0 +1,53 @@
+# ============================================================================
+# Tool: update_customer_credit
+# Kind: mutate
+# Connector API: oracle.customer.terms.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Update a customer's credit limit in Salesforce. Triggers credit
+#   approval workflow based on change magnitude: <=5% auto-approved, 5-10%
+#   needs Sales Manager, >10% needs Finance Manager. HIGH RISK — syncs to
+#   Oracle AR.
+#
+# Inputs:    account_id, new_credit_limit, justification
+# Reads:     AR_Customer
+# Writes:    AR_Customer, Audit_Event
+# ============================================================================
+tool_id: update_customer_credit
+display_name: Update Customer Credit
+group: o2c
+description: "Update a customer's credit limit in Salesforce. Triggers credit approval\
+  \ workflow based on change magnitude: <=5% auto-approved, 5-10% needs Sales Manager,\
+  \ >10% needs Finance Manager. HIGH RISK \u2014 syncs to Oracle AR."
+risk_level: high_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    account_id:
+      type: string
+      description: Salesforce Account ID
+    new_credit_limit:
+      type: number
+      description: New credit limit amount in USD
+    justification:
+      type: string
+      description: Business justification (mandatory for changes > 10%)
+  required:
+  - account_id
+  - new_credit_limit
+  - justification
+connector_api: oracle.customer.terms.set
+consumes_entities:
+- AR_Customer
+produces_entities:
+- AR_Customer
+- Audit_Event
+tags:
+- o2c
+- ar
+- write
+example_invocation: null

@@ -1,0 +1,50 @@
+# ============================================================================
+# Tool: process_credit_note
+# Kind: mutate
+# Connector API: oracle.credit_note.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Create credit note in Oracle AR for a return. Updates invoice status
+#   to Credit_Applied.
+#
+# Inputs:    invoice_id, amount, reason
+# Reads:     AR_Invoice
+# Writes:    AR_Credit_Note, AR_Invoice, Audit_Event
+# ============================================================================
+tool_id: process_credit_note
+display_name: Process Credit Note
+group: o2c
+description: Create credit note in Oracle AR for a return. Updates invoice status
+  to Credit_Applied.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    invoice_id:
+      type: string
+      description: Invoice to credit
+    amount:
+      type: number
+      description: Credit note amount
+    reason:
+      type: string
+      description: Reason for credit
+  required:
+  - invoice_id
+  - amount
+connector_api: oracle.credit_note.create
+consumes_entities:
+- AR_Invoice
+produces_entities:
+- AR_Credit_Note
+- AR_Invoice
+- Audit_Event
+tags:
+- o2c
+- ar
+- write
+example_invocation: null

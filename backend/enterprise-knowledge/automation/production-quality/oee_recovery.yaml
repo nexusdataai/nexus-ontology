@@ -1,0 +1,102 @@
+use_case_id: pq.oee_recovery
+title: OEE Recovery
+solution_id: production-quality
+bucket: supply-chain
+description: 'Recover declining OEE with a maintenance schedule. Detect OEE decline
+  per line and schedule predictive maintenance on the equipment driving the decline.
+
+  '
+status: active
+tags:
+- pq
+- oee
+- recovery
+kpi_impact:
+- oee_pct
+consumes_entities:
+- Production_Order
+- Downtime_Event
+produces_entities:
+- Maintenance_Order
+- Slack_Message
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: score_oee_decline
+    params:
+      top_n: 20
+- stage_id: diagnose
+  name: Diagnose
+  order: 2
+  description: Score / decompose the candidates.
+  steps:
+  - step_id: diag
+    name: Score / Project
+    order: 1
+    tool: predict_equipment_failure
+    params:
+      horizon_days: 30
+- stage_id: decide
+  name: Decide
+  order: 3
+  description: 'Pick maintenance type + scheduled window per line. LLM-only step;
+    no
+
+    tool binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 4
+  steps:
+  - step_id: act_1
+    name: Schedule Predictive Maintenance
+    order: 1
+    tool: schedule_predictive_maintenance
+    params:
+      equipment_id: ${item.line_id}
+      scheduled_for: '2026-05-30T08:00:00Z'
+      maintenance_type: Predictive
+- stage_id: notify
+  name: Notify
+  order: 5
+  steps:
+  - step_id: notify_1
+    name: Send Slack Alert
+    order: 1
+    tool: send_slack_alert
+    params:
+      channel: '#pq-ops'
+      message: OEE recovery scheduled
+      severity: warning
+- stage_id: verify
+  name: Verify
+  order: 6
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: score_oee_decline
+    params:
+      top_n: 20
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: oee_pct
+      kpi_before: 0
+      kpi_after: 0

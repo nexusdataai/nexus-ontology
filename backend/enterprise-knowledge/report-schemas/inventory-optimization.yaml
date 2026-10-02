@@ -1,0 +1,95 @@
+solution_id: inventory-optimization
+title: Inventory Optimization Report
+icon: Boxes
+
+summary_kpis:
+  - key: turns
+    label: Inventory Turns
+    icon: RefreshCw
+    format: decimal
+    rollup: avg
+    source: Data.kpis.turns
+  - key: fill_rate_pct
+    label: Fill Rate
+    icon: CheckCircle
+    format: percent
+    rollup: avg
+    source: Data.kpis.fill_rate_pct
+    threshold:
+      invert: true
+      warn: 90
+      critical: 80
+  - key: days_of_supply
+    label: Days of Supply
+    icon: Clock
+    format: decimal
+    rollup: avg
+    source: Data.kpis.days_of_supply
+  - key: expired_write_off_pct
+    label: Expired Write-Off
+    icon: AlertTriangle
+    format: percent
+    rollup: avg
+    source: Data.kpis.expired_write_off_pct
+    threshold:
+      warn: 2
+      critical: 5
+  - key: total_positions
+    label: SKU Positions
+    icon: Layers
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_positions
+  - key: total_alerts
+    label: Alerts
+    icon: Bell
+    format: integer
+    rollup: sum
+    source: Data.kpis.total_alerts
+
+sections:
+  - id: replenishment
+    title: Replenishment Health
+    kind: kpi_grid
+    kpis:
+      - key: rebalance_suggestions
+        label: Rebalance Suggestions
+        format: integer
+        rollup: sum
+        source: Data.kpis.rebalance_suggestions
+      - key: rebalance_efficiency
+        label: Rebalance Efficiency
+        format: percent
+        rollup: avg
+        source: Data.kpis.rebalance_efficiency
+      - key: carrying_cost_pct
+        label: Carrying Cost %
+        format: percent
+        rollup: avg
+        source: Data.kpis.carrying_cost_pct
+
+  - id: alerts
+    title: Inventory Alerts
+    kind: alerts_list
+    source: Data.kpis.alerts
+    grouping:
+      key: type
+      label_map:
+        stockout_risk: Stockout Risk
+        expiry_warning: Expiry Warning
+        rebalance_needed: Rebalance Needed
+
+  - id: performance
+    title: Performance
+    kind: kpi_grid
+    kpis:
+      - key: avg_duration
+        label: Avg Job Time
+        format: duration
+        rollup: avg
+        source: derived.avg_duration_seconds
+      - key: total_jobs
+        label: Jobs Run
+        format: integer
+        rollup: last
+        source: derived.total_jobs

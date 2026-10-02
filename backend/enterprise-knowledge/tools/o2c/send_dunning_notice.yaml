@@ -1,0 +1,54 @@
+# ============================================================================
+# Tool: send_dunning_notice
+# Kind: mutate
+# Connector API: external.dunning_notice.create
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Send collection reminder for an overdue invoice. Tiers: reminder (7d),
+#   warning (14d), escalation (30d), final (60d).
+#
+# Inputs:    invoice_id, customer_id, days_overdue, tier
+# Reads:     AR_Invoice, Account
+# Writes:    Dunning_Notice, Audit_Event
+# ============================================================================
+tool_id: send_dunning_notice
+display_name: Send Dunning Notice
+group: o2c
+description: 'Send collection reminder for an overdue invoice. Tiers: reminder (7d),
+  warning (14d), escalation (30d), final (60d).'
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    invoice_id:
+      type: string
+      description: Overdue invoice ID
+    customer_id:
+      type: string
+      description: Customer/Account ID
+    days_overdue:
+      type: integer
+      description: Number of days overdue
+    tier:
+      type: string
+      description: 'Dunning tier: reminder, warning, escalation, final'
+  required:
+  - invoice_id
+  - customer_id
+  - days_overdue
+connector_api: external.dunning_notice.create
+consumes_entities:
+- AR_Invoice
+- Account
+produces_entities:
+- Dunning_Notice
+- Audit_Event
+tags:
+- o2c
+- collections
+- write
+example_invocation: null

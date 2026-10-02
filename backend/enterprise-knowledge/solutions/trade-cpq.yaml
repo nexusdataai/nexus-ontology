@@ -1,0 +1,31 @@
+solutionId: trade-cpq
+title: Trade CPQ
+description: |
+  AI-first sell-side CPQ - configure offerings, price with
+  channel/tier waterfalls, and convert quotes to orders. Automates
+  90% of price-approvals with policy compliance built-in.
+priority: P1
+category: CPQ
+timeToValue: 6-8 weeks
+verticals: [crm, supply_chain]
+personas: [sales_rep, deal_desk, revenue_ops]
+color: "from-fuchsia-500 to-pink-500"
+icon: Receipt
+entities:
+  - Quote_Header
+  - Quote_Line
+  - Product_Offering
+  - Price_Book
+  - Configuration_Rule
+  - Serviceability_Footprint
+kpis:
+  - Cycle < 1 day
+  - Auto-Approve > 70%
+  - Leakage < 1%
+automations: [create_quote_from_opportunity, auto_price_within_guardrails]
+analytics: [quote_pipeline_dashboard, win_loss_view]
+nlq_examples:
+  - Configure a quote for opportunity 12345 with tiered discounts
+  - What is the auto-approval rate this month?
+  - Show me leakage on quotes over $100K
+journeyId: trade_cpq

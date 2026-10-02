@@ -1,0 +1,90 @@
+use_case_id: pa.vendor_risk_escalation
+title: Vendor Risk Escalation
+solution_id: procurement-analytics
+bucket: supply-chain
+description: 'Escalate (and block) high-risk vendors. Score vendor disruption risk
+  and block any vendor crossing the threshold; notify procurement on Slack.
+
+  '
+status: active
+tags:
+- procurement
+- vendor-risk
+kpi_impact:
+- supplier_risk_score
+consumes_entities:
+- Supplier
+- Geopolitical_Event
+produces_entities:
+- Oracle_Supplier
+- Slack_Message
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: score_supplier_disruption_risk
+    params:
+      top_n: 20
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide block thresholds per vendor risk band. LLM-only step; no tool
+
+    binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Block Supplier Orders
+    order: 1
+    requires_approval: true
+    tool: block_supplier_orders
+    params:
+      supplier_id: ${item.vendor_id}
+      block: true
+      reason: Vendor risk escalation
+- stage_id: notify
+  name: Notify
+  order: 4
+  steps:
+  - step_id: notify_1
+    name: Send Slack Alert
+    order: 1
+    tool: send_slack_alert
+    params:
+      channel: '#procurement-ops'
+      message: Vendor risk escalated -- supplier blocked
+      severity: critical
+- stage_id: verify
+  name: Verify
+  order: 5
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: score_supplier_disruption_risk
+    params:
+      top_n: 20
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: supplier_risk_score
+      kpi_before: 0
+      kpi_after: 0

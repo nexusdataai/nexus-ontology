@@ -1,0 +1,90 @@
+use_case_id: esg.compliance_breach_response
+title: Compliance Breach Response
+solution_id: esg-sustainability
+bucket: esg
+description: 'Open CAPA + alert ops on compliance breaches. Identify open compliance
+  breaches and open a CAPA workflow for each high-severity finding; notify ESG ops
+  on Slack.
+
+  '
+status: active
+tags:
+- esg
+- compliance
+- breach
+kpi_impact:
+- compliance_breach_open_count
+consumes_entities:
+- Compliance_Check
+produces_entities:
+- CAPA
+- Slack_Message
+- Audit_Event
+stages:
+- stage_id: resolve
+  name: Resolve
+  order: 1
+  description: Identify the entities in scope.
+  steps:
+  - step_id: list
+    name: List Candidates
+    order: 1
+    tool: find_compliance_breaches
+    params:
+      severity: high
+- stage_id: decide
+  name: Decide
+  order: 2
+  description: 'Decide CAPA severity + owner per breach. LLM-only step; no tool
+
+    binding because the reasoning is the action.
+
+    '
+  steps:
+  - step_id: choose_action
+    name: Choose Action Per Candidate
+    order: 1
+- stage_id: act
+  name: Act
+  order: 3
+  steps:
+  - step_id: act_1
+    name: Open Capa Workflow
+    order: 1
+    requires_approval: true
+    tool: open_capa_workflow
+    params:
+      subject: ${item.summary}
+      severity: high
+- stage_id: notify
+  name: Notify
+  order: 4
+  steps:
+  - step_id: notify_1
+    name: Send Slack Alert
+    order: 1
+    tool: send_slack_alert
+    params:
+      channel: '#esg-ops'
+      message: Compliance breach -- CAPA opened
+      severity: critical
+- stage_id: verify
+  name: Verify
+  order: 5
+  description: Re-query and write Outcome_Tracker row.
+  steps:
+  - step_id: requery
+    name: Re-Run Analyzer
+    order: 1
+    tool: find_compliance_breaches
+    params:
+      severity: high
+  - step_id: write_outcome
+    name: Append Outcome Tracker
+    order: 2
+    tool: record_outcome
+    params:
+      action_id: ${context.run_id}
+      kpi_name: compliance_breach_open_count
+      kpi_before: 0
+      kpi_after: 0

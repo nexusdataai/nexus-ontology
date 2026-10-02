@@ -1,0 +1,66 @@
+{
+  "integrations": [
+    {
+      "name": "Salesforce_to_Oracle_AR_Sync",
+      "source_system": "Salesforce",
+      "target_system": "Oracle",
+      "description": "Real-time sync of customer data from Salesforce Account to Oracle AR Customer",
+      "mappings": [
+        {
+          "source_field": "Account.Credit_Limit__c",
+          "target_field": "AR_Customer.credit_limit",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "real_time",
+          "notes": "Salesforce is source of truth. Oracle AR cannot override."
+        },
+        {
+          "source_field": "Account.Status",
+          "target_field": "AR_Customer.customer_status",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "real_time",
+          "notes": "Deactivation requires AR balance check before sync"
+        },
+        {
+          "source_field": "Account.Risk_Tier__c",
+          "target_field": "AR_Customer.collection_priority",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "batch_daily",
+          "notes": "Risk tier maps to AR collection priority rule"
+        },
+        {
+          "source_field": "Account.BillingAddress",
+          "target_field": "AR_Customer.billing_address",
+          "sync_direction": "bidirectional",
+          "sync_frequency": "real_time"
+        },
+        {
+          "source_field": "Account.Name",
+          "target_field": "AR_Customer.customer_name",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "real_time"
+        }
+      ]
+    },
+    {
+      "name": "Oracle_AR_Balance_to_Salesforce",
+      "source_system": "Oracle",
+      "target_system": "Salesforce",
+      "description": "Batch sync of AR balance and invoice data back to Salesforce",
+      "mappings": [
+        {
+          "source_field": "AR_Customer.outstanding_balance",
+          "target_field": "Account.AR_Balance__c",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "batch_hourly"
+        },
+        {
+          "source_field": "AR_Customer.open_invoice_count",
+          "target_field": "Account.Open_Invoices__c",
+          "sync_direction": "unidirectional",
+          "sync_frequency": "batch_hourly",
+          "notes": "Used by deactivation policy - cannot deactivate if open invoices exist"
+        }
+      ]
+    }
+  ]
+}

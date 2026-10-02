@@ -1,0 +1,61 @@
+
+/* Improved card styling for light mode */
+:root .card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-color: rgba(0,0,0,0.08);
+}
+
+:root .bg-secondary\/50 {
+  background-color: rgba(240, 242, 245, 0.8);
+}
+
+/* Light mode card improvements */
+:root .card {
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.04);
+  background: linear-gradient(to bottom right, #fff, #fafafa);
+}
+
+/* Better hover states for cards in light mode */
+:root .card:hover {
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+}
+
+/* Light theme statistics card improvements */
+:root .bg-secondary\/50 {
+  background-color: rgba(250, 250, 255, 0.9);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+/* Apply rounded corners to cards, buttons, and other components */
+.card, 
+.bg-card, 
+.bg-secondary\/50,
+.bg-secondary,
+.bg-muted,
+.bg-accent {
+  @apply rounded-lg;
+}
+
+/* Apply rounded corners to category filters */
+.sticky.bottom-6 > div {
+  @apply rounded-full;
+}
+
+/* Apply slightly rounded corners to the header bar */
+.sticky.top-0 {
+  @apply rounded-b-lg;
+}
+
+/* Apply rounded corners to sidebar chat messages */
+/* Fix circular dependency by directly using the border radius value */
+.chat-message-rounded {
+  border-radius: 1rem;
+}
+
+/* Apply rounded corners to the sidebar */
+.md\:w-72 {
+  @apply rounded-r-xl;
+}

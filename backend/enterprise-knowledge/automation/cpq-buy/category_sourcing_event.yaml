@@ -1,0 +1,71 @@
+use_case_id: cpq_buy.category_sourcing_event
+title: Category Sourcing Event
+solution_id: sourcing-cpq
+bucket: cpq-buy
+description: 'End-to-end category sourcing playbook: launch an RFx, build the
+  should-cost benchmark, recommend a vendor panel, and solicit bids. Sets up
+  the buy-side CPQ funnel for downstream bid evaluation and award.
+
+  '
+status: active
+tags:
+- cpq
+- sourcing
+- rfx
+kpi_impact:
+- rfx_cycle_time
+- savings_vs_should_cost
+- vendor_concentration
+consumes_entities:
+- Purchase_Requisition
+- Material_Master
+- Source_List
+- Vendor_Master
+- Commodity_Price
+produces_entities:
+- RFx_Event
+- RFx_Line
+- RFx_Invitation
+- Should_Cost_Model
+- Audit_Event
+stages:
+- stage_id: scope
+  name: Scope The Event
+  order: 1
+  steps:
+  - step_id: build_should_cost
+    name: Build Should-Cost Model
+    order: 1
+    tool: should_cost_model
+    params:
+      material_id: ${context.material_id}
+      qty: ${context.target_qty}
+  - step_id: launch
+    name: Launch RFx
+    order: 2
+    requires_approval: true
+    tool: launch_rfx
+    params:
+      category: ${context.category}
+      plants: ${context.plants}
+      target_qty: ${context.target_qty}
+      due_date: ${context.due_date}
+- stage_id: invite
+  name: Invite Vendor Panel
+  order: 2
+  steps:
+  - step_id: panel
+    name: Recommend Vendor Panel
+    order: 1
+    tool: recommend_vendor_panel
+    params:
+      event_id: ${stage.scope.launch.event_id}
+      top_n: 5
+  - step_id: solicit
+    name: Send Invitations
+    order: 2
+    requires_approval: true
+    tool: solicit_vendors
+    params:
+      event_id: ${stage.scope.launch.event_id}
+      vendor_ids: ${stage.invite.panel.panel}

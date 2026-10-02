@@ -1,0 +1,46 @@
+# ============================================================================
+# Tool: place_credit_hold
+# Kind: mutate
+# Connector API: sfdc.account.credit_hold.set
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- write a real change to the system of record.
+#
+# What it does:
+#   Place credit hold on an account when AR balance exceeds 80% of credit
+#   limit. Blocks new shipments per credit-policy Section 5.
+#
+# Inputs:    account_id, reason
+# Reads:     Account, AR_Invoice
+# Writes:    Account, Audit_Event
+# ============================================================================
+tool_id: place_credit_hold
+display_name: Place Credit Hold
+group: o2c
+description: Place credit hold on an account when AR balance exceeds 80% of credit
+  limit. Blocks new shipments per credit-policy Section 5.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+parameters:
+  type: object
+  properties:
+    account_id:
+      type: string
+      description: Account ID to place on hold
+    reason:
+      type: string
+      description: Reason for credit hold
+  required:
+  - account_id
+connector_api: sfdc.account.credit_hold.set
+consumes_entities:
+- Account
+- AR_Invoice
+produces_entities:
+- Account
+- Audit_Event
+tags:
+- o2c
+- credit
+- write
+example_invocation: null

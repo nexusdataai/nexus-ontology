@@ -1,0 +1,93 @@
+id: WORKFLOW_RFX_BID_EVALUATE_V1_0
+name: RFx Bid Evaluation
+version: "1.0"
+system: Internal
+scor_process: Source
+trigger:
+  object: RFx_Event
+  field: Status
+  condition: "RFx_Event status transitions to Evaluation OR Vendor_Quote submitted"
+description: >
+  Score every Vendor_Quote per line against should-cost, lead time,
+  vendor risk, quality history, and sustainability certs. Produce ranked
+  Sourcing_Scenario candidates that span cost-optimal, risk-balanced,
+  diversified, and sustainability-priority strategies.
+
+steps:
+  - order: 1
+    name: Collect Submitted Bids
+    system: Sourcing
+    action: "Gather Vendor_Quote rows in Submitted or Under_Evaluation status for the RFx_Event"
+
+  - order: 2
+    name: Compute Composite Score
+    system: Internal
+    action: "Score each Vendor_Quote_Line on price-vs-should-cost (40), lead time (15), vendor risk (20), quality history (15), sustainability (10); persist score per line"
+    rules:
+      - "Price-vs-should-cost: (modeled_cost - unit_price) / modeled_cost"
+      - "Risk: 1 - (vendor.Risk_Score / 100)"
+      - "Quality: pass rate from Quality_Inspection_Lot for this vendor"
+      - "Sustainability: 1 if cert present else 0"
+
+  - order: 3
+    name: Generate Scenarios
+    system: Internal
+    action: "Build Pareto-optimal Sourcing_Scenarios — Cost Optimal (max savings), Risk Balanced (concentration ≤ 60%, risk ≤ medium), Diversified (≥3 vendors), Sustainability Priority (certs required)"
+
+  - order: 4
+    name: Validate Scenarios
+    system: Internal
+    action: "Filter scenarios that violate sourcing-award-policy: single-source ABC-A, concentration > 60% on Class-A, critical risk vendors"
+
+  - order: 5
+    name: Persist Scenarios
+    system: Sourcing
+    action: "Write Sourcing_Scenario rows with Split_JSON, Modeled_Savings, Modeled_Risk_Score, Concentration_Pct"
+
+  - order: 6
+    name: Publish Recommendation
+    system: Internal
+    action: "Mark the recommended scenario per category strategy and surface in the Award Sandbox widget"
+
+dependencies:
+  - entity: RFx_Event
+    system: Sourcing
+    relationship: "Subject"
+  - entity: Vendor_Quote
+    system: Sourcing
+    relationship: "Source bids"
+  - entity: Vendor_Quote_Line
+    system: Sourcing
+    relationship: "Per-line bid data"
+  - entity: Should_Cost_Model
+    system: Sourcing
+    relationship: "Benchmark"
+  - entity: Vendor_Master
+    system: SAP
+    relationship: "Risk score and certs"
+  - entity: Quality_Inspection_Lot
+    system: SAP
+    relationship: "Quality history per vendor"
+  - entity: Sourcing_Scenario
+    system: Sourcing
+    relationship: "Output"
+  - entity: sourcing-award-policy
+    system: Internal
+    relationship: "Concentration and risk constraints"
+  - entity: supply-chain-risk-policy
+    system: Internal
+    relationship: "Vendor risk gating"
+
+related_entities:
+  - RFx_Event
+  - Vendor_Quote
+  - Vendor_Quote_Line
+  - Should_Cost_Model
+  - Sourcing_Scenario
+  - Vendor_Master
+  - Quality_Inspection_Lot
+related_policies:
+  - sourcing-award-policy
+  - supply-chain-risk-policy
+use_case: "Sourcing CPQ"
+scor_process: "Source"

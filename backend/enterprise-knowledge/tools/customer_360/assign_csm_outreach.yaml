@@ -1,0 +1,47 @@
+# ============================================================================
+# Tool: assign_csm_outreach
+# Kind: mutate
+# Connector API: sfdc.task.create_csm_outreach
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- create an actionable item the team has to work.
+#
+# What it does:
+#   Creates a CSM outreach Task in Salesforce on the target account. The Task
+#   carries an outreach_type tag so the CSM team knows whether to call,
+#   schedule a QBR, send a personal email, or open a support ticket.
+#
+# Inputs:    account_id, subject, description (optional), priority,
+#            due_date (optional), owner_user_id (optional), outreach_type
+# Reads:     none
+# Writes:    Task, Audit_Event
+# Returns:   {action, task_id, account_id, subject}
+# ============================================================================
+tool_id: assign_csm_outreach
+display_name: Assign CSM Outreach
+group: customer_360
+tool_kind: mutate
+description: |
+  Create a CSM outreach Task on a Salesforce account / opportunity. Used by
+  retain-risky, at-risk-save, and upsell-NBA playbooks.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+connector_api: sfdc.task.create_csm_outreach
+parameters:
+  type: object
+  properties:
+    account_id: { type: string }
+    subject: { type: string }
+    description: { type: string }
+    priority: { type: string }
+    due_date: { type: string }
+    owner_user_id: { type: string }
+    outreach_type: { type: string }
+  required: [account_id, subject]
+consumes_entities: []
+produces_entities: [Task, Audit_Event]
+tags: [c360, csm, task, write]
+example_invocation:
+  account_id: ACC-1001
+  subject: "Save play -- discuss Q3 expansion"
+  outreach_type: csm_outreach

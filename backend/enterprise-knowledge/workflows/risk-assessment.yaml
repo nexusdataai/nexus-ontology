@@ -1,0 +1,74 @@
+id: WORKFLOW_RISK_ASSESSMENT_V1_0
+name: Customer Risk Assessment
+version: "1.0"
+system: Salesforce
+trigger:
+  object: Account
+  field: Risk_Tier__c
+  condition: "New account created OR periodic re-evaluation (90-day cycle)"
+description: >
+  Evaluates customer risk tier based on financial data, payment history,
+  and external credit scoring. The resulting Risk_Tier__c drives credit
+  approval thresholds and Oracle AR collection priority.
+
+steps:
+  - order: 1
+    name: Gather Financial Data
+    system: Salesforce
+    action: "Pull Account revenue, industry, AR balance from Oracle"
+
+  - order: 2
+    name: External Credit Check
+    system: External
+    action: "Query credit bureau API for credit score"
+    optional: true
+
+  - order: 3
+    name: Calculate Risk Score
+    system: Internal
+    action: "Apply risk scoring model (weighted factors)"
+    factors:
+      - "Payment history (30%)"
+      - "Credit bureau score (25%)"
+      - "AR aging profile (20%)"
+      - "Industry risk factor (15%)"
+      - "Account tenure (10%)"
+
+  - order: 4
+    name: Assign Risk Tier
+    system: Salesforce
+    action: "Map risk score to Risk_Tier__c"
+    mapping:
+      - "Score 80-100 → Low"
+      - "Score 60-79 → Medium"
+      - "Score 40-59 → High"
+      - "Score 0-39 → Critical"
+
+  - order: 5
+    name: Update Downstream Systems
+    system: Oracle
+    action: "Push Risk_Tier to Oracle AR collection_priority"
+    mapping:
+      - "Low → Standard"
+      - "Medium → Monitored"
+      - "High → Escalated"
+      - "Critical → Suspended"
+
+dependencies:
+  - entity: Account
+    relationship: "Target entity"
+  - entity: AR_Customer
+    system: Oracle
+    relationship: "Downstream consumer"
+  - entity: credit-policy
+    system: Internal
+    relationship: "Threshold source"
+
+related_entities:
+  - Account
+  - AR_Customer
+related_policies:
+  - credit-policy
+  - supply-chain-risk-policy
+use_case: "Customer 360 & Revenue Growth Intelligence"
+scor_process: "Enable"

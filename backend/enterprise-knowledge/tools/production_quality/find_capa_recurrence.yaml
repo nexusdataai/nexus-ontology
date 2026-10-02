@@ -1,0 +1,37 @@
+# ============================================================================
+# Tool: find_capa_recurrence
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: cluster duplicate stack traces across CI runs.
+#
+# What it does:
+#   Cluster recent quality events by root cause code and surface the recurring
+#   failures whose CAPAs keep re-opening. Used by CAPA-lifecycle and quality-
+#   hold playbooks.
+#
+# Inputs:    horizon_days, top_n
+# Reads:     Quality_Event, CAPA
+# Writes:    none
+# Returns:   {count, results: [{root_cause_code, description, occurrences, linked_capas, lines_affected}]}
+# ============================================================================
+tool_id: find_capa_recurrence
+display_name: Find CAPA Recurrence
+group: production_quality
+tool_kind: analyze
+description: |
+  Detect quality events whose root cause repeats across multiple CAPA records;
+  used to drive systemic fixes.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    horizon_days: { type: integer, description: "Lookback window (default 180)" }
+    top_n: { type: integer, description: "Max rows (default 20)" }
+  required: []
+consumes_entities: [Quality_Event, CAPA]
+produces_entities: []
+tags: [pq, capa, analyze]
+example_invocation:
+  horizon_days: 180

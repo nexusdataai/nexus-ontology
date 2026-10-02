@@ -1,0 +1,58 @@
+# ============================================================================
+# Tool: create_forecast_override
+# Kind: analyze
+# ----------------------------------------------------------------------------
+# Cursor analog: linter / type-checker -- score rows without writing.
+#
+# What it does:
+#   Create a manual forecast override for a product in a region and
+#   period. Overrides the AI-generated demand forecast with a sales team
+#   adjustment. Requires justification text.
+#
+# Inputs:    product_id, region, period, override_qty, justification
+# Reads:     Forecast_Override
+# Writes:    Forecast_Override, Audit_Event
+# ============================================================================
+tool_id: create_forecast_override
+display_name: Create Forecast Override
+group: misc
+description: Create a manual forecast override for a product in a region and period.
+  Overrides the AI-generated demand forecast with a sales team adjustment. Requires
+  justification text.
+risk_level: low_risk_write
+requires_approval: false
+cacheable: false
+parameters:
+  type: object
+  properties:
+    product_id:
+      type: string
+      description: Product/SKU ID
+    region:
+      type: string
+      description: Geographic region
+    period:
+      type: string
+      description: Forecast period (e.g. '2026-W14')
+    override_qty:
+      type: integer
+      description: Override quantity
+    justification:
+      type: string
+      description: Business justification for the override
+  required:
+  - product_id
+  - region
+  - period
+  - override_qty
+  - justification
+connector_api: null
+consumes_entities:
+- Forecast_Override
+produces_entities:
+- Forecast_Override
+- Audit_Event
+tags:
+- forecast
+- write
+example_invocation: null

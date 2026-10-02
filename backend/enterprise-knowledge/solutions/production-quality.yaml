@@ -1,0 +1,25 @@
+solutionId: production-quality
+title: Production & Quality Copilot
+description: |
+  AI-assisted production scheduling, yield optimization, and quality
+  detection. Uses inspection lot data + shop-floor telemetry to spot
+  quality drift early and recommend interventions.
+priority: P1
+category: Operations
+timeToValue: 4 weeks
+verticals: [supply_chain]
+personas: [plant_manager, quality_engineer]
+color: "from-red-500 to-rose-500"
+icon: Factory
+entities: [Production_Order, Bill_of_Materials, Quality_Inspection_Lot, Batch_Master]
+kpis:
+  - OEE > 85%
+  - Yield > 98%
+  - First Pass > 95%
+automations: [detect_yield_drift, escalate_quality_deviation]
+analytics: [oee_dashboard, quality_pareto_view]
+nlq_examples:
+  - Which lines had OEE below target last week?
+  - Show quality deviations by material for plant 1000
+  - Recommend a schedule change to hit today's demand
+journeyId: production_quality

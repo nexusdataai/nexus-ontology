@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "api": {
+    "baseUrl": "",
+    "timeout": 30000
+  },
+  "gateway": {
+    "apiKey": ""
+  },
+  "dataSource": "api",
+  "enableFallback": true,
+  "bypassAuth": false,
+  "cognito": {
+    "region": "ap-southeast-1",
+    "userPoolId": "ap-southeast-1_CHANGEME",
+    "clientId": "CHANGEME",
+    "domain": "your-app.auth.ap-southeast-1.amazoncognito.com",
+    "redirectSignIn": "https://YOUR-FRONTEND-URL/auth/callback",
+    "redirectSignOut": "https://YOUR-FRONTEND-URL"
+  },
+  "_comment": "This config uses nginx proxy for API access. Empty baseUrl means relative URLs (/api/v1/*) which nginx proxies to internal backend service."
+}

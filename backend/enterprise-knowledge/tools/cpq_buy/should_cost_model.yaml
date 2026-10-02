@@ -1,0 +1,32 @@
+tool_id: should_cost_model
+display_name: Should Cost Model
+group: cpq_buy
+description: Build a bottom-up should-cost benchmark per unit for a material from
+  Commodity_Price + labor + overhead + freight. Returns modeled cost and a
+  confidence score.
+risk_level: read_only
+requires_approval: false
+cacheable: true
+parameters:
+  type: object
+  properties:
+    material_id:
+      type: string
+      description: Material_ID
+    qty:
+      type: number
+      description: Reference quantity
+  required:
+  - material_id
+connector_api: null
+consumes_entities:
+- Material_Master
+- Commodity_Price
+produces_entities:
+- Should_Cost_Model
+tags:
+- cpq-buy
+- should-cost
+example_invocation:
+  material_id: MAT-00056
+  qty: 100000

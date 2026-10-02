@@ -1,0 +1,42 @@
+# ============================================================================
+# Tool: update_opportunity_stage
+# Kind: mutate
+# Connector API: sfdc.opportunity.update
+# ----------------------------------------------------------------------------
+# Cursor analog: sed -- progress / close an SFDC Opportunity.
+#
+# What it does:
+#   Update opportunity stage, amount, or close date. High-risk because it
+#   affects pipeline forecast and revenue recognition timing.
+#
+# Inputs:    opportunity_id, stage (optional), amount (optional), close_date (optional)
+# Reads:     Opportunity
+# Writes:    Opportunity, Audit_Event
+# Returns:   {action, opportunity_id, ...patch}
+# ============================================================================
+tool_id: update_opportunity_stage
+display_name: Update Opportunity Stage
+group: customer_360
+tool_kind: mutate
+description: |
+  Update opportunity stage / amount / close date. Used by sales-forecast
+  override, upsell-NBA, and at-risk-save playbooks.
+risk_level: high_risk_write
+requires_approval: true
+cacheable: false
+connector_api: sfdc.opportunity.update
+parameters:
+  type: object
+  properties:
+    opportunity_id: { type: string }
+    stage: { type: string }
+    amount: { type: number }
+    close_date: { type: string }
+  required: [opportunity_id]
+consumes_entities: [Opportunity]
+produces_entities: [Opportunity, Audit_Event]
+tags: [c360, sales, write]
+example_invocation:
+  opportunity_id: OPP-2026-0042
+  stage: Closed_Won
+  amount: 50000.00
