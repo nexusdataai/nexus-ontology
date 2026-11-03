@@ -255,6 +255,15 @@ class ConfigProvider:
         """
         from src.config.resource_naming import dynamodb_table_name
         return dynamodb_table_name(resource, capability=CAPABILITY_NAME, environment=self.environment)
+
+    def _build_s3_bucket_name(self, purpose: str) -> str:
+        """S3 bucket name: {capability}-{env}-{purpose}[-{account_id}]."""
+        from src.config.resource_naming import s3_bucket_name
+        return s3_bucket_name(
+            purpose,
+            capability=CAPABILITY_NAME,
+            environment=self.environment,
+        )
     
     # =========================================================================
     # AWS Core Configuration
@@ -377,7 +386,7 @@ class ConfigProvider:
         return (
             self._get_ssm_param('s3/journey-logs-bucket') or
             os.getenv('S3_JOURNEY_LOGS_BUCKET') or
-            self._build_resource_name('journey-logs')
+            self._build_s3_bucket_name('journey-logs')
         )
     
     @property
@@ -386,7 +395,7 @@ class ConfigProvider:
         return (
             self._get_ssm_param('s3/journey-reports-bucket') or
             os.getenv('S3_JOURNEY_REPORTS_BUCKET') or
-            self._build_resource_name('journey-reports')
+            self._build_s3_bucket_name('journey-reports')
         )
     
     # =========================================================================

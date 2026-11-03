@@ -48,4 +48,7 @@ def s3_bucket_name(
     env = sanitize_name(environment) if environment else environment_name()
     base = f"{cap}-{env}-{purpose}"
     acct = account_id or os.getenv("LOCAL_AWS_ACCOUNT_ID") or os.getenv("AWS_ACCOUNT_ID")
+    if not acct and os.getenv("USE_LOCALSTACK", "").lower() == "true":
+        # Matches nexus-operator local init (LOCAL_AWS_ACCOUNT_ID default).
+        acct = "000000000000"
     return f"{base}-{acct}" if acct else base
