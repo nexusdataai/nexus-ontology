@@ -364,11 +364,20 @@ class ConfigProvider:
     
     @property
     def s3_recordings_bucket(self) -> str:
-        """Get S3 bucket for call data and recordings."""
+        """Get S3 bucket for call data, recordings, and legacy artifacts."""
         return (
             self._get_ssm_param('s3/recordings-bucket') or
             os.getenv('S3_RECORDINGS_BUCKET') or
-            self._build_resource_name('call-data')
+            self._build_s3_bucket_name('warehouse')
+        )
+
+    @property
+    def s3_solution_results_bucket(self) -> str:
+        """Get S3 bucket for journey / pipeline relational and .onto artifacts."""
+        return (
+            self._get_ssm_param('s3/solution-results-bucket') or
+            os.getenv('SOLUTION_RESULTS_BUCKET') or
+            self._build_s3_bucket_name('solution-results')
         )
     
     @property
@@ -571,8 +580,11 @@ class ConfigProvider:
             logger.debug(f"✅ OpenAI key found in environment variable: {key_preview}")
             return env_key
         
-        # Always fetch fresh from Secrets Manager (no caching)
-        if is_aws_environment() and self.environment != 'local':
+        use_secrets_manager = (
+            os.getenv('USE_LOCALSTACK', '').lower() == 'true'
+            or (is_aws_environment() and self.environment != 'local')
+        )
+        if use_secrets_manager:
             try:
                 from .secrets_loader import SecretsLoader
                 # Use cache_ttl=0 to always fetch fresh from Secrets Manager

@@ -1392,6 +1392,20 @@ async def startup_event():
                 f"errors={ent_summary.get('errors')}"
             )
 
+            if _os.environ.get("CANONICAL_MAPPING_SEED", "true").lower() != "false":
+                from src.services.canonical_mapping_seeder import ensure_canonical_mapping_rules
+
+                canon_summary = await ensure_canonical_mapping_rules(
+                    mapping_service=_mapping_rule_service,
+                    simulators=_vq_simulators,
+                    force_recreate=force_seed,
+                )
+                logger.info(
+                    "Canonical VDL mapping rules ensured: "
+                    f"created={canon_summary.get('created')} skipped={canon_summary.get('skipped')} "
+                    f"no_source={canon_summary.get('no_source_table')} errors={canon_summary.get('errors')}"
+                )
+
             async def _seed_views_and_data_bg():
                 try:
                     view_summary = await ensure_solution_views(

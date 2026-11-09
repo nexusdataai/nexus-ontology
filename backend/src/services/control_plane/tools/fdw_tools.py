@@ -22,7 +22,7 @@ from ..tool_registry import Tool, RiskLevel
 
 cp_logger = logger.bind(component="control-plane")
 
-DEFAULT_SCHEMA = "sfdc_itxp2dev"
+DEFAULT_SCHEMA = "sfdc_schema"
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +47,7 @@ def _pick_simulator(simulators: Optional[Dict[str, Any]], schema_name: str) -> O
     if not simulators:
         return None
     schema_to_sim_key = {
+        "sfdc_schema": "simulator",
         "sfdc_itxp2dev": "simulator",
         "salesforce":    "simulator",
         "oracle_erp":    "oracle",

@@ -32,6 +32,7 @@ _schema_indexer = None
 _rag_service = None
 _agent_executor = None
 _conn_mgr = None
+_graph_store = None
 _initialized = False
 
 
@@ -65,7 +66,7 @@ _set_onto_init(lambda: _ensure_init())
 
 
 async def _ensure_init():
-    global _vector_store, _embedding_service, _schema_indexer, _rag_service, _agent_executor, _conn_mgr, _initialized
+    global _vector_store, _embedding_service, _schema_indexer, _rag_service, _agent_executor, _conn_mgr, _graph_store, _initialized
     if _initialized:
         return
     _initialized = True
@@ -519,28 +520,18 @@ async def get_stats(
         graph_nodes = 0
         graph_edges = 0
         try:
-            from sqlalchemy import text
-            engine = _conn_mgr.engine if _conn_mgr else None
-            if engine:
-                import asyncio
-                def _count_graph():
-                    with engine.connect() as conn:
-                        try:
-                            conn.execute(text("LOAD 'age'"))
-                            conn.execute(text("SET search_path = ag_catalog, public"))
-                            nr = conn.execute(text(
-                                "SELECT * FROM cypher('enterprise_onto', $$ MATCH (n) RETURN count(n) $$) AS (cnt agtype)"
-                            )).fetchone()
-                            er = conn.execute(text(
-                                "SELECT * FROM cypher('enterprise_onto', $$ MATCH ()-[r]->() RETURN count(r) $$) AS (cnt agtype)"
-                            )).fetchone()
-                            return (int(str(nr[0])) if nr else 0, int(str(er[0])) if er else 0)
-                        except Exception:
-                            return (0, 0)
-                loop = asyncio.get_event_loop()
-                graph_nodes, graph_edges = await loop.run_in_executor(None, _count_graph)
-        except Exception:
-            pass
+            if _graph_store is not None:
+                graph_nodes, graph_edges = await _graph_store.count_nodes_and_edges()
+        except Exception as ex:
+            cp_logger.debug(f"Graph count via GraphStore failed: {ex}")
+
+        if graph_nodes == 0 and graph_edges == 0:
+            try:
+                entities = _parse_schema_entities()
+                graph_nodes = len(entities)
+                graph_edges = sum(len(e.get("relationships", [])) for e in entities)
+            except Exception as ex:
+                cp_logger.debug(f"Schema graph count fallback failed: {ex}")
 
         vdl = await _compute_virtual_data_layer_stats()
 

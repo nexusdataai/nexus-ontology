@@ -448,10 +448,17 @@ class SemanticRagProcessor:
 
         return {"status": "completed", "statistics": stats}
 
+    def _s3_client(self):
+        try:
+            from ...utils.aws_client_utils import AWSClientManager
+            return AWSClientManager(region_name=self.config.aws_region).create_client('s3')
+        except ImportError:
+            import boto3
+            return boto3.client('s3', region_name=self.config.aws_region)
+
     def _upload_bundle_to_s3(self):
         try:
-            import boto3
-            s3 = boto3.client('s3', region_name=self.config.aws_region)
+            s3 = self._s3_client()
             bundle_key = f"onto-bundles/{self.job_id}/bundle.onto"
             s3.put_object(
                 Bucket=self.config.s3_bucket,
@@ -722,8 +729,7 @@ class SemanticRagProcessor:
 
     def _upload_report_to_s3(self, report):
         try:
-            import boto3
-            s3 = boto3.client('s3', region_name=self.config.aws_region)
+            s3 = self._s3_client()
             key = f"onto-bundles/{self.job_id}/validation-report.json"
             s3.put_object(
                 Bucket=self.config.s3_bucket,

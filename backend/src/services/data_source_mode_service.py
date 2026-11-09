@@ -74,7 +74,8 @@ class DataSourceModeService:
     # resolve to the same backing store - this just picks one for tag
     # purposes when the canary records the executed mode).
     SCHEMA_TO_SOURCE: Dict[str, str] = {
-        "sfdc_itxp2dev":   "sfdc",
+        "sfdc_schema":     "sfdc",
+        "sfdc_itxp2dev":   "sfdc",  # legacy
         "salesforce":      "sfdc",
         "oracle_erp":      "oracle",
         "sap_s4hana":      "sap",

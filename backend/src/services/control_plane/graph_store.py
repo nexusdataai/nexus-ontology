@@ -30,6 +30,7 @@ class GraphStore:
         self._age_available: Optional[bool] = None
         self._age_checked_at: float = 0
         self._relationship_cache: Optional[Dict[str, List[Dict]]] = None
+        self._metadata_totals: Optional[tuple[int, int]] = None
 
     async def expand_neighbors(self, onto_ids: List[str], hops: int = 2) -> List[Dict[str, Any]]:
         """
@@ -242,10 +243,68 @@ class GraphStore:
                 min_similarity=-1.0,
             )
             if results:
-                self._relationship_cache = json.loads(results[0].get("content", "{}"))
+                row = results[0]
+                meta = row.get("metadata") or {}
+                if meta.get("total_nodes") and meta.get("total_edges"):
+                    self._relationship_cache = json.loads(row.get("content", "{}"))
+                    self._metadata_totals = (
+                        int(meta["total_nodes"]),
+                        int(meta["total_edges"]),
+                    )
+                else:
+                    self._relationship_cache = json.loads(row.get("content", "{}"))
+                    self._metadata_totals = None
             else:
                 self._relationship_cache = {}
+                self._metadata_totals = None
         except Exception:
             self._relationship_cache = {}
+            self._metadata_totals = None
 
         return self._relationship_cache
+
+    async def count_nodes_and_edges(self) -> tuple[int, int]:
+        """Count graph elements: AGE when available, else metadata index."""
+        if await self._is_age_available():
+            loop = asyncio.get_event_loop()
+            engine = self._conn.engine
+
+            def _count_age():
+                from sqlalchemy import text
+
+                with engine.connect() as conn:
+                    conn.execute(text("LOAD 'age'"))
+                    conn.execute(text("SET search_path = ag_catalog, public"))
+                    nr = conn.execute(text(
+                        "SELECT * FROM cypher('enterprise_onto', $$ MATCH (n) RETURN count(n) $$) AS (cnt agtype)"
+                    )).fetchone()
+                    er = conn.execute(text(
+                        "SELECT * FROM cypher('enterprise_onto', $$ MATCH ()-[r]->() RETURN count(r) $$) AS (cnt agtype)"
+                    )).fetchone()
+                    return (
+                        int(str(nr[0])) if nr else 0,
+                        int(str(er[0])) if er else 0,
+                    )
+
+            try:
+                nodes, edges = await loop.run_in_executor(None, _count_age)
+                if nodes or edges:
+                    return nodes, edges
+            except Exception as e:
+                cp_logger.debug(f"AGE graph count failed: {e}")
+
+        index = await self._get_relationship_index()
+        totals = getattr(self, "_metadata_totals", None)
+        if totals:
+            return totals
+        if index:
+            node_ids: Set[str] = set(index.keys())
+            edge_count = 0
+            for rels in index.values():
+                edge_count += len(rels)
+                for rel in rels:
+                    node_ids.add(rel.get("target", ""))
+            node_ids.discard("")
+            return len(node_ids), edge_count
+
+        return 0, 0

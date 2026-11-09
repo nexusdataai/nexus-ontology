@@ -142,8 +142,14 @@ export const EnterpriseAuthProvider: React.FC<{ children: React.ReactNode }> = (
         
         if (bypass) {
           console.log('🔓 Auth bypass enabled - using mock authentication');
+          const mockSession = createMockSession();
+          backendAuthService.storeTokens(
+            mockSession.accessToken,
+            mockSession.idToken,
+            mockSession.refreshToken,
+          );
           setProfile(createMockUserProfile());
-          setSession(createMockSession());
+          setSession(mockSession);
           setAuthMethod('LOCAL');
           setUser({ email: 'dev@local.test', sub: 'local-dev', groups: [], role: 'Admin', permissions: [] });
           setLoading(false);

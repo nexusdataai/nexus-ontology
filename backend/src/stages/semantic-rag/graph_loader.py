@@ -204,14 +204,23 @@ class GraphLoader:
             conn_mgr = self._get_conn_mgr()
             store = VectorStore(conn_mgr)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(store.upsert(
-                content_type="onto_graph_index",
-                source_id="relationship_index",
-                content=json.dumps(relationship_index),
-                metadata={"total_nodes": nodes, "total_edges": edges},
-                embedding=[0.0] * 1536,
-            ))
+            async def _upsert_index():
+                await store.upsert(
+                    content_type="onto_graph_index",
+                    source_id="relationship_index",
+                    content=json.dumps(relationship_index),
+                    metadata={"total_nodes": nodes, "total_edges": edges},
+                    embedding=[0.0] * 1536,
+                )
+
+            try:
+                asyncio.run(_upsert_index())
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                try:
+                    loop.run_until_complete(_upsert_index())
+                finally:
+                    loop.close()
             self._info(f"Metadata graph index stored in pgvector: {nodes} nodes, {edges} edges")
         except Exception as e:
             self._info(f"Failed to store graph index: {e}")

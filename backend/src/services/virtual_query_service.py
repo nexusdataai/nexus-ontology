@@ -24,10 +24,15 @@ vq_logger = logger.bind(component="virtual-query")
 SCHEMA_TO_SIMULATOR: Dict[str, str] = {
     "oracle_erp": "oracle",
     "sap_s4hana": "sap",
-    "sfdc_itxp2dev": "simulator",
+    "sfdc_schema": "simulator",
+    "sfdc_itxp2dev": "simulator",  # legacy simulator dumps
     "external_sources": "external",
     "tpm_cpq": "tpm",
     "sourcing_cpq": "sourcing",
+    "bss_crm": "bss",
+    "nss_core": "nss",
+    "oss_network": "oss",
+    "telco_intelligence": "telco_golden",
 }
 
 # In-process alias shim retained ONLY for the Oracle_* legacy names introduced

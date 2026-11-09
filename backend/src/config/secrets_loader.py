@@ -68,20 +68,31 @@ class SecretsLoader:
         """Create Secrets Manager client with appropriate configuration."""
         try:
             import boto3
-            
-            # Check for LocalStack
+            from src.utils.aws_access_config import merge_kwargs
+
             if os.getenv('USE_LOCALSTACK', '').lower() == 'true':
-                endpoint_url = os.getenv('AWS_ENDPOINT_URL', 'http://localhost:4566')
-                return boto3.client(
-                    'secretsmanager',
-                    region_name=self.region,
-                    endpoint_url=endpoint_url,
-                    aws_access_key_id='test',
-                    aws_secret_access_key='test'
+                from src.config.localstack_config import get_localstack_config
+
+                cfg = get_localstack_config()
+                endpoint_url = (
+                    cfg.get_service_endpoint('secretsmanager')
+                    or os.getenv('AWS_ENDPOINT_URL_SECRETSMANAGER')
+                    or cfg.endpoint_url
                 )
-            
-            return boto3.client('secretsmanager', region_name=self.region)
-            
+                kwargs = merge_kwargs(
+                    'secretsmanager',
+                    self.region,
+                    {
+                        'aws_access_key_id': cfg.access_key,
+                        'aws_secret_access_key': cfg.secret_key,
+                        'endpoint_url': endpoint_url,
+                    },
+                )
+                return boto3.client('secretsmanager', **kwargs)
+
+            kwargs = merge_kwargs('secretsmanager', self.region, {})
+            return boto3.client('secretsmanager', **kwargs)
+
         except ImportError:
             logger.error("boto3 not available")
             raise

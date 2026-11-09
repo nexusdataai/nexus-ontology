@@ -82,7 +82,11 @@ class SemanticRagStage(BaseStage):
         journey_metadata = step_data.get('journey_metadata', {})
         s3_bucket = ""
         try:
-            s3_bucket = self._config.s3_recordings_bucket
+            # .onto bundles and validation reports live in solution-results storage.
+            s3_bucket = (
+                self._config.s3_solution_results_bucket
+                or self._config.s3_recordings_bucket
+            )
         except Exception:
             pass
         return SemanticRagConfig(

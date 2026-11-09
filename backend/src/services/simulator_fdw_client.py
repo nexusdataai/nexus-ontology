@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from loguru import logger
@@ -12,8 +13,36 @@ from src.models.fdw_models import ColumnInfo, ForeignServerInfo, ForeignTableInf
 
 fdw_logger = logger.bind(component="simulator-fdw-client")
 
-_REMOTE_KEYS = ("simulator", "oracle", "sap", "external", "tpm", "sourcing")
+_REMOTE_KEYS = (
+    "simulator",
+    "oracle",
+    "sap",
+    "external",
+    "tpm",
+    "sourcing",
+    "bss",
+    "nss",
+    "oss",
+    "telco_golden",
+)
 _SHARED_CLIENT: Optional[httpx.AsyncClient] = None
+
+# Journey stages run each step on ``asyncio.new_event_loop()``; httpx clients are
+# bound to the loop that created them, so a process-wide singleton breaks remote
+# simulator writes with ``RuntimeError: Event loop is closed``.
+_clients_by_loop: Dict[int, Tuple[httpx.AsyncClient, asyncio.AbstractEventLoop]] = {}
+
+
+def _evict_closed_loop_clients() -> None:
+    for lid in [k for k, (_, lp) in list(_clients_by_loop.items()) if lp.is_closed()]:
+        _clients_by_loop.pop(lid, None)
+
+
+def _new_http_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(60.0, connect=10.0),
+        follow_redirects=True,
+    )
 
 
 def simulator_base_url() -> str:
@@ -43,13 +72,28 @@ def require_simulator_base_url() -> str:
 
 
 def get_simulator_http_client() -> httpx.AsyncClient:
+    """Return an httpx client bound to the current asyncio event loop."""
     global _SHARED_CLIENT
-    if _SHARED_CLIENT is None or _SHARED_CLIENT.is_closed:
-        _SHARED_CLIENT = httpx.AsyncClient(
-            timeout=httpx.Timeout(60.0, connect=10.0),
-            follow_redirects=True,
-        )
-    return _SHARED_CLIENT
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        if _SHARED_CLIENT is None or _SHARED_CLIENT.is_closed:
+            _SHARED_CLIENT = _new_http_client()
+        return _SHARED_CLIENT
+
+    _evict_closed_loop_clients()
+
+    cached = _clients_by_loop.get(id(loop))
+    if cached is not None:
+        client, _lp = cached
+        if not client.is_closed:
+            _SHARED_CLIENT = client
+            return client
+
+    client = _new_http_client()
+    _clients_by_loop[id(loop)] = (client, loop)
+    _SHARED_CLIENT = client
+    return client
 
 
 class RemoteSimulator:
@@ -165,6 +209,16 @@ class RemoteSimulator:
         query = QueryRequest(table=table, schema_name=schema, limit=10000, offset=0)
         result = await self.execute_query(query)
         return list(result.rows or [])
+
+    async def save_to_s3(self) -> Dict[str, Any]:
+        """Ask nexus-simulator to dump in-memory tables back to S3."""
+        response = await self._request(
+            "POST",
+            "/api/fdw/save-to-s3",
+            params={"source": self._source},
+            timeout=120.0,
+        )
+        return dict(response.json() if response.content else {})
 
 
 def register_remote_simulators(base_url: Optional[str] = None) -> Dict[str, RemoteSimulator]:

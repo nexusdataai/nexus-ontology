@@ -264,7 +264,7 @@ async def suggest_mappings(request: MappingSuggestionRequest):
 
 
 SYSTEM_SCHEMA_MAP: Dict[str, str] = {
-    "Salesforce": "sfdc_itxp2dev",
+    "Salesforce": "sfdc_schema",
     "SAP": "sap_s4hana",
     "Oracle": "oracle_erp",
     "Google_Drive": "external_sources",

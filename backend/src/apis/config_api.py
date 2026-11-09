@@ -39,14 +39,35 @@ except ImportError:
     AUTH_MIDDLEWARE_AVAILABLE = False
 
 
+def _local_config_admin_allowed() -> bool:
+    """In-cluster local K3s: UI uses bypassAuth without a real Cognito session."""
+    if os.getenv("USE_LOCALSTACK", "").lower() != "true":
+        return False
+    return os.getenv("ENABLE_COGNITO", "true").lower() in ("0", "false", "no")
+
+
 def require_admin():
     """
     Dependency to require admin role or manage_system permission.
     Falls back to allow all if auth middleware is not available.
     """
+    if _local_config_admin_allowed():
+        async def local_admin_session():
+            return {
+                "user": {
+                    "sub": "local-dev",
+                    "email": "dev@local.test",
+                    "role": "Admin",
+                    "permissions": ["manage_system"],
+                    "groups": ["Admin"],
+                }
+            }
+
+        return local_admin_session
+
     if AUTH_MIDDLEWARE_AVAILABLE:
         return require_rbac_permission("manage_system")
-    
+
     # Fallback: allow all (auth should be handled by gateway)
     async def allow_all():
         return True
