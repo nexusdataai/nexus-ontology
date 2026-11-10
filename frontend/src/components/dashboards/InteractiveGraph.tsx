@@ -24,6 +24,12 @@ const nodeTypeLabels = {
 const width = 900;
 const height = 650;
 
+// d3 adds x/y/vx/vy to nodes and swaps link ends from ids to node objects.
+type SimNode = GraphNode & d3.SimulationNodeDatum;
+type SimLink = Omit<GraphEdge, 'source' | 'target'> & d3.SimulationLinkDatum<SimNode>;
+const linkEnd = (end: SimLink['source']): SimNode | undefined =>
+  typeof end === 'object' ? end : undefined;
+
 export default function InteractiveGraph() {
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,8 +65,8 @@ export default function InteractiveGraph() {
   useEffect(() => {
     if (!data) return;
     // Filtered nodes/links
-    let nodes = data.nodes;
-    let links = data.links;
+    let nodes: SimNode[] = data.nodes;
+    let links: SimLink[] = data.links;
     if (filter.trim()) {
       const filterLower = filter.trim().toLowerCase();
       nodes = data.nodes.filter(n => n.label.toLowerCase().includes(filterLower));
@@ -87,8 +93,8 @@ export default function InteractiveGraph() {
       .append('path')
       .attr('d', 'M0,-5L10,0L0,5')
       .attr('fill', '#bbb');
-    const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(140))
+    const simulation = d3.forceSimulation<SimNode>(nodes)
+      .force('link', d3.forceLink<SimNode, SimLink>(links).id(d => d.id).distance(140))
       .force('charge', d3.forceManyBody().strength(-500))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide(40));
@@ -102,11 +108,11 @@ export default function InteractiveGraph() {
       .attr('marker-end', 'url(#arrowhead)');
     // Draw nodes
     const node = g.append('g')
-      .selectAll('g')
+      .selectAll<SVGGElement, SimNode>('g')
       .data(nodes)
       .join('g')
       .attr('class', 'node')
-      .call(d3.drag()
+      .call(d3.drag<SVGGElement, SimNode>()
         .on('start', dragstarted)
         .on('drag', dragged)
         .on('end', dragended)
@@ -153,10 +159,10 @@ export default function InteractiveGraph() {
       .attr('fill', theme === 'dark' ? '#fff' : '#000');
     simulation.on('tick', () => {
       link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
+        .attr('x1', d => linkEnd(d.source)?.x)
+        .attr('y1', d => linkEnd(d.source)?.y)
+        .attr('x2', d => linkEnd(d.target)?.x)
+        .attr('y2', d => linkEnd(d.target)?.y);
       node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
     function dragstarted(event, d) {
@@ -179,7 +185,9 @@ export default function InteractiveGraph() {
     });
 
     // Clean up on unmount
-    return () => simulation.stop();
+    return () => {
+      simulation.stop();
+    };
   }, [data, filter, theme]);
 
   if (loading) return <LoadingSpinner />;

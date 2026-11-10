@@ -451,7 +451,7 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                             <td className="text-xs py-2 px-3 font-medium">{row.month}</td>
                             <td className="text-xs py-2 px-3">₹{row.actual.toLocaleString()}</td>
                             <td className="text-xs py-2 px-3">₹{row.target.toLocaleString()}</td>
-                            <td className={`text-xs py-2 px-3 font-semibold ${diff >= 0 ? 'text-success' : 'text-destructive'}`}>{diff >= 0 ? `+₹${diff.toLocaleString()} (${diffPercent}% above)` : `-₹${Math.abs(diff).toLocaleString()} (${Math.abs(diffPercent)}% below)`}</td>
+                            <td className={`text-xs py-2 px-3 font-semibold ${diff >= 0 ? 'text-success' : 'text-destructive'}`}>{diff >= 0 ? `+₹${diff.toLocaleString()} (${diffPercent}% above)` : `-₹${Math.abs(diff).toLocaleString()} (${Math.abs(Number(diffPercent))}% below)`}</td>
                             <td className="text-xs py-2 px-3">{row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</td>
                           </tr>
                         );

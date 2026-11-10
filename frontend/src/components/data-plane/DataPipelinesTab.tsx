@@ -27,6 +27,8 @@ import {
   type ETLStepDef,
 } from '@/services/etlPipelineService';
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
+import { callProcessingJourneyService } from '@/services/callProcessingJourneyService';
+import { confirmDialog } from '@/components/ds/confirm';
 import { ETL_PIPELINE_TEMPLATES, type ETLPipelineTemplate } from '@/config/etlPipelineTemplates';
 
 const SOURCE_DESCRIPTIONS: Record<ETLSourceType, string> = {
@@ -115,12 +117,13 @@ const formatWhen = (value?: string | number | null): string => {
   return `${d.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 };
 
-function PipelineRow({ pipeline, mappingRules, index, onRun, onStudio }: {
+function PipelineRow({ pipeline, mappingRules, index, onRun, onStudio, onDelete }: {
   pipeline: any;
   mappingRules: MappingRule[];
   index: number;
   onRun: (id: string) => void;
   onStudio: (id: string) => void;
+  onDelete: (id: string, name: string) => void;
 }) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -215,6 +218,17 @@ function PipelineRow({ pipeline, mappingRules, index, onRun, onStudio }: {
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onStudio(pipeline.id)} title="Open in AI Automation">
             Studio <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(pipeline.id, pipeline.name)}
+            disabled={status === 'running'}
+            aria-label={`Delete ${pipeline.name}`}
+            title={status === 'running' ? 'Stop the run before deleting' : 'Delete pipeline'}
+          >
+            <Icon name="trash" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -401,6 +415,24 @@ export default function DataPipelinesTab() {
     }
   };
 
+  // A pipeline is stored as a journey, so it is removed through the journey service.
+  const handleDelete = async (pipelineId: string, name: string) => {
+    const ok = await confirmDialog({
+      title: `Delete "${name}"?`,
+      description: 'The pipeline, its schedule and its run history are removed. Data it has already loaded stays. This cannot be undone.',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await callProcessingJourneyService.deleteJourney(pipelineId);
+      if (!res.success) throw new Error((res as any).error || 'The delete request failed.');
+      toast.success('Pipeline deleted');
+      fetchData();
+    } catch (e: any) {
+      toast.error('The pipeline was not deleted', { description: e?.message || 'The delete request failed.' });
+    }
+  };
+
   const handleViewStudio = (pipelineId: string) => {
     nav(`/workspace/automation?journeyId=${pipelineId}`);
   };
@@ -503,6 +535,7 @@ export default function DataPipelinesTab() {
                 mappingRules={mappingRules}
                 onRun={handleRun}
                 onStudio={handleViewStudio}
+                onDelete={handleDelete}
               />
             ))}
           </ul>

@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Icon } from '@/components/ds/Icon';
-import { SystemLogo, systemName } from '@/components/ds/SystemLogo';
+import { SystemLogo, systemName, resolveSystem } from '@/components/ds/SystemLogo';
 import { DetailSheet, InlineError, KeyValues, SearchInput, StatusPill } from '@/components/ds/kit';
 import { EmptyState } from '@/components/ds/primitives';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,10 @@ interface GraphNode {
   isVirtual: boolean;
   fdwMappingStatus: string;
   degree: number;
+  /** What the node is grouped by on the canvas: its business domain, or its system when the backend sets one. */
+  group: string;
+  /** Source system behind the entity (its own, or the one its mapping rules read from). Empty when none. */
+  src: string;
 }
 
 interface GraphEdge {
@@ -131,8 +135,8 @@ function layoutConstellation(nodes: GraphNode[], links: Link[], systems: string[
     centre[sys] = n === 1 ? { x: 0, y: 0 } : { x: Math.cos(a) * rx, y: Math.sin(a) * ry };
   });
   const sim = nodes.map(nd => {
-    const c = centre[nd.system] || { x: 0, y: 0 };
-    return { id: nd.id, system: nd.system, x: c.x + (rnd() - 0.5) * 120, y: c.y + (rnd() - 0.5) * 120 };
+    const c = centre[nd.group] || { x: 0, y: 0 };
+    return { id: nd.id, system: nd.group, x: c.x + (rnd() - 0.5) * 120, y: c.y + (rnd() - 0.5) * 120 };
   });
   const byId = new Map(sim.map(s => [s.id, s]));
   const simLinks = links.filter(l => byId.has(l.s) && byId.has(l.t)).map(l => ({ source: l.s, target: l.t, same: byId.get(l.s)!.system === byId.get(l.t)!.system }));
@@ -152,7 +156,7 @@ function layoutConstellation(nodes: GraphNode[], links: Link[], systems: string[
 function layoutLanes(nodes: GraphNode[], systems: string[]): Pos {
   const pos: Pos = {};
   const laneW = 244, rowH = 50;
-  const groups = systems.map(sys => nodes.filter(nd => nd.system === sys).sort((a, b) => a.domain.localeCompare(b.domain) || b.degree - a.degree));
+  const groups = systems.map(sys => nodes.filter(nd => nd.group === sys).sort((a, b) => a.domain.localeCompare(b.domain) || b.degree - a.degree));
   groups.forEach((g, i) => {
     const x = (i - (systems.length - 1) / 2) * laneW;
     g.forEach((nd, j) => { pos[nd.id] = { x, y: j * rowH }; });
@@ -202,7 +206,7 @@ function layoutFocus(nodes: GraphNode[], levels: Map<string, number>): Pos {
   const lvs = [...cols.keys()];
   const midX = ((Math.min(...lvs) + Math.max(...lvs)) / 2) * LINEAGE_COL;
   const perRow = Math.max(3, Math.min(6, Math.ceil(Math.sqrt(rest.length * 2.4))));
-  rest.sort((a, b) => a.system.localeCompare(b.system) || a.id.localeCompare(b.id));
+  rest.sort((a, b) => a.group.localeCompare(b.group) || a.id.localeCompare(b.id));
   rest.forEach((nd, i) => {
     const r = Math.floor(i / perRow), c = i % perRow;
     const inRow = Math.min(perRow, rest.length - r * perRow);
@@ -265,6 +269,7 @@ export default function KnowledgeGraphView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [systemFilters, setSystemFilters] = useState<Set<string>>(new Set());
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<'domain' | 'system'>('domain');
 
   const [rightTab, setRightTab] = useState<InspectorTab>('relationships');
   const [entityDetail, setEntityDetail] = useState<any | null>(null);
@@ -288,9 +293,34 @@ export default function KnowledgeGraphView() {
     setLoading(true);
     setLoadError(false);
     try {
-      const data = await apiClient.get<GraphData>('/api/v1/control-plane/entities/graph');
-      setGraphData(data);
-      setSystemFilters(new Set(data.stats.systems));
+      const [raw, rules] = await Promise.all([
+        apiClient.get<GraphData>('/api/v1/control-plane/entities/graph'),
+        mappingRuleService.list().catch(() => [] as MappingRule[]),
+      ]);
+      // Canonical entities are source-agnostic: the backend leaves `system`
+      // empty and binds sources through mapping rules. Group those by business
+      // domain and take the source system from the entity's active rules.
+      const votes = new Map<string, Map<string, number>>();
+      for (const r of rules) {
+        if (!r.virtualEntity || !r.sourceSystem || r.status === 'inactive') continue;
+        const key = resolveSystem(r.sourceSystem).key;
+        const m = votes.get(r.virtualEntity) || new Map<string, number>();
+        m.set(key, (m.get(key) || 0) + 1);
+        votes.set(r.virtualEntity, m);
+      }
+      const ruleSource = (id: string) => [...(votes.get(id) || new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+      const rawNodes = raw.nodes || [];
+      const withSystem = rawNodes.filter(nd => nd.system).length;
+      const by: 'domain' | 'system' = rawNodes.length > 0 && withSystem / rawNodes.length >= 0.6 ? 'system' : 'domain';
+      const nodes = rawNodes.map(nd => ({
+        ...nd,
+        domain: nd.domain || 'Other',
+        src: nd.system || ruleSource(nd.id),
+        group: by === 'system' ? (nd.system || 'unassigned') : (nd.domain || 'Other'),
+      }));
+      setGroupBy(by);
+      setGraphData({ ...raw, nodes, edges: raw.edges || [] });
+      setSystemFilters(new Set(nodes.map(nd => nd.group)));
     } catch { setGraphData(null); setLoadError(true); }
     finally { setLoading(false); }
   }, []);
@@ -344,12 +374,13 @@ export default function KnowledgeGraphView() {
   );
   const systems = useMemo(() => {
     const count = new Map<string, number>();
-    for (const nd of graphData?.nodes || []) count.set(nd.system, (count.get(nd.system) || 0) + 1);
+    for (const nd of graphData?.nodes || []) count.set(nd.group, (count.get(nd.group) || 0) + 1);
     return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([sys, n]) => ({ sys, n }));
   }, [graphData]);
-  const systemOfNode = useMemo(() => new Map((graphData?.nodes || []).map(nd => [nd.id, nd.system])), [graphData]);
+  const systemOfNode = useMemo(() => new Map((graphData?.nodes || []).map(nd => [nd.id, nd.group])), [graphData]);
+  const groupLabel = useCallback((g: string) => (groupBy === 'domain' ? g : systemName(g)), [groupBy]);
 
-  const nodes = useMemo(() => (graphData?.nodes || []).filter(nd => systemFilters.has(nd.system)), [graphData, systemFilters]);
+  const nodes = useMemo(() => (graphData?.nodes || []).filter(nd => systemFilters.has(nd.group)), [graphData, systemFilters]);
   const nodeIds = useMemo(() => new Set(nodes.map(nd => nd.id)), [nodes]);
   const links = useMemo(
     () => allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t) && (!crossOnly || systemOfNode.get(l.s) !== systemOfNode.get(l.t))),
@@ -493,7 +524,7 @@ export default function KnowledgeGraphView() {
   const selectById = (id: string) => {
     const nd = graphData?.nodes.find(x => x.id === id);
     if (!nd) return;
-    if (!systemFilters.has(nd.system)) setSystemFilters(prev => new Set(prev).add(nd.system));
+    if (!systemFilters.has(nd.group)) setSystemFilters(prev => new Set(prev).add(nd.group));
     selectNode(nd);
   };
   const focusOn = (id: string) => { setFocusId(id); setMode('focus'); };
@@ -533,7 +564,7 @@ export default function KnowledgeGraphView() {
   }, [activeId, links]);
 
   const q = searchQuery.trim().toLowerCase();
-  const matches = (nd: GraphNode) => !q || pretty(nd.id).toLowerCase().includes(q) || nd.domain.toLowerCase().includes(q) || systemName(nd.system).toLowerCase().includes(q);
+  const matches = (nd: GraphNode) => !q || pretty(nd.id).toLowerCase().includes(q) || nd.domain.toLowerCase().includes(q) || (!!nd.src && systemName(nd.src).toLowerCase().includes(q));
   const matchCount = q ? nodes.filter(matches).length : 0;
 
   const nodeState = (nd: GraphNode): 'lit' | 'dim' | 'normal' => {
@@ -574,7 +605,7 @@ export default function KnowledgeGraphView() {
   const territories = useMemo(() => {
     if (mode === 'focus') return [];
     return visibleSystems.map(sys => {
-      const members = nodes.filter(nd => nd.system === sys && pos[nd.id]);
+      const members = nodes.filter(nd => nd.group === sys && pos[nd.id]);
       if (members.length === 0) return null;
       const b = bboxOf(pos, members.map(m => m.id));
       if (mode === 'lanes') {
@@ -711,8 +742,8 @@ export default function KnowledgeGraphView() {
         <div className="absolute left-0 top-0 h-0 w-0" style={{ transform: worldTransform, transformOrigin: '0 0' }}>
           {territories.map(t => (
             <div key={t.sys} className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap" style={{ left: t.label.x, top: t.label.y }}>
-              <SystemLogo system={t.sys} size="sm" />
-              <span className="text-sm font-medium text-foreground">{systemName(t.sys)}</span>
+              {groupBy === 'system' && <SystemLogo system={t.sys} size="sm" />}
+              <span className="text-sm font-medium text-foreground">{groupLabel(t.sys)}</span>
               <span className="num text-xs text-muted-foreground">{t.count}</span>
             </div>
           ))}
@@ -753,7 +784,7 @@ export default function KnowledgeGraphView() {
                 onFocus={() => setHoveredNode(nd.id)}
                 onBlur={() => setHoveredNode(null)}
                 aria-pressed={selected}
-                aria-label={`${pretty(nd.id)}, ${systemName(nd.system)}, ${nd.degree} links`}
+                aria-label={`${pretty(nd.id)}, ${groupLabel(nd.group)}, ${nd.degree} links`}
                 className={cn(
                   'absolute flex cursor-pointer items-center gap-2 rounded-full border bg-card pl-2.5 pr-3 text-left shadow-xs outline-none',
                   'transition-[opacity,box-shadow,border-color,background-color] duration-200',
@@ -765,7 +796,7 @@ export default function KnowledgeGraphView() {
                 )}
                 style={{ left: p.x - w / 2, top: p.y - NODE_H / 2, width: w, height: NODE_H, zIndex: selected ? 3 : state === 'lit' ? 2 : 1 }}
               >
-                <SystemLogo system={nd.system} size="xs" />
+                {nd.src ? <SystemLogo system={nd.src} size="xs" /> : <Icon name="layers" className="h-3.5 w-3.5 shrink-0 text-subtle-foreground" />}
                 <span className={cn('min-w-0 flex-1 truncate text-sm text-foreground', (selected || nd.degree >= 5) && 'font-medium')}>{pretty(nd.id)}</span>
                 {nd.riskLevel === 'high' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" title="High risk" />}
                 <span className="num shrink-0 text-xs text-muted-foreground">{nd.degree}</span>
@@ -814,7 +845,7 @@ export default function KnowledgeGraphView() {
             )}
           >
             <Icon name="shuffle" className={cn('h-3.5 w-3.5', crossOnly && 'text-primary dark:text-brand-hi')} />
-            <span className="hidden md:inline">Cross-system links</span>
+            <span className="hidden md:inline">{groupBy === 'domain' ? 'Cross-domain links' : 'Cross-system links'}</span>
             <span className="num text-xs">{crossCount}</span>
           </button>
         </div>
@@ -831,14 +862,14 @@ export default function KnowledgeGraphView() {
                     type="button"
                     onClick={() => toggleSystem(sys)}
                     aria-pressed={on}
-                    title={on ? `Hide ${systemName(sys)}` : `Show ${systemName(sys)}`}
+                    title={on ? `Hide ${groupLabel(sys)}` : `Show ${groupLabel(sys)}`}
                     className={cn(
                       'flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       on ? 'text-foreground hover:bg-accent' : 'text-subtle-foreground opacity-50 grayscale hover:opacity-80',
                     )}
                   >
-                    <SystemLogo system={sys} size="xs" />
-                    <span className={cn('hidden whitespace-nowrap sm:inline', !on && 'line-through')}>{systemName(sys)}</span>
+                    {groupBy === 'system' && <SystemLogo system={sys} size="xs" />}
+                    <span className={cn('whitespace-nowrap', groupBy === 'system' && 'hidden sm:inline', !on && 'line-through')}>{groupLabel(sys)}</span>
                     <span className="num text-xs text-muted-foreground">{n}</span>
                   </button>
                 );
@@ -909,7 +940,7 @@ export default function KnowledgeGraphView() {
         </aside>
       )}
       {!isDesktop && (
-        <DetailSheet open={!!selectedNode} onOpenChange={(o) => { if (!o) selectNode(null); }} title={selectedNode ? pretty(selectedNode.id) : ''} description={selectedNode ? `${systemName(selectedNode.system)} · ${selectedNode.domain}` : undefined}>
+        <DetailSheet open={!!selectedNode} onOpenChange={(o) => { if (!o) selectNode(null); }} title={selectedNode ? pretty(selectedNode.id) : ''} description={selectedNode ? (selectedNode.src ? `${systemName(selectedNode.src)} · ${selectedNode.domain}` : selectedNode.domain) : undefined}>
           {inspector}
         </DetailSheet>
       )}
@@ -922,10 +953,10 @@ export default function KnowledgeGraphView() {
 function InspectorTitle({ node }: { node: GraphNode }) {
   return (
     <div className="flex min-w-0 items-start gap-3">
-      <SystemLogo system={node.system} tile size="md" />
+      <SystemLogo system={node.src || 'ontology'} tile size="md" />
       <div className="min-w-0">
         <h2 className="truncate text-lg font-medium tracking-tight text-foreground">{pretty(node.id)}</h2>
-        <p className="truncate text-xs text-muted-foreground">{systemName(node.system)} · {node.domain}</p>
+        <p className="truncate text-xs text-muted-foreground">{node.src ? `${systemName(node.src)} · ${node.domain}` : `Canonical entity · ${node.domain}`}</p>
       </div>
     </div>
   );
@@ -977,7 +1008,7 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5 text-sm">
               <span className="text-muted-foreground">{dir === 'out' ? relLabel(e.type) : `${relLabel(e.type)} this, from`}</span>
-              {otherNode && <SystemLogo system={otherNode.system} size="xs" />}
+              {otherNode?.src && <SystemLogo system={otherNode.src} size="xs" />}
               <span className="truncate font-medium text-foreground group-hover:underline group-hover:underline-offset-4">{pretty(other)}</span>
             </span>
             {e.description && <span className="mt-0.5 block text-xs text-muted-foreground">{e.description}</span>}
@@ -1089,7 +1120,7 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
                   { label: 'Source', value: <span className="inline-flex items-center gap-1.5"><SystemLogo system={activeRule.sourceSystem} size="xs" />{systemName(activeRule.sourceSystem)}</span> },
                   { label: 'Source table', value: `${activeRule.sourceSchema ? activeRule.sourceSchema + '.' : ''}${activeRule.sourceTable}`, mono: true },
                   { label: 'Access', value: activeRule.sourceType },
-                  { label: 'Fields mapped', value: activeRule.fieldMaps?.length ?? 0 },
+                  { label: 'Fields mapped', value: activeRule.fieldMaps?.length ? activeRule.fieldMaps.length : 'All columns, as they are' },
                 ]}
               />
               {rules.length > 1 && <p className="mt-3 text-xs text-muted-foreground">{rules.length - 1} more {rules.length === 2 ? 'rule' : 'rules'} for this entity.</p>}

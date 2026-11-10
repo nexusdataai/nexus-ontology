@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
   // available. Off unless VITE_SAMPLE_DATA=true is set in .env.local.
   const useSampleData = env.VITE_SAMPLE_DATA === "true";
 
+  // Development-only: point the dev server at a running backend other than
+  // localhost (for example a shared test environment) with VITE_PROXY_TARGET.
+  const apiTarget = env.VITE_PROXY_TARGET || "http://localhost:8000";
+
   const plugins: PluginOption[] = [react()];
   if (useSampleData) plugins.push(sampleData());
 
@@ -17,11 +21,11 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
       proxy: {
-        '/api': { target: 'http://localhost:8000', changeOrigin: true },
-        '/health': { target: 'http://localhost:8000', changeOrigin: true },
-        '/stats': { target: 'http://localhost:8000', changeOrigin: true },
-        '/tools': { target: 'http://localhost:8000', changeOrigin: true },
-        '/journeys': { target: 'http://localhost:8000', changeOrigin: true },
+        '/api': { target: apiTarget, changeOrigin: true },
+        '/health': { target: apiTarget, changeOrigin: true },
+        '/stats': { target: apiTarget, changeOrigin: true },
+        '/tools': { target: apiTarget, changeOrigin: true },
+        '/journeys': { target: apiTarget, changeOrigin: true },
         '/docs': {
           target: 'http://localhost:8001',
           rewrite: (path) => path.replace(/^\/docs/, ''),

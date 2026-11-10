@@ -23,7 +23,7 @@ function statusTone(v: string): Tone | undefined {
 
 function formatNumber(col: string, v: unknown) {
   const n = Number(v);
-  if (/(amount|spend|value|revenue|price|cost|clv|_ar$)/.test(col)) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  if (/(amount|spend|revenue|price|cost|clv|_ar$|(order|invoice|deal|contract|total|open|net|gross)_value)/.test(col)) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   if (/(rate|pct|percent|share)$/.test(col)) return `${(Math.abs(n) <= 1 ? n * 100 : n).toFixed(1)}%`;
   return Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }

@@ -1,10 +1,11 @@
 import { useMemo, useCallback } from 'react';
-import { ResponsiveGridLayout, useContainerWidth, type Layout } from 'react-grid-layout';
+import { ResponsiveGridLayout, useContainerWidth, type Layout, type LayoutItem } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { PanelModel, GridPos } from '../model';
 import type { TimeRange } from '../types';
 import { PanelChrome } from './PanelChrome';
+import { EmptyState } from '@/components/ds/primitives';
 
 interface Props {
   panels: PanelModel[];
@@ -20,7 +21,7 @@ const COLS = { lg: 24, md: 24, sm: 12, xs: 6 };
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480 };
 const ROW_HEIGHT = 30;
 
-function panelToLayout(panel: PanelModel): Layout {
+function panelToLayout(panel: PanelModel): LayoutItem {
   return {
     i: String(panel.id),
     x: panel.gridPos.x,
@@ -49,7 +50,7 @@ export function DashboardGrid({
   );
 
   const handleLayoutChange = useCallback(
-    (layout: Layout[]) => {
+    (layout: Layout) => {
       const updated = panels.map((panel) => {
         const item = layout.find((l) => l.i === String(panel.id));
         if (!item) return panel;
@@ -71,9 +72,11 @@ export function DashboardGrid({
 
   if (panels.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 border-2 border-dashed border-border rounded-lg">
-        <p className="text-sm text-muted-foreground">No panels. Click "Add Panel" to get started.</p>
-      </div>
+      <EmptyState
+        icon="dashboard"
+        title="No panels yet"
+        description={isEditing ? 'Use "Add panel" to put the first chart, number or table on this dashboard.' : 'This dashboard has no panels. Edit it to add the first one.'}
+      />
     );
   }
 
@@ -114,11 +117,12 @@ export function DashboardGrid({
           cols={COLS}
           rowHeight={ROW_HEIGHT}
           width={width}
-          isDraggable={isEditing}
-          isResizable={isEditing}
+          // react-grid-layout v2 reads dragConfig and resizeConfig; the v1 props
+          // (isDraggable, isResizable, draggableHandle) are ignored, which left
+          // panels movable on the read-only dashboard. Moving only in edit mode.
+          dragConfig={{ enabled: isEditing, handle: '.drag-handle' }}
+          resizeConfig={{ enabled: isEditing }}
           onLayoutChange={handleLayoutChange}
-          draggableHandle=".drag-handle"
-          compactType="vertical"
           margin={[8, 8]}
         >
           {panels.map((panel) => (

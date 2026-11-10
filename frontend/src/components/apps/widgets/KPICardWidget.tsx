@@ -29,15 +29,36 @@ export function KPICardWidget({ widget, data, loading }: Props) {
   let value: number | null = null;
   if (!config.placeholder && data?.rows?.length > 0) {
     const col = widget.query.columns?.[0];
-    const raw = col ? data.rows[0][col] : undefined;
-    const parsed = typeof raw === 'number' ? raw : parseFloat(raw);
+    const rows: any[] = data.rows;
+    const agg = String(widget.query.aggregation || '').toLowerCase();
+    // The query endpoint can return the plain rows instead of one aggregated
+    // row. When it does, work the figure out here so a count is a count and
+    // an average is an average, not the first row.
+    const aggregated = rows.length === 1 && col !== undefined && typeof rows[0][col] === 'number';
+    let parsed = NaN;
+    if (agg && !aggregated && col) {
+      if (agg === 'count') {
+        parsed = typeof data.total === 'number' && data.total > rows.length ? data.total : rows.length;
+      } else {
+        const nums = rows.map(r => (typeof r[col] === 'number' ? r[col] : parseFloat(r[col]))).filter(n => !Number.isNaN(n));
+        if (nums.length > 0) {
+          const sum = nums.reduce((x, y) => x + y, 0);
+          parsed = agg === 'sum' ? sum : agg === 'min' ? Math.min(...nums) : agg === 'max' ? Math.max(...nums) : sum / nums.length;
+        }
+      }
+    } else {
+      const raw = col ? rows[0][col] : undefined;
+      parsed = typeof raw === 'number' ? raw : parseFloat(raw);
+    }
     if (!Number.isNaN(parsed)) value = parsed * ((config.multiply as number) || 1);
   }
 
   const isCurrency = config.format === 'currency';
   const unit = isCurrency ? '' : String(config.unit || '');
   const format = (n: number) =>
-    isCurrency ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    isCurrency || String(widget.query.aggregation || '').toLowerCase() === 'count'
+      ? `${isCurrency ? '$' : ''}${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      : n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const target = config.target as number | undefined;
   const lower = config.direction === 'lower';

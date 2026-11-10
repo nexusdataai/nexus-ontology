@@ -1,22 +1,24 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { cn } from '@/lib/utils';
 
 interface Props {
   value: string;
   onChange: (interval: string) => void;
+  className?: string;
 }
 
 const OFF = '__off__';
 
 const INTERVALS = [
-  { value: OFF, label: 'Off' },
-  { value: '10s', label: '10s' },
-  { value: '30s', label: '30s' },
-  { value: '1m', label: '1m' },
-  { value: '5m', label: '5m' },
-  { value: '15m', label: '15m' },
-  { value: '30m', label: '30m' },
-  { value: '1h', label: '1h' },
+  { value: OFF, label: 'Off', menu: 'Do not refresh' },
+  { value: '10s', label: '10s', menu: 'Every 10 seconds' },
+  { value: '30s', label: '30s', menu: 'Every 30 seconds' },
+  { value: '1m', label: '1m', menu: 'Every minute' },
+  { value: '5m', label: '5m', menu: 'Every 5 minutes' },
+  { value: '15m', label: '15m', menu: 'Every 15 minutes' },
+  { value: '30m', label: '30m', menu: 'Every 30 minutes' },
+  { value: '1h', label: '1h', menu: 'Every hour' },
 ];
 
 export function parseRefreshInterval(interval: string): number {
@@ -32,20 +34,22 @@ export function parseRefreshInterval(interval: string): number {
   }
 }
 
-export function RefreshPicker({ value, onChange }: Props) {
+export function RefreshPicker({ value, onChange, className }: Props) {
   return (
     <Select
       value={value || OFF}
       onValueChange={(v) => onChange(v === OFF ? '' : v)}
     >
-      <SelectTrigger className="h-8 text-xs w-[90px]">
-        <RefreshCw className="h-3 w-3 mr-1 text-muted-foreground" />
-        <SelectValue>{value || 'Off'}</SelectValue>
+      <SelectTrigger aria-label="Refresh" className={cn('h-8 w-auto min-w-[92px] gap-2 text-sm', className)}>
+        <div className="flex items-center gap-2 whitespace-nowrap">
+          <Icon name="refresh" className="h-3.5 w-3.5 text-subtle-foreground" />
+          <SelectValue>{value || 'Off'}</SelectValue>
+        </div>
       </SelectTrigger>
       <SelectContent>
         {INTERVALS.map((i) => (
-          <SelectItem key={i.value} value={i.value} className="text-xs">
-            {i.label}
+          <SelectItem key={i.value} value={i.value}>
+            {i.menu}
           </SelectItem>
         ))}
       </SelectContent>

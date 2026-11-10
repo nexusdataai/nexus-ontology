@@ -303,7 +303,7 @@ export function parseIntegrationDoc(content: string): IntegrationDoc {
 
 /** "credit-approval.yaml" becomes "Credit approval". */
 export function prettyFileName(filename: string): string {
-  const ACRONYM: Record<string, string> = { sf: 'Salesforce', sap: 'SAP', rbac: 'RBAC', po: 'PO', rfx: 'RFx', esg: 'ESG', ap: 'AP', ar: 'AR', gdrive: 'Google Drive', sla: 'SLA' };
+  const ACRONYM: Record<string, string> = { sf: 'Salesforce', sap: 'SAP', rbac: 'RBAC', po: 'PO', rfx: 'RFx', esg: 'ESG', ap: 'AP', ar: 'AR', gdrive: 'Google Drive', sla: 'SLA', cpq: 'CPQ', o2c: 'O2C', kpi: 'KPI', gl: 'GL', erp: 'ERP', crm: 'CRM', tpm: 'TPM', ai: 'AI', api: 'API', sku: 'SKU', dso: 'DSO' };
   const base = String(filename || '').replace(/\.[^.]+$/, '');
   const words = base.split(/[-_\s]+/).filter(Boolean).map(w => ACRONYM[w.toLowerCase()] || w.toLowerCase());
   const out = words.join(' ');

@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ds/Icon';
 import type { PanelModel } from '../model';
 import { getPanelPlugin } from '../panels/registry';
 import { useQueryRunner } from '../runtime/useQueryRunner';
-import type { TimeRange } from '../types';
+import type { DataFrame, TimeRange } from '../types';
 
 interface Props {
   panel: PanelModel;
@@ -16,6 +16,8 @@ interface Props {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onRemove?: () => void;
+  /** Receives the query result, so the panel editor can offer its fields. */
+  onData?: (frames: DataFrame[]) => void;
 }
 
 export function PanelChrome({
@@ -27,12 +29,17 @@ export function PanelChrome({
   onEdit,
   onDuplicate,
   onRemove,
+  onData,
 }: Props) {
   const [hovered, setHovered] = useState(false);
   const plugin = getPanelPlugin(panel.type);
 
   const stableTargets = useMemo(() => panel.targets, [JSON.stringify(panel.targets)]);
   const { panelData } = useQueryRunner(stableTargets, timeRange);
+
+  useEffect(() => {
+    if (onData && panelData.state !== 'loading') onData(panelData.frames || []);
+  }, [panelData.frames, panelData.state]);
 
   const loading = panelData.state === 'loading';
   const error = panelData.error;

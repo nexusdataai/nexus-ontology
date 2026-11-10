@@ -646,7 +646,7 @@ export default function MappingRulesEditor() {
                   <section>
                     <SectionTitle
                       title="Field mapping"
-                      hint={`${mappedCount} of ${editState.fieldMaps.length} fields mapped. Each source column fills one entity field.`}
+                      hint={editState.fieldMaps.length === 0 ? 'No field mapping is set, so every source column is read under its own name. Add fields only where a column must be renamed or transformed.' : `${mappedCount} of ${editState.fieldMaps.length} fields mapped. Each source column fills one entity field.`}
                       action={
                         <Button variant="ghost" size="sm" onClick={handleAutoMatch} disabled={sourceColumns.length === 0} title="Fill empty source fields where the names match">
                           <Icon name="bolt" /> Auto-match
@@ -798,7 +798,7 @@ export default function MappingRulesEditor() {
                         { label: 'Source table', value: sourceTableKey || '—', mono: !!sourceTableKey },
                         { label: 'Source type', value: editState.sourceType },
                         { label: 'Virtual entity', value: editState.virtualEntity || '—' },
-                        { label: 'Fields mapped', value: <span className="num">{mappedCount} of {editState.fieldMaps.length}</span> },
+                        { label: 'Fields mapped', value: editState.fieldMaps.length === 0 ? 'All columns, as they are' : <span className="num">{mappedCount} of {editState.fieldMaps.length}</span> },
                         { label: 'Status', value: <StatusPill status={editState.status} /> },
                       ]}
                     />

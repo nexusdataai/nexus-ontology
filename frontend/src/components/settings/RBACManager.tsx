@@ -8,6 +8,7 @@ import { Icon } from '@/components/ds/Icon';
 import { CodeBlock, DetailSheet, InlineError, KeyValues, Meter, StatusPill, SubHeading, TableShell } from '@/components/ds/kit';
 import { EmptyState } from '@/components/ds/primitives';
 import { useEnterpriseAuth } from '@/context/EnterpriseAuthContext';
+import { Permission } from '@/types/auth';
 import { cn } from '@/lib/utils';
 
 const formatDateTime = (iso: string) => {
@@ -279,7 +280,7 @@ const RBACMatrix: React.FC = () => {
   };
 
   // Check if user has permission to manage RBAC
-  const canManageRBAC = hasPermission('manage_rbac') || profile?.role === 'Admin';
+  const canManageRBAC = hasPermission(Permission.MANAGE_RBAC) || profile?.role === 'Admin';
 
   const heading = (
     <div className="min-w-0">

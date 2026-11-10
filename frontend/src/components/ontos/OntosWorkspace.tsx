@@ -1,36 +1,39 @@
 /**
- * Ontos Workspace Container Component
+ * Runtime explorer workspace for one source.
  *
- * Provides a tabbed interface for FDW capabilities:
- * - Dashboard: Health status and summary metrics
- * - FDW Explorer: Browse foreign servers, tables, and columns
- * - Query Builder: Execute FDW queries
+ * - A bar with two tabs and the source overview (status, schema, server,
+ *   tables, mapped tables).
+ * - Tables: browse the tables the source exposes, their columns, a row
+ *   preview and the virtual entity each table is mapped to.
+ * - Query: build and run a read query against one table.
+ *
+ * The active tab lives in the URL (?tab=); `mode` and `source` are untouched.
  */
 
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import {
-  LayoutDashboard,
-  Database,
-  Terminal,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { useUrlTab } from '@/components/ds/PageTabs';
+import type { IconName } from '@/components/ds/Icon';
+import { cn } from '@/lib/utils';
+import { fdwService } from '@/services/fdwService';
+import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
+import type { ForeignTableInfo } from '@/types/fdwTypes';
+import { ontosKeys } from './queryKeys';
 import { OntosDashboard } from './OntosDashboard';
-import { FdwExplorer } from './FdwExplorer';
+import { FdwExplorer, buildMappingIndex, tableKey, type MappingInfo, type TableRef } from './FdwExplorer';
 import { QueryBuilder } from './QueryBuilder';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type OntosTabId =
-  | 'dashboard'
-  | 'fdw-explorer'
-  | 'query-builder';
+export type OntosTabId = 'tables' | 'query';
 
 export interface OntosTabConfig {
   id: OntosTabId;
   label: string;
-  icon: React.ReactNode;
+  icon: IconName;
 }
 
 export interface OntosWorkspaceProps {
@@ -44,67 +47,83 @@ export interface OntosWorkspaceProps {
 // ============================================================================
 
 export const ONTOS_TAB_CONFIGS: OntosTabConfig[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: <LayoutDashboard className="h-4 w-4" />,
-  },
-  {
-    id: 'fdw-explorer',
-    label: 'FDW Explorer',
-    icon: <Database className="h-4 w-4" />,
-  },
-  {
-    id: 'query-builder',
-    label: 'Query Builder',
-    icon: <Terminal className="h-4 w-4" />,
-  },
+  { id: 'tables', label: 'Tables', icon: 'table' },
+  { id: 'query', label: 'Query', icon: 'terminal' },
 ];
 
 // ============================================================================
 // Component
 // ============================================================================
 
-export function OntosWorkspace({ prefillStandard, prefillResource, fdwSource }: OntosWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<OntosTabId>('dashboard');
+export function OntosWorkspace({ fdwSource }: OntosWorkspaceProps) {
+  const [urlTab, setTab] = useUrlTab('tables');
+  const activeTab: OntosTabId = urlTab === 'query' ? 'query' : 'tables';
+
+  // Table open in the Tables tab: the Query tab starts on the same one.
+  const [currentTable, setCurrentTable] = useState<TableRef | null>(null);
+  // "Query this table" from the Tables tab.
+  const [queryTarget, setQueryTarget] = useState<(TableRef & { nonce: number }) | null>(null);
+
+  const tablesQuery = useQuery<ForeignTableInfo[]>({
+    queryKey: [...ontosKeys.tables(), fdwSource],
+    queryFn: () => fdwService.listTables(undefined, fdwSource),
+    staleTime: 300000,
+  });
+
+  // Read-only: which tables are bound to a virtual entity.
+  const rulesQuery = useQuery<MappingRule[]>({
+    queryKey: ['mapping-rules', 'all'],
+    queryFn: () => mappingRuleService.list(),
+    staleTime: 300000,
+    retry: false,
+  });
+
+  const mapping: MappingInfo = useMemo(() => ({
+    index: buildMappingIndex(rulesQuery.data ?? []),
+    state: rulesQuery.isLoading ? 'loading' : rulesQuery.isError ? 'error' : 'ready',
+    retry: () => { rulesQuery.refetch(); },
+  }), [rulesQuery.data, rulesQuery.isLoading, rulesQuery.isError, rulesQuery.refetch]);
+
+  const mappedCount = useMemo(() => {
+    if (mapping.state !== 'ready' || !tablesQuery.data) return undefined;
+    return tablesQuery.data.filter(t => mapping.index.has(tableKey(t.schemaName, t.tableName))).length;
+  }, [mapping, tablesQuery.data]);
+
+  const openInQuery = (ref: TableRef) => {
+    setQueryTarget({ ...ref, nonce: Date.now() });
+    setTab('query');
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as OntosTabId)}
-        className="flex-1 flex flex-col"
-      >
-        <div className="border-b border-border px-6 pt-3">
-          <TabsList className="bg-transparent gap-1 h-auto p-0">
-            {ONTOS_TAB_CONFIGS.map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1.5 text-xs px-3 py-1.5 rounded-t-md rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary/40"
-                data-testid={`ontos-tab-${tab.id}`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
+    // The whole workspace is the full-height pane: the bar takes what it needs, the view gets the rest.
+    <div className="flex h-pane min-h-0 min-w-0 flex-col" data-testid="ontos-workspace">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 border-b border-border px-4 pt-1 sm:px-6 lg:px-8">
+        <Tabs value={activeTab} onValueChange={setTab} className="order-2 -mb-px w-full xl:order-1 xl:w-auto">
+          <TabsList variant="line" className="w-auto border-b-0">
+            {ONTOS_TAB_CONFIGS.map(tab => (
+              <TabsTrigger key={tab.id} value={tab.id} data-testid={`ontos-tab-${tab.id}`}>
+                {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
+        </Tabs>
+        <OntosDashboard fdwSource={fdwSource} mappedCount={mappedCount} className="order-1 py-1.5 xl:order-2" />
+      </div>
+
+      {/* Both views stay mounted so a built query and its results survive a tab switch. */}
+      <div className="min-h-0 flex-1">
+        <div className={cn('h-full min-h-0', activeTab !== 'tables' && 'hidden')} role="tabpanel" aria-label="Tables">
+          <FdwExplorer
+            fdwSource={fdwSource}
+            mapping={mapping}
+            onCurrentChange={setCurrentTable}
+            onQueryTable={openInQuery}
+          />
         </div>
-
-        <div className="flex-1 overflow-auto">
-          <TabsContent value="dashboard" className="h-full m-0">
-            <OntosDashboard fdwSource={fdwSource} />
-          </TabsContent>
-
-          <TabsContent value="fdw-explorer" className="h-full m-0">
-            <FdwExplorer fdwSource={fdwSource} />
-          </TabsContent>
-
-          <TabsContent value="query-builder" className="h-full m-0">
-            <QueryBuilder fdwSource={fdwSource} />
-          </TabsContent>
+        <div className={cn('h-full min-h-0', activeTab !== 'query' && 'hidden')} role="tabpanel" aria-label="Query">
+          <QueryBuilder fdwSource={fdwSource} defaultTable={currentTable} target={queryTarget} />
         </div>
-      </Tabs>
+      </div>
     </div>
   );
 }

@@ -60,7 +60,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
         
         if (resumingJourney) {
           // Resuming existing journey - get fresh data to ensure latest state
-          const freshJourney = transformationJourneyService.getJourney(resumingJourney.id);
+          const freshJourney = await transformationJourneyService.getJourney(resumingJourney.id);
           if (!freshJourney) {
             console.error('🌟 Journey not found when resuming:', resumingJourney.id);
             return;
@@ -169,7 +169,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
           const journeyName = `${selectedSchema.name} Transformation`;
           const journeyDescription = `Complete transformation of ${selectedSchema.name} schema to TMF 629 Customer Management API`;
           
-          const newJourney = transformationJourneyService.createJourney({
+          const newJourney = await transformationJourneyService.createJourney({
             name: journeyName,
             description: journeyDescription,
             priority: 'medium',
@@ -228,8 +228,8 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
   useEffect(() => {
     if (!resumingJourney || !transformationJourney || !session) return;
 
-    const refreshInterval = setInterval(() => {
-      const freshJourney = transformationJourneyService.getJourney(transformationJourney.id);
+    const refreshInterval = setInterval(async () => {
+      const freshJourney = await transformationJourneyService.getJourney(transformationJourney.id);
       if (freshJourney) {
         // Check if journey state has changed
         const stageIndexChanged = freshJourney.currentStageIndex !== currentStageIndex;
@@ -338,7 +338,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
       }
       
       // Set up periodic refresh to show stage progress
-      const refreshInterval = setInterval(() => {
+      const refreshInterval = setInterval(async () => {
         const freshSession = discoveryWizardService.getSession(session.id);
         if (freshSession) {
           setSession(freshSession);
@@ -379,7 +379,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
         setSession(updatedSession);
         
         // Set up periodic refresh to show stage progress
-        const refreshInterval = setInterval(() => {
+        const refreshInterval = setInterval(async () => {
           const freshSession = discoveryWizardService.getSession(session.id);
           if (freshSession) {
             setSession(freshSession);

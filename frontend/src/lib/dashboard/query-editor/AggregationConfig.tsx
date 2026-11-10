@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { Field } from '@/components/ds/kit';
 import type { AggregationConfig as AggConfig } from '../types';
+import { ToggleChip } from './FieldSelector';
 
 interface Props {
   aggregation?: AggConfig;
@@ -13,12 +14,12 @@ interface Props {
 const NONE = '__none__';
 
 const AGG_FUNCTIONS = [
-  { value: NONE, label: 'None' },
-  { value: 'count', label: 'Count' },
+  { value: NONE, label: 'No summary (show rows)' },
+  { value: 'count', label: 'Count of rows' },
   { value: 'sum', label: 'Sum' },
   { value: 'avg', label: 'Average' },
-  { value: 'min', label: 'Min' },
-  { value: 'max', label: 'Max' },
+  { value: 'min', label: 'Minimum' },
+  { value: 'max', label: 'Maximum' },
 ] as const;
 
 export function AggregationConfig({
@@ -52,60 +53,55 @@ export function AggregationConfig({
     }
   };
 
+  const fields = availableFields || [];
+
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Label className="text-xs text-muted-foreground">Aggregation</Label>
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Summarise">
           <Select value={aggregation?.function || NONE} onValueChange={handleFunctionChange}>
-            <SelectTrigger className="h-7 text-xs mt-1">
-              <SelectValue placeholder="None" />
+            <SelectTrigger aria-label="Summarise" className="h-8">
+              <SelectValue placeholder="No summary" />
             </SelectTrigger>
             <SelectContent>
               {AGG_FUNCTIONS.map((fn) => (
-                <SelectItem key={fn.value} value={fn.value} className="text-xs">{fn.label}</SelectItem>
+                <SelectItem key={fn.value} value={fn.value}>{fn.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         {aggregation && aggregation.function !== 'count' && (
-          <div className="flex-1">
-            <Label className="text-xs text-muted-foreground">Agg. Field</Label>
+          <Field label="Of field">
             <Select value={aggregation.field || NONE} onValueChange={handleFieldChange}>
-              <SelectTrigger className="h-7 text-xs mt-1">
-                <SelectValue placeholder="Select field" />
+              <SelectTrigger aria-label="Field to summarise" className="h-8">
+                <SelectValue placeholder="Choose a field" />
               </SelectTrigger>
               <SelectContent>
-                {(availableFields || []).map((f) => (
-                  <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
+                {aggregation.field && !fields.includes(aggregation.field) && (
+                  <SelectItem value={aggregation.field}>{aggregation.field}</SelectItem>
+                )}
+                {fields.map((f) => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         )}
       </div>
       {aggregation && (
         <div>
-          <Label className="text-xs text-muted-foreground">Group By</Label>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {(availableFields || []).map((f) => {
-              const selected = groupBy.includes(f);
-              return (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => handleGroupByChange(f)}
-                  className={`px-2 py-0.5 rounded text-xs border transition-colors ${
-                    selected
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-muted-foreground border-border hover:border-primary/50'
-                  }`}
-                >
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Group by</span>
+          {fields.length === 0 ? (
+            <p className="text-xs text-subtle-foreground">No fields to group by.</p>
+          ) : (
+            <div className="scroll-thin flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+              {fields.map((f) => (
+                <ToggleChip key={f} selected={groupBy.includes(f)} onClick={() => handleGroupByChange(f)}>
                   {f}
-                </button>
-              );
-            })}
-          </div>
+                </ToggleChip>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

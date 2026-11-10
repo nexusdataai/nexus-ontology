@@ -414,7 +414,8 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
     status: 'pending' | 'running' | 'completed' | 'failed';
     progress: number;
     duration?: string;
-    logsCount: number;
+    // Optional: a task_progress event can create an entry before any log arrives.
+    logsCount?: number;
     itemsProcessed?: number;
     itemsTotal?: number;
   }>>({});
@@ -1592,10 +1593,12 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
     const avgSecs = durations.length > 0
       ? durations.reduce((a, b) => a + b, 0) / durations.length
       : 0;
+    const finishedJobs = jobHistory.filter(j => !['running', 'in_progress', 'pending', 'queued'].includes(String(j.status)));
     return {
       primaryValue: jobHistory.reduce((acc, job) => acc + (job.itemsProcessed || (job as any).metrics?.itemsProcessed || 0), 0),
-      successRate: jobHistory.length > 0
-        ? Math.round((jobHistory.filter(j => j.status === 'completed').length / jobHistory.length) * 100)
+      // A run that is still going is neither a success nor a failure yet.
+      successRate: finishedJobs.length > 0
+        ? Math.round((finishedJobs.filter(j => j.status === 'completed').length / finishedJobs.length) * 100)
         : 0,
       avgDuration: formatDuration(Number.isFinite(avgSecs) ? Math.round(avgSecs) : 0),
       completedJobs: jobHistory.filter(j => j.status === 'completed').length,
@@ -1689,9 +1692,11 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
   const typeLabel = humanize(journey?.solutionId || journey?.type);
   const metaParts = [typeLabel, scheduleInWords(activeSchedule), sourceMode].filter(Boolean) as string[];
 
+  // The journey stays "pending" between runs; say how the last run ended instead of "Not run yet".
+  const lastRunStatus: string = stageStatusForDisplay === 'pending' ? String((jobHistory[0] as any)?.status || '') : '';
   const statusLabel = isStageRunning
     ? `Running, ${overallProgress}%`
-    : stageStatusForDisplay === 'pending' ? 'Not run yet' : stageStatusForDisplay;
+    : stageStatusForDisplay === 'pending' ? (lastRunStatus ? `Idle, last run ${lastRunStatus}` : 'Not run yet') : stageStatusForDisplay;
 
   const backToLatest = () => {
     setSelectedJobId(null);
@@ -1721,7 +1726,7 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
     </Button>
   ) : (
     <Button onClick={handleRunJob} disabled={isRunningJob}>
-      <Icon name="play" /> {stageStatusForDisplay === 'pending' ? 'Run now' : 'Run again'}
+      <Icon name="play" /> {stageStatusForDisplay === 'pending' && !lastRunStatus ? 'Run now' : 'Run again'}
     </Button>
   );
 
@@ -1778,7 +1783,7 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
               {hideHeader
                 ? <h2 className="text-md font-medium text-foreground">{activeStage.name}</h2>
                 : <h1 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">{journey?.name || 'Journey'}</h1>}
-              <StatusPill status={stageStatusForDisplay} variant="soft">{statusLabel}</StatusPill>
+              <StatusPill status={lastRunStatus || stageStatusForDisplay} variant="soft">{statusLabel}</StatusPill>
             </div>
             <p className="mt-1.5 text-sm text-muted-foreground">{metaParts.join(' · ')}</p>
             {!hideHeader && (
@@ -1833,7 +1838,7 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
             {
               label: 'Success rate',
               value: `${stats.successRate}%`,
-              hint: isViewingSelectedJob ? 'This run' : `${stats.completedJobs} of ${stats.totalJobs} runs completed`,
+              hint: isViewingSelectedJob ? 'This run' : (stats.totalJobs - stats.completedJobs - stats.failedJobs > 0 && isStageRunning ? `${stats.completedJobs} completed, 1 running` : `${stats.completedJobs} of ${stats.totalJobs} runs completed`),
             },
             {
               label: isViewingSelectedJob ? 'Duration' : 'Average duration',
@@ -1883,7 +1888,7 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
             <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{activeStage.description}</p>
           </div>
           <p className="num flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-            <span>{completedSteps} of {activeSteps.length} steps done</span>
+            <span>{lastRunStatus && completedSteps === 0 ? `${activeSteps.length} steps, last run ${lastRunStatus}` : `${completedSteps} of ${activeSteps.length} steps done`}</span>
             {displayJobId && <span className="mono-id" title={displayJobId}>Run {displayJobId.slice(-8)}</span>}
           </p>
         </div>

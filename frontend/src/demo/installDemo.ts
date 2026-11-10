@@ -50,6 +50,8 @@ export function installDemo() {
       return new Response(JSON.stringify(out), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // Logged so scripts/check-pages.mjs can list screens the sample data does not cover yet.
+    console.warn(`[demo] No sample data for ${method} ${path}`);
     return new Response(JSON.stringify({ message: `No sample data for ${method} ${path}` }), { status: 404, headers: { 'Content-Type': 'application/json' } });
   };
 

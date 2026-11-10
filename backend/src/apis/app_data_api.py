@@ -129,13 +129,21 @@ async def widget_query(app_id: str, req: WidgetQueryRequest):
         if req.filters:
             filters_list = [VirtualFilter(field=k, operator="eq", value=v) for k, v in req.filters.items()]
 
-        vq = VQR(virtual_entity=req.entity, fields=req.columns, filters=filters_list, limit=req.limit)
+        # An aggregate must see every row, not the first `limit` rows: the
+        # limit applies to the aggregated result instead.
+        read_limit = 10000 if req.aggregation else req.limit
+        vq = VQR(virtual_entity=req.entity, fields=req.columns, filters=filters_list, limit=read_limit)
         resp = await _virtual_query_service.query_virtual_entity(vq)
         rows = resp.rows
 
         if req.aggregation and req.groupBy:
             rows = _aggregate(rows, column=req.columns[0] if req.columns else None,
                               aggregation=req.aggregation, group_by=req.groupBy)
+        elif req.aggregation:
+            # No group: one row with the figure under the requested column,
+            # which is how KPI widgets read it (rows[0][columns[0]]).
+            rows = [_aggregate_all(rows, column=req.columns[0] if req.columns else None,
+                                   aggregation=req.aggregation)]
 
         if req.orderBy:
             desc = False
@@ -168,6 +176,30 @@ def _sort_key(val):
         return float(val)
     except (ValueError, TypeError):
         return str(val)
+
+
+def _aggregate_all(rows: List[Dict], column: Optional[str], aggregation: str) -> Dict:
+    agg = aggregation.lower()
+    key = column or "value"
+    if agg == "count" or not column:
+        return {key: len(rows)}
+    vals = []
+    for r in rows:
+        try:
+            v = r.get(column)
+            if v is not None and v != "":
+                vals.append(float(v))
+        except (ValueError, TypeError):
+            pass
+    if not vals:
+        return {key: None}
+    if agg == "sum":
+        return {key: sum(vals)}
+    if agg == "min":
+        return {key: min(vals)}
+    if agg == "max":
+        return {key: max(vals)}
+    return {key: sum(vals) / len(vals)}
 
 
 def _aggregate(rows: List[Dict], column: Optional[str], aggregation: str, group_by: str) -> List[Dict]:

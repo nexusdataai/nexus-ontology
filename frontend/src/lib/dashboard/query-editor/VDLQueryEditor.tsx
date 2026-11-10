@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play } from 'lucide-react';
+import { Field } from '@/components/ds/kit';
 import type { PanelQuery, FieldDescriptor } from '../types';
 import { EntitySelector } from './EntitySelector';
 import { FieldSelector } from './FieldSelector';
@@ -17,7 +15,10 @@ interface Props {
   onRunQuery: () => void;
 }
 
-export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
+const NONE = '__none__';
+
+/** One query on a virtual entity: entity, fields, filters, summary, sort, limit. */
+export function VDLQueryEditor({ query, onChange }: Props) {
   const [availableFields, setAvailableFields] = useState<FieldDescriptor[]>([]);
 
   useEffect(() => {
@@ -45,15 +46,10 @@ export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
     [query, onChange],
   );
 
-  return (
-    <div className="space-y-3 p-3 border rounded-lg bg-card">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Query {query.refId}</span>
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onRunQuery} type="button">
-          <Play className="h-3 w-3 mr-1" /> Run
-        </Button>
-      </div>
+  const sortField = query.orderBy?.replace(/\s+(ASC|DESC)$/i, '').trim() || '';
 
+  return (
+    <div className="space-y-4">
       <EntitySelector value={query.entity} onChange={handleEntityChange} />
 
       {query.entity && (
@@ -74,68 +70,71 @@ export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
             availableFields={fieldNames}
           />
 
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Label className="text-xs text-muted-foreground">Order By</Label>
-              <div className="flex gap-1 mt-1">
-                {fieldNames.length > 0 ? (
-                  <Select
-                    value={query.orderBy?.replace(/\s+(ASC|DESC)$/i, '').trim() || '__none__'}
-                    onValueChange={(v) => {
-                      if (v === '__none__') {
-                        onChange({ ...query, orderBy: undefined });
-                        return;
-                      }
-                      const dir = query.orderBy?.match(/\s+(ASC|DESC)$/i)?.[1] || '';
-                      onChange({ ...query, orderBy: `${v}${dir ? ' ' + dir : ''}` });
-                    }}
-                  >
-                    <SelectTrigger className="h-7 text-xs flex-1">
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__" className="text-xs">None</SelectItem>
-                      {fieldNames.map((f) => (
-                        <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    className="h-7 text-xs flex-1"
-                    value={query.orderBy || ''}
-                    onChange={(e) => onChange({ ...query, orderBy: e.target.value || undefined })}
-                    placeholder="field ASC/DESC"
-                  />
-                )}
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_132px_96px]">
+            <Field label="Sort by">
+              {fieldNames.length > 0 ? (
                 <Select
-                  value={query.orderBy?.match(/\s+(ASC|DESC)$/i)?.[1]?.toUpperCase() || 'ASC'}
-                  onValueChange={(dir) => {
-                    const field = query.orderBy?.replace(/\s+(ASC|DESC)$/i, '').trim();
-                    if (field) onChange({ ...query, orderBy: `${field} ${dir}` });
+                  value={sortField || NONE}
+                  onValueChange={(v) => {
+                    if (v === NONE) {
+                      onChange({ ...query, orderBy: undefined });
+                      return;
+                    }
+                    const dir = query.orderBy?.match(/\s+(ASC|DESC)$/i)?.[1] || '';
+                    onChange({ ...query, orderBy: `${v}${dir ? ' ' + dir : ''}` });
                   }}
                 >
-                  <SelectTrigger className="h-7 text-xs w-[70px]">
-                    <SelectValue />
+                  <SelectTrigger aria-label="Sort by" className="h-8">
+                    <SelectValue placeholder="No sorting" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ASC" className="text-xs">ASC</SelectItem>
-                    <SelectItem value="DESC" className="text-xs">DESC</SelectItem>
+                    <SelectItem value={NONE}>No sorting</SelectItem>
+                    {sortField && !fieldNames.includes(sortField) && (
+                      <SelectItem value={sortField}>{sortField}</SelectItem>
+                    )}
+                    {fieldNames.map((f) => (
+                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-            <div className="w-[80px]">
-              <Label className="text-xs text-muted-foreground">Limit</Label>
+              ) : (
+                <Input
+                  className="h-8"
+                  value={query.orderBy || ''}
+                  onChange={(e) => onChange({ ...query, orderBy: e.target.value || undefined })}
+                  placeholder="Field name, then ASC or DESC"
+                  aria-label="Sort by"
+                />
+              )}
+            </Field>
+            <Field label="Direction">
+              <Select
+                value={query.orderBy?.match(/\s+(ASC|DESC)$/i)?.[1]?.toUpperCase() || 'ASC'}
+                onValueChange={(dir) => {
+                  const field = query.orderBy?.replace(/\s+(ASC|DESC)$/i, '').trim();
+                  if (field) onChange({ ...query, orderBy: `${field} ${dir}` });
+                }}
+              >
+                <SelectTrigger aria-label="Sort direction" className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ASC">Ascending</SelectItem>
+                  <SelectItem value="DESC">Descending</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Row limit">
               <Input
-                className="h-7 text-xs mt-1"
+                className="num h-8"
                 type="number"
                 value={query.limit ?? 100}
                 onChange={(e) => onChange({ ...query, limit: Number(e.target.value) || 100 })}
                 min={1}
                 max={10000}
+                aria-label="Row limit"
               />
-            </div>
+            </Field>
           </div>
         </>
       )}

@@ -65,9 +65,21 @@ export function JourneyCard({
   const any = journey as any;
   const solution = journey.solutionId ? humanize(journey.solutionId) : '';
   const kind = typeLabel(journey);
-  const about = any.description || currentStage?.description || solution || TYPE_NAME[kind] || humanize(kind);
+  // The backend stores every journey with the default call-processing text
+  // and stage list, even when it is a solution journey. Do not show those as
+  // if they described this journey.
+  const LEGACY_TEXT = /^(call processing journey|fetch tasks from webex)/i;
+  const clean = (t?: string) => (t && !LEGACY_TEXT.test(t.trim()) ? t : '');
+  const legacyStages = LEGACY_TEXT.test(String(stages[0]?.description || '')) && !/call|webex/i.test(String(journey.name || ''));
+  const about = clean(any.description) || (legacyStages ? '' : clean(currentStage?.description)) || (solution ? `Automation for ${solution}` : '') || (/journey/i.test(TYPE_NAME[kind] || kind) ? 'Automation journey' : `${TYPE_NAME[kind] || humanize(kind)} journey`);
+  // A journey that has finished runs is not "not run yet", whatever its stored status says.
+  const idle = journey.status === 'created' || (journey.status as string) === 'pending';
+  const shownStatus: string = idle && total > 0 ? (running > 0 ? 'running' : done > 0 ? 'completed' : failed > 0 ? 'failed' : journey.status) : journey.status;
+  const statusPill = <StatusPill status={shownStatus === 'created' || shownStatus === 'pending' ? 'not run yet' : shownStatus} tone={shownStatus === 'created' || shownStatus === 'pending' ? 'neutral' : undefined} />;
+  const useRuns = legacyStages || stages.length <= 1;
+  const runsPct = total > 0 ? Math.round(((done + failed) * 100) / total) : 0;
   const lastMoved = journey.completedAt || journey.startedAt || any.updatedAt || journey.createdAt;
-  const overall = Math.max(0, Math.min(100, Math.round(journey.overallProgress || 0)));
+  const overall = useRuns && total > 0 ? runsPct : Math.max(0, Math.min(100, Math.round(journey.overallProgress || 0)));
   const nextRun = any.nextRunAt || any.next_run_at;
 
   return (
@@ -84,7 +96,7 @@ export function JourneyCard({
       <div className="min-w-0">
         <div className="flex items-start justify-between gap-3 lg:block">
           <h3 className="truncate text-md font-medium text-foreground" data-testid="journey-name">{journey.name}</h3>
-          <span className="shrink-0 lg:hidden"><StatusPill status={journey.status === 'created' ? 'not run yet' : journey.status} tone={journey.status === 'created' ? 'neutral' : undefined} /></span>
+          <span className="shrink-0 lg:hidden">{statusPill}</span>
         </div>
         <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{about}</p>
         <p className="mt-1 flex items-center gap-2 text-xs text-subtle-foreground">
@@ -95,8 +107,8 @@ export function JourneyCard({
 
       {/* Stage progress: one segment per stage, one hue */}
       <div className="mt-3 min-w-0 lg:mt-0">
-        <div className="flex h-1.5 gap-0.5" role="img" aria-label={`${overall}% of the stages done`}>
-          {stages.length > 1 ? stages.map((s, i) => (
+        <div className="flex h-1.5 gap-0.5" role="img" aria-label={`${overall}% done`}>
+          {!useRuns ? stages.map((s, i) => (
             <span key={s.id || i} className="h-full flex-1 overflow-hidden rounded-full bg-surface-3">
               <span
                 className={cn(
@@ -111,16 +123,16 @@ export function JourneyCard({
             </span>
           )) : (
             <span className="h-full flex-1 overflow-hidden rounded-full bg-surface-3">
-              <span className={cn('grow-x block h-full rounded-full', journey.status === 'failed' ? 'bg-destructive' : 'bg-primary')} style={{ width: `${overall}%` }} />
+              <span className={cn('grow-x block h-full rounded-full', shownStatus === 'failed' ? 'bg-destructive' : 'bg-primary')} style={{ width: `${overall}%` }} />
             </span>
           )}
         </div>
         <p className="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
           {isRunning && <span className="dot-live shrink-0 text-primary dark:text-brand-hi" aria-hidden="true" />}
           <span className="truncate">
-            {stages.length > 1
+            {!useRuns
               ? `Stage ${Math.min((journey.currentStageIndex || 0) + 1, stages.length)} of ${stages.length}${currentStage?.name ? `: ${currentStage.name}` : ''}`
-              : currentStage?.name || 'Pipeline'}
+              : total > 0 ? `${(done + failed).toLocaleString()} of ${total.toLocaleString()} ${total === 1 ? 'run' : 'runs'} finished` : 'Ready to run'}
           </span>
           <span className="num shrink-0">{overall}%</span>
         </p>
@@ -149,7 +161,7 @@ export function JourneyCard({
       {/* Status and time */}
       <div className="mt-3 min-w-0 lg:mt-0">
         <span className="hidden lg:block" data-testid="journey-status">
-          <StatusPill status={journey.status === 'created' ? 'not run yet' : journey.status} tone={journey.status === 'created' ? 'neutral' : undefined} />
+          {statusPill}
         </span>
         <p className="text-xs text-muted-foreground lg:mt-0.5">
           <span data-testid="journey-created-at">{formatRelativeTime(lastMoved)}</span>

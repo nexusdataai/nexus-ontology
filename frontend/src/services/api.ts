@@ -1,6 +1,31 @@
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Order, Analytics, Customer, OrderItem } from '@/types/database.types';
+
+// The shared Database type (types/database.types.ts) does not satisfy supabase-js's
+// GenericSchema (interface rows, no Relationships), so insert/update on its tables
+// resolve to `never`. This schema types only the writes made below.
+type PlainRow<T> = { [K in keyof T]: T[K] };
+type WritableTable<T> = {
+  Row: PlainRow<T>;
+  Insert: PlainRow<Partial<T>>;
+  Update: PlainRow<Partial<T>>;
+  Relationships: [];
+};
+type ApiWriteDatabase = {
+  public: {
+    Tables: {
+      customers: WritableTable<Customer>;
+      orders: WritableTable<Order>;
+      order_items: WritableTable<OrderItem>;
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+  };
+};
+// Type-only view of the same client object; runtime behaviour is unchanged.
+const writeClient = supabase as unknown as SupabaseClient<ApiWriteDatabase>;
 
 // Products related functions
 export const getProducts = async (): Promise<Product[]> => {
@@ -150,7 +175,7 @@ export const getCustomerById = async (id: string): Promise<Customer> => {
 
 // Create a new customer
 export const createCustomer = async (customerData: Partial<Customer>): Promise<Customer> => {
-  const { data, error } = await supabase
+  const { data, error } = await writeClient
     .from('customers')
     .insert([customerData])
     .select()
@@ -166,7 +191,7 @@ export const createCustomer = async (customerData: Partial<Customer>): Promise<C
 
 // Update a customer
 export const updateCustomer = async (id: string, customerData: Partial<Customer>): Promise<Customer> => {
-  const { data, error } = await supabase
+  const { data, error } = await writeClient
     .from('customers')
     .update(customerData)
     .eq('id', id)
@@ -184,7 +209,7 @@ export const updateCustomer = async (id: string, customerData: Partial<Customer>
 // Create a new order
 export const createOrder = async (orderData: Partial<Order>, orderItems: Partial<OrderItem>[]): Promise<Order> => {
   // Start a transaction
-  const { data: order, error: orderError } = await supabase
+  const { data: order, error: orderError } = await writeClient
     .from('orders')
     .insert([orderData])
     .select()
@@ -205,7 +230,7 @@ export const createOrder = async (orderData: Partial<Order>, orderItems: Partial
     order_id: order.id
   }));
 
-  const { error: itemsError } = await supabase
+  const { error: itemsError } = await writeClient
     .from('order_items')
     .insert(itemsWithOrderId);
 

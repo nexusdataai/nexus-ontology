@@ -76,8 +76,22 @@ const TYPE_OPTIONS: { value: JourneyType | 'all'; label: string }[] = [
   { value: 'esg-sustainability', label: 'ESG and sustainability' },
 ];
 
+/**
+ * Status to show for a journey. The backend keeps a journey at "pending" even
+ * after its runs have finished, so the runs decide when there are any.
+ */
+function shownStatus(j: any): JourneyStatus {
+  const m = j.metrics || {};
+  const idle = j.status === 'created' || j.status === 'pending';
+  if (!idle) return j.status;
+  if ((m.runningJobs || 0) > 0) return 'running' as JourneyStatus;
+  if ((m.completedJobs || 0) > 0) return 'completed' as JourneyStatus;
+  if ((m.failedJobs || 0) > 0) return 'failed' as JourneyStatus;
+  return 'created' as JourneyStatus;
+}
+
 export function JourneyListView({
-  journeys,
+  journeys: rawJourneys,
   isLoading = false,
   onSelectJourney,
   onCreateSemanticRag,
@@ -95,6 +109,7 @@ export function JourneyListView({
   error = false,
 }: JourneyListViewProps) {
   const [filter, setFilter] = useState<JourneyFilter>({});
+  const journeys = useMemo(() => rawJourneys.map(j => ({ ...j, status: shownStatus(j) })), [rawJourneys]);
 
   const filteredJourneys = useMemo(() => {
     return filterJourneys(journeys, filter);

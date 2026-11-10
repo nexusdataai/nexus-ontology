@@ -47,9 +47,11 @@ New dependencies: `@fontsource-variable/geist`,
 `@fontsource-variable/geist-mono` (self-hosted fonts, no external requests).
 
 If `vite` fails on Windows with "Failed to load native binding" from
-`@swc/core`, install the version the lockfile expects
-(`npm install --no-save @swc/core@1.7.26`). This is an environment issue and
-not related to the redesign.
+`@swc/core`: the lockfile pins 1.16.22, whose Windows binary refuses to start
+when a parent folder of its cache (for example `C:\`) lets another account
+replace files. Install the earlier build without changing the lockfile
+(`npm install --no-save @swc/core@1.7.26`), with no dev server running.
+Linux builds (the server's Docker build) are not affected.
 
 ## Status by area
 
@@ -101,6 +103,144 @@ rules, preview):
 Layout is computed once per view with d3-force and tweened; rendering is plain
 React (SVG for links and territories, HTML buttons for nodes, so every node is
 keyboard reachable).
+
+## Tested against the live backend (10 Nov)
+
+Every screen was opened against the running backend at
+`ontology.yourbrain.tech` (ontology-local on K3s), not only against sample
+data. Sample data had hidden several problems. What was found and changed:
+
+| Area | What the real data showed | What the UI does now |
+|---|---|---|
+| Control Plane, Graph | Canonical entities have an empty `system`; they belong to 15 business domains and are bound to sources by mapping rules. The graph grouped by system and drew 4 of 68 entities. | Groups by business domain. Each entity shows the logo of the source system its active mapping rules read from. Falls back to grouping by system when the backend sets one. |
+| Data Plane, Runtime explorer | Still the original screen; its row totals were hardcoded. | Rebuilt: Tables (searchable, windowed list for 1,663 tables, columns, row preview, mapping to virtual entities) and Query. One extra read: mapping rules. |
+| Data Plane, Mapping rules | Auto-created rules have no field maps. | Says every column is read under its own name, instead of "0 of 0 fields mapped". |
+| Data Plane, Pipelines | A pipeline could be created but not deleted (also true before the redesign). | Delete action on each row, through the existing journey delete service. |
+| Solutions, Workflow actions | Every solution queried `O2C_Action_Log` (also true before the redesign). | Each solution reads its own log (`C360_`, `DF_`, `ESG_`, `IO_`, `PA_`, `PQ_`, `SCR_Action_Log`); both row shapes are read. CPQ solutions have no log and show an empty state. |
+| Solutions, KPI cards | `/api/v1/apps/{id}/query` returns plain rows even when `aggregation` is `count` or `avg`; the card showed the first row. | Count and average are worked out in the card when the response is not aggregated. A count is capped by the query limit (100). |
+| Views inside a solution | Dashboard KPI panels carry a target but no direction; view tabs are seeded as "Tab 1", "Tab 2". | Direction is read from what the KPI measures (DSO under, match rate over); no verdict when it cannot be known. Generic tab labels show the dashboard title. |
+| AI Automation | A journey stays `pending` after its runs finish and carries the default call-processing text and stages. | Status follows the runs; the default text and stages are not shown for solution journeys; a run in progress does not lower the success rate; a log line emitted twice is shown once; the delete confirmation names the journey. |
+| Tables | A generic `value` column was formatted as money. | Only money columns get a currency sign. |
+| Everywhere | Numbers that count up stayed at the placeholder in a background tab. | They settle on the real value. |
+
+Write actions exercised on the live backend, with throwaway items that were
+deleted afterwards: run diagnostics (Order-to-Cash and the five platform
+checks), run a journey (Order-to-Cash, Demand forecasting), duplicate / edit /
+save / delete a policy, create / save / delete a dashboard, create / delete a
+journey, create / delete a pipeline.
+
+Not exercised: saving an existing mapping rule, rebuilding the knowledge index
+(it calls the LLM and embedding service), and a source in real mode (none is
+configured).
+
+### Backend observations from that pass
+
+- `GET /api/v1/ai-health/latest`: Control Plane reports
+  `VectorStore.__init__() missing 1 required positional argument: 'connection_manager'`
+  and the same for `GraphStore`.
+- `GET /api/fdw/tables/external_sources/{table}/columns?source=external` returns 500.
+- `GET /api/v1/knowledge-pipelines/semantic_rag/runs` returns no runs although
+  the journey behind it has five.
+- `GET /api/v1/tests/status` returns 503.
+- `GET /api/data-planes/{sample-id}` returns 404 for every sample source.
+- `POST /api/v1/apps/{id}/query` ignores `aggregation`.
+- `/api/v1/apps/{id}/dashboard` and `/alerts` are empty for the solutions whose
+  journey has never run.
+- Mapping rules use several spellings of one source system (`sfdc`,
+  `sfdc_itxp2dev`; `oracle`, `oracle_erp`; `sap`, `sap_s4hana`).
+
+To repeat this pass from a developer machine, point the dev server at a
+running backend: create `frontend/.env.live.local` with
+`VITE_SAMPLE_DATA=false`, `VITE_BYPASS_AUTH=true` and
+`VITE_PROXY_TARGET=https://<host>`, then run `npm run dev -- --mode live`.
+
+## Later rounds on the live environment (10 Nov)
+
+Each round was tested against the running backend, deployed to
+`ontology-local` and checked on `https://ontology.yourbrain.tech`.
+
+| UI version | What changed |
+|---|---|
+| 0.1.12 | Workflow actions read each solution's own action log; solution KPI cards count and average when the query endpoint returns plain rows; journey success rate ignores a run in progress. |
+| 0.1.13 | Dashboard builder, dashboard viewer, view builder and view page rebuilt on the design system; data pipelines can be deleted; journey delete names the journey; repeated log lines shown once. |
+| 0.1.14 | Panel display options rebuilt: field lists come from the panel's real query result, colours from the product palette. |
+| 0.1.15 | Withdrawn: the build split React and the chart libraries into hand-made chunks and the app did not start on the server's build. Rolled back to 0.1.14 within minutes. |
+| 0.1.16 | Per-page loading (first page loads about 0.7 MB of script instead of 3.1 MB); text, button and status colours meet WCAG AA in both themes; view tabs move with Alt and an arrow key, drag announcements read tab names; panels on a read-only dashboard can no longer be dragged; TypeScript errors 160 to 115; Help rewritten from how the product works. |
+| later | Solution not-found screen uses the product layout; page check script; design preview refreshed with the same design. |
+
+Write actions exercised on the live backend with throwaway items that were
+deleted afterwards: policy (duplicate, edit, save, delete), dashboard and view
+(create, save, delete in the new builders), journey (create, delete),
+pipeline (create, delete), diagnostics runs, and two journey runs
+(Order-to-Cash, Demand forecasting). The journey runs changed the solutions'
+figures, as a run does.
+
+## Running on the ontology-local environment
+
+The UI on `ontology-local` is built from
+`/opt/mycode/nexus/nexus-ontology` on branch
+`feature/ui-merge-from-ontology-ui`. The UI changes after the first merge
+(`66e3f0a`) are applied there but **not committed**; commit them, or pull
+`main` of `akbar-ai-labs/nexus-ontology-UI` (same code).
+
+Deploy the UI only (no git commit, no backend change):
+
+```bash
+cd /opt/mycode/nexus/nexus-ontology
+./deploy/deploy-app-changes.sh --ui --env local --no-commit
+```
+
+Then check every page (see below). If the site breaks, roll back to the
+previous image; old tags stay in K3s:
+
+```bash
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+kubectl -n ontology-local get deploy ontology-local-frontend -o jsonpath='{..image}'
+kubectl -n ontology-local set image deployment/ontology-local-frontend frontend=nexus-ontology-ui:<previous tag>
+```
+
+Do not add `build.rollupOptions.output.manualChunks` to `vite.config.ts`:
+it worked on Windows and broke the server's Linux build (0.1.15).
+
+## Page check
+
+`frontend/scripts/check-pages.mjs` opens every screen in a headless browser
+against a running backend and reports crashes, the "Something went wrong"
+screen, empty pages and failed API calls. It only reads; it never clicks.
+Run it after every deploy and after backend changes.
+
+```bash
+cd frontend
+npm install --no-save playwright-core@1.62.1   # once; package.json is not changed
+npx playwright-core install chromium           # once, if no Chromium is cached
+npm run check:pages -- https://ontology.yourbrain.tech
+```
+
+Options: `--only=/apps` (one area; in Git Bash prefix the command with
+`MSYS_NO_PATHCONV=1`), `--wait=5000`, `--json=report.json`, `--strict`.
+Exit code 1 when a page fails. Known backend issues (listed in `KNOWN` in the
+script) are shown as warnings; remove an entry once the backend is fixed.
+The same script checks the design preview link: calls the sample data does
+not cover are reported as failures there.
+
+Last run: 51 of 51 pages passed on `ontology.yourbrain.tech`.
+
+## Open items for the backend owner
+
+- Commit the UI changes on `ontology-local` (see above).
+- Five files nothing imports, holding 78 of the remaining TypeScript errors:
+  `src/components/DiscoveryWizard.tsx`, `src/utils/createDemoJourneys.ts`,
+  `src/components/dashboards/InteractiveGraph.tsx`,
+  `src/components/QueryAnalysis.tsx`, `src/pages/RagPlaygroundPage.tsx`.
+  The first two call async journey service methods without `await` and would
+  fail if used. Delete them or fix them.
+- 37 TypeScript errors in `src/services` (not touched by the UI work):
+  `cognito` missing from `AppConfig`, `tableCategoryFilter` missing from
+  `FilterOptions`, `vi.Mock` used as a type in tests, Supabase types without
+  `customers` / `orders` tables, one cast in `callProcessingJourneyService.ts`.
+- Not tested from the UI: the real sign-in (Cognito is switched off on
+  `ontology-local`), saving an existing mapping rule, rebuilding the knowledge
+  index (uses the language model), a source in real mode.
 
 ## Shared patterns introduced
 

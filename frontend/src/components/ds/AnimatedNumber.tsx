@@ -41,7 +41,10 @@ export function AnimatedNumber({ value, placeholder = '—', durationMs = 900, f
       else fromRef.current = value;
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Browsers pause animation frames in a background tab. Make sure the real
+    // number is shown anyway, so the figure is never left at the placeholder.
+    const settle = window.setTimeout(() => { fromRef.current = value; setDisplay(value); }, durationMs + 200);
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(settle); };
   }, [value, durationMs]);
 
   return <span className={className ? `num ${className}` : 'num'}>{display == null ? placeholder : format(display)}</span>;

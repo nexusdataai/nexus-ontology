@@ -1,28 +1,43 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Loader2, LayoutDashboard, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, SearchInput } from '@/components/ds/kit';
 import { dashboardService, type DashboardListItem } from '@/services/dashboardService';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface DashboardPaletteProps {
   className?: string;
+  /** Add the dashboard as a new tab without dragging. */
+  onAdd?: (dashboard: DashboardListItem) => void;
+  /** Dashboards already used by a tab (shown as "In this view"). */
+  usedIds?: string[];
 }
 
-export function DashboardPalette({ className }: DashboardPaletteProps) {
+/** The dashboards that can become tabs: drag one onto the tabs, or add it with the plus. */
+export function DashboardPalette({ className, onAdd, usedIds }: DashboardPaletteProps) {
   const [items, setItems] = useState<DashboardListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
+    setFailed(false);
     dashboardService
       .list()
       .then(setItems)
-      .catch(() => toast.error('Failed to load dashboards for palette'))
+      .catch(() => {
+        setFailed(true);
+        toast.error('Failed to load dashboards for palette');
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items;
@@ -32,44 +47,57 @@ export function DashboardPalette({ className }: DashboardPaletteProps) {
     );
   }, [items, query]);
 
+  const used = useMemo(() => new Set(usedIds || []), [usedIds]);
+
   return (
-    <div className={cn('flex flex-col h-full border-r bg-background', className)}>
-      <div className="px-3 pt-3 pb-2 border-b">
-        <div className="text-xs font-semibold text-muted-foreground mb-2">
-          Dashboards
+    <aside className={cn('flex min-h-0 flex-col border-r border-border bg-sidebar/40', className)} aria-label="Dashboards">
+      <div className="border-b border-border px-3 pb-3 pt-3.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-medium text-foreground">Dashboards</h2>
+          {!loading && !failed && <span className="num text-xs text-subtle-foreground">{filtered.length}</span>}
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search..."
-            className="h-7 pl-8 text-xs"
-          />
-        </div>
+        <p className="mb-2.5 mt-0.5 text-xs text-muted-foreground">Drag one onto the tabs, or add it with the plus.</p>
+        <SearchInput value={query} onChange={setQuery} placeholder="Search dashboards" className="w-full sm:w-full" />
       </div>
-      <div className="flex-1 overflow-auto p-2 space-y-1.5">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <div className="space-y-3 p-3" aria-busy="true">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-3.5 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : failed ? (
+          <div className="p-3">
+            <InlineError onRetry={load}>The dashboards could not be loaded.</InlineError>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-xs text-muted-foreground p-3 text-center">
-            No dashboards available. Create one first.
-          </div>
+          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            {items.length === 0 ? 'No dashboards yet. Create one in AI Analytics first.' : 'No dashboard matches this search.'}
+          </p>
         ) : (
-          filtered.map((d) => <DraggableDashboard key={d.uid} dashboard={d} />)
+          <ul>
+            {filtered.map((d) => (
+              <li key={d.uid} className="border-b border-border last:border-b-0">
+                <DraggableDashboard dashboard={d} onAdd={onAdd} used={used.has(d.uid)} />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-    </div>
+    </aside>
   );
 }
 
 interface DraggableDashboardProps {
   dashboard: DashboardListItem;
+  onAdd?: (dashboard: DashboardListItem) => void;
+  used?: boolean;
 }
 
-function DraggableDashboard({ dashboard }: DraggableDashboardProps) {
+function DraggableDashboard({ dashboard, onAdd, used }: DraggableDashboardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `dashboard:${dashboard.uid}`,
     data: { dashboard },
@@ -81,18 +109,32 @@ function DraggableDashboard({ dashboard }: DraggableDashboardProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        'flex items-start gap-2 p-2 rounded-md border bg-card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-sm',
-        isDragging && 'opacity-40 ring-1 ring-primary'
+        'group flex cursor-grab items-start gap-2 px-3 py-2.5 transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none active:cursor-grabbing',
+        isDragging && 'bg-accent opacity-60'
       )}
     >
-      <LayoutDashboard className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-medium truncate">{dashboard.title}</div>
+        <div className="truncate text-sm font-medium text-foreground">{dashboard.title}</div>
         {dashboard.description && (
-          <div className="text-xs text-muted-foreground truncate">{dashboard.description}</div>
+          <div className="truncate text-xs text-muted-foreground">{dashboard.description}</div>
         )}
-        <div className="text-xs text-muted-foreground mt-0.5">{dashboard.panelCount} panels</div>
+        <div className="num mt-0.5 text-xs text-subtle-foreground">
+          {dashboard.panelCount} {dashboard.panelCount === 1 ? 'panel' : 'panels'}
+          {used && ' · in this view'}
+        </div>
       </div>
+      {onAdd && (
+        <button
+          type="button"
+          onClick={() => onAdd(dashboard)}
+          onKeyDown={(e) => e.stopPropagation()}
+          aria-label={`Add ${dashboard.title} as a tab`}
+          title="Add as a tab"
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-brand/10 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 dark:hover:text-brand-hi"
+        >
+          <Icon name="plus" className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

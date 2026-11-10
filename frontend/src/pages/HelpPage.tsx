@@ -29,42 +29,56 @@ const SECTIONS: TabSection[] = [
 ];
 
 const START: { title: string; text: string; to: string; icon: IconName; step: string }[] = [
-  { step: 'Step 1', title: 'Connect your systems', text: 'Add Salesforce, SAP, Oracle or files as sources and check that data is flowing.', to: '/ai-stack/data-plane', icon: 'plug' },
-  { step: 'Step 2', title: 'Explore the knowledge graph', text: 'See how business entities relate across systems, and which policies govern them.', to: '/ai-stack/control-plane?tab=explorer', icon: 'graph' },
-  { step: 'Step 3', title: 'Run a solution', text: 'Open a packaged solution such as Order-to-Cash and review its insights and actions.', to: '/workspace/apps', icon: 'apps' },
+  { step: 'Step 1', title: 'Check your sources', text: 'Each source system (Salesforce, Oracle, SAP, files, Google Drive, social) runs on simulated or real data. Open one to browse its tables in place.', to: '/ai-stack/data-plane', icon: 'plug' },
+  { step: 'Step 2', title: 'Map business entities', text: 'Mapping rules bind each business entity (Customer, AR Invoice, Opportunity) to a source table. An entity with no active rule has no data.', to: '/ai-stack/data-plane?tab=mappingrules', icon: 'route' },
+  { step: 'Step 3', title: 'Build the knowledge index', text: 'The knowledge pipeline reads entities, mapping rules, policies, workflows and integration rules, and writes the index and graph the agents use.', to: '/ai-stack/control-plane', icon: 'layers' },
+  { step: 'Step 4', title: 'Run a solution', text: 'Open a solution such as Order-to-Cash and choose Run journey. Its numbers, alerts and actions appear after the first run.', to: '/workspace/apps', icon: 'apps' },
 ];
 
 const GUIDES: { area: string; items: { title: string; text: string; to: string }[] }[] = [
   { area: 'Data Plane', items: [
-    { title: 'Sources and connectors', text: 'Which systems are connected and how to add another one.', to: '/ai-stack/data-plane' },
-    { title: 'Virtual data and entities', text: 'Browse business entities, their fields and live sample rows.', to: '/ai-stack/data-plane?tab=virtualdata' },
-    { title: 'Mapping rules', text: 'Map source tables to business entities, preview and audit the result.', to: '/ai-stack/data-plane?tab=mappingrules' },
-    { title: 'Data pipelines', text: 'Load, profile and index data on a schedule.', to: '/ai-stack/data-plane?tab=pipelines' },
+    { title: 'Sources and simulated data', text: 'Which systems are connected and whether each one reads simulated or real data. Real data needs an administrator to switch it on.', to: '/ai-stack/data-plane' },
+    { title: 'Browse a source in place', text: 'Open a source to search its tables, see their columns and preview rows. Nothing is copied: the tables are read where they are.', to: '/ai-stack/data-plane' },
+    { title: 'Business entities', text: 'The canonical entities, grouped by business domain, with their fields, links, risk level and live sample rows.', to: '/ai-stack/data-plane?tab=virtualdata' },
+    { title: 'Entity APIs', text: 'The read and write operations on each entity, and which connector carries out a write.', to: '/ai-stack/data-plane?tab=vdl-apis' },
+    { title: 'Mapping rules', text: 'Bind an entity to a source table, map fields, add a filter, preview five rows. Rules named "Auto" were created by automatic matching and read every column as it is.', to: '/ai-stack/data-plane?tab=mappingrules' },
+    { title: 'Data pipelines', text: 'Batch loads for sources that cannot be read in place, such as file uploads, Google Drive and social listening.', to: '/ai-stack/data-plane?tab=pipelines' },
+    { title: 'Connectors', text: 'The systems Nexus AI can read from and act on, and the API workbench to test each connector call.', to: '/ai-stack/data-plane?tab=connectors' },
   ] },
   { area: 'Control Plane', items: [
-    { title: 'Knowledge graph', text: 'Constellation, lanes and lineage views, and how to trace a path.', to: '/ai-stack/control-plane?tab=explorer' },
-    { title: 'Policies, workflows and integrations', text: 'The rules the agents must follow, and how to edit them.', to: '/ai-stack/control-plane' },
+    { title: 'Knowledge pipeline and index', text: 'The thirteen steps from schemas to quality check, each run and what it produced. Rebuild after you change policies, workflows, integration rules or mappings.', to: '/ai-stack/control-plane' },
+    { title: 'Knowledge graph', text: 'Entities grouped by business domain, with the source system behind each. Constellation, lanes and lineage views; trace the path between two entities.', to: '/ai-stack/control-plane?tab=explorer' },
+    { title: 'Policies', text: 'Business rules, limits and approval thresholds the agents must respect, such as the financial close window or credit limits.', to: '/ai-stack/control-plane?tab=policies' },
+    { title: 'Workflows', text: 'Processes that span systems: what starts them, their steps and the entities they depend on.', to: '/ai-stack/control-plane?tab=workflows' },
+    { title: 'Integration rules', text: 'Field-level sync between systems, which side owns each field, and how often it runs.', to: '/ai-stack/control-plane?tab=integrations' },
   ] },
   { area: 'Reasoning', items: [
-    { title: 'AI Copilot', text: 'Ask questions about your enterprise and read the steps behind each answer.', to: '/ai-stack/reasoning' },
-    { title: 'Playground and tools', text: 'Test retrieval, inspect what the agent found, and manage its tools.', to: '/ai-stack/reasoning' },
+    { title: 'Copilot', text: 'Ask about your enterprise. Every answer lists the tools the agent called, the time it took and the policies it checked.', to: '/ai-stack/reasoning' },
+    { title: 'Playground', text: 'See which schemas, policies, workflows and integrations retrieval brings back for a question, and run the test suite.', to: '/ai-stack/reasoning?tab=playground' },
+    { title: 'Tools', text: 'The tools the agent may call, which ones only read and which change data, and which need approval.', to: '/ai-stack/reasoning?tab=tools' },
   ] },
   { area: 'Workspace', items: [
-    { title: 'Solutions', text: 'Packaged business applications with insights, analytics and actions.', to: '/workspace/apps' },
-    { title: 'AI Analytics', text: 'Build dashboards and views on the virtual data layer.', to: '/ai-analytics' },
-    { title: 'AI Automation', text: 'Journeys that run agents on a schedule, with approvals.', to: '/workspace/automation' },
+    { title: 'Solutions', text: 'Packaged applications (Order-to-Cash, Demand forecasting, CPQ and more) with business insights, process analytics, workflow actions and alerts.', to: '/workspace/apps' },
+    { title: 'Dashboards', text: 'Panels on business entities: pick the entity, fields, filters and how to show it, with a live preview.', to: '/ai-analytics' },
+    { title: 'Views', text: "Tabs of dashboards that appear in a solution's side menu, such as Monitor, Diagnose, Predict and Outcomes.", to: '/ai-analytics?tab=views' },
+    { title: 'Journeys', text: "Automations that run a solution's steps, by hand or on a schedule. Each run keeps its step log and results.", to: '/workspace/automation' },
+    { title: 'Automation copilot and playbooks', text: 'Describe a goal; the copilot proposes a plan from the playbooks, and nothing runs until you approve it.', to: '/workspace/automation?tab=copilot' },
   ] },
   { area: 'AI Ops', items: [
-    { title: 'Diagnostics', text: 'Run a full check of connections, data and agents.', to: '/operations/diagnostics' },
-    { title: 'Health, jobs and audit logs', text: 'Monitoring, scheduled jobs, usage and cost.', to: '/operations/health' },
+    { title: 'Diagnostics', text: 'Five checks per solution, from source data to results, plus checks of simulators, entities, dashboards, automation and tools.', to: '/operations/diagnostics' },
+    { title: 'Health', text: 'A check of every platform area every 15 minutes, scheduled jobs, the audit log of diagnostics runs, and test reports.', to: '/operations/health' },
+    { title: 'Enterprise Simulator', text: 'The practice enterprise behind simulated data, for testing without touching a real system.', to: '/simulator' },
   ] },
 ];
 
 const FAQ: { q: string; a: string }[] = [
-  { q: 'Does Nexus AI copy my data out of the source systems?', a: 'Business entities are read live through the virtual data layer using the mapping rules you define. You can see the rule and the source table behind every entity in Data Plane, Virtual data.' },
-  { q: 'Why did the assistant refuse to run an action?', a: 'Agents can only use the tools and follow the policies defined in the Control Plane. When a policy blocks a step, the answer says which one. Actions that change a source system wait for approval.' },
-  { q: 'A dashboard or solution shows no numbers. What should I check?', a: 'Run Diagnostics first. Most empty screens come from a source that is not connected, an entity without an active mapping rule, or an automation journey that has not run yet.' },
-  { q: 'How do I give a colleague access?', a: 'Open Settings, Users and roles. Access is controlled by role; an administrator can invite users and change roles there.' },
+  { q: 'Does Nexus AI copy my data out of the source systems?', a: 'Most sources are read in place through the virtual data layer, using the mapping rules. Sources that cannot be read in place (file uploads, Google Drive, social listening) are loaded by a data pipeline. Data Plane shows which is which.' },
+  { q: 'What is the difference between simulated and real data?', a: 'Every source starts on simulated data from the Enterprise Simulator, so you can try everything safely. An administrator switches a source to real data. The mode shows on the source and on every journey.' },
+  { q: 'A solution or dashboard shows no numbers. What should I check?', a: "Most often the solution's journey has not run yet: open the solution and choose Run journey. If it has run, open Diagnostics and run that solution's checks; they show which entity has no data or no active mapping rule." },
+  { q: 'Why did the numbers change after a run?', a: "Each journey run recalculates the solution's results from the current data and replaces the previous figures. The run history in AI Automation shows when each run happened and what it read." },
+  { q: 'When should I rebuild the knowledge index?', a: 'After you change a policy, workflow, integration rule or mapping rule. Until then the agents answer from the previous index. Rebuilding takes a few minutes and uses the language model.' },
+  { q: 'Why did the assistant refuse to run an action?', a: 'Agents can only use the tools and follow the policies in the Control Plane. When a policy blocks a step, the answer says which one. Actions that change a source system wait for approval.' },
+  { q: 'How do I give a colleague access?', a: 'Open Settings, then Users to invite people and Roles and permissions to decide what each role may do. Only administrators see these sections.' },
 ];
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
@@ -113,14 +127,14 @@ export default function HelpPage() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 className="text-xl font-medium tracking-tight text-foreground">Start here</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Three steps take you from connected systems to a working solution.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Four steps take you from connected systems to a working solution. Do them in this order: each step uses what the one before it produced.</p>
               </div>
               <Button variant="outline" asChild>
                 <a href="/docs/" target="_blank" rel="noopener noreferrer">Full documentation <Icon name="external-link" className="h-3.5 w-3.5" /></a>
               </Button>
             </div>
 
-            <ol className="grid gap-4 md:grid-cols-3">
+            <ol className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {START.map((s, i) => (
                 <li key={s.title} className="rise" style={{ ['--i' as any]: i }}>
                   <Link

@@ -27,7 +27,7 @@
   /* ---- text ---- */
   --muted: 60 7% 91%;
   --muted-foreground: 216 8% 36%;    /* secondary text, AA on page + card */
-  --subtle-foreground: 216 6% 48%;   /* tertiary text, large/meta only */
+  --subtle-foreground: 216 6% 42%;   /* tertiary text, AA (4.5:1) on page and card */
 
   /* ---- brand ---- */
   --primary: 224 76% 52%;            /* blue, AA with white text on light */
@@ -49,11 +49,11 @@
   --ring: 223 100% 62%;
 
   /* ---- status ---- */
-  --success: 154 65% 32%;
+  --success: 154 65% 27%;          /* AA as small text on the page */
   --success-foreground: 0 0% 100%;
-  --warning: 32 92% 38%;
+  --warning: 32 92% 31%;          /* AA as small text on the page */
   --warning-foreground: 0 0% 100%;
-  --destructive: 354 70% 46%;
+  --destructive: 354 70% 43%;
   --destructive-foreground: 0 0% 100%;
   --info: 224 76% 52%;
   --info-foreground: 0 0% 100%;
@@ -132,9 +132,9 @@
 
   --muted: 222 16% 13%;
   --muted-foreground: 221 10% 64%;   /* #9aa0ad */
-  --subtle-foreground: 221 8% 50%;
+  --subtle-foreground: 221 8% 54%;   /* AA (4.5:1) on page and card */
 
-  --primary: 223 100% 62%;           /* #3d73ff */
+  --primary: 223 100% 58%;           /* #2965ff: fills under white text reach AA; the brand blue stays in --brand */
   --primary-foreground: 0 0% 100%;
   --brand: 223 100% 62%;
   --brand-hi: 223 100% 76%;

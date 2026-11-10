@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { humanize } from '@/components/journeys/studio/format';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,7 +74,7 @@ export function ViewListContent({ hideHeading = false }: ViewListContentProps) {
             label="Filter by tag"
             value={tag}
             onChange={setTag}
-            options={[{ value: 'all', label: 'All', count: views.length }, ...tags.map(([t, n]) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1), count: n }))]}
+            options={[{ value: 'all', label: 'All', count: views.length }, ...tags.map(([t, n]) => ({ value: t, label: humanize(t), count: n }))]}
           />
         )}
         <ToolbarSpacer />

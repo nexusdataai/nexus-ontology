@@ -29,6 +29,7 @@
     "deploy": "npm run clean && npm run build:prod",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:pages": "node scripts/check-pages.mjs",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

@@ -29,7 +29,33 @@ const ACTIONS: Record<string, { label: string; icon: IconName; what: string }> =
   credit_note: { label: 'Credit note', icon: 'receipt', what: 'Credit notes issued for confirmed overbilling' },
 };
 
-const metaOf = (type: string) => ACTIONS[type] || { label: type.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()), icon: 'bolt' as IconName, what: '' };
+const metaOf = (type: string) => ACTIONS[type] || { label: type.replace(/[_:]+/g, ' ').replace(/^\w/, c => c.toUpperCase()), icon: 'bolt' as IconName, what: '' };
+
+/** Each solution writes its actions to its own log entity. */
+const ACTION_LOG: Record<string, string> = {
+  'order-to-cash': 'O2C_Action_Log',
+  'customer-360': 'C360_Action_Log',
+  'demand-forecasting': 'DF_Action_Log',
+  'esg-sustainability': 'ESG_Action_Log',
+  'inventory-optimization': 'IO_Action_Log',
+  'procurement-analytics': 'PA_Action_Log',
+  'production-quality': 'PQ_Action_Log',
+  'supply-chain-risk': 'SCR_Action_Log',
+};
+
+/** The logs do not share one shape; read either spelling of each field. */
+const normalise = (r: any): ActionEntry => ({
+  ...r,
+  action_id: r.action_id || r.id || '',
+  action_type: r.action_type || 'unknown',
+  entity_type: r.entity_type || r.target_entity || '',
+  entity_id: r.entity_id || r.target_id || '',
+  status: r.status || '',
+  policy_reference: r.policy_reference || '',
+  details: r.details ?? r.notes ?? null,
+  job_id: r.job_id || '',
+  processed_at: r.processed_at || r.taken_at || r.created_at || '',
+});
 const when = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -50,10 +76,12 @@ export function AppWorkflowActions({ app }: Props) {
   const fetchActions = (retries = 3) => {
     setLoading(true);
     setError(false);
+    const entity = ACTION_LOG[app.id];
+    if (!entity) { setActions([]); setLoading(false); return; }
     apiClient.post(`/api/v1/apps/${app.id}/query`, {
-      entity: 'O2C_Action_Log', limit: 500,
+      entity, limit: 500,
     }).then(d => {
-      setActions(d?.rows || []);
+      setActions((d?.rows || []).map(normalise));
       setLoading(false);
     }).catch(() => {
       if (retries > 1) {

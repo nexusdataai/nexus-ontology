@@ -36,6 +36,8 @@ export function TestReportsPanel() {
   const [selected, setSelected] = useState<Set<string>>(new Set(['unit']));
   const [triggering, setTriggering] = useState(false);
   const [runStatus, setRunStatus] = useState<RunStatus>('none');
+  // Set when the backend says test runs are not configured (503).
+  const [notSetUp, setNotSetUp] = useState<string | null>(null);
   const [latestRun, setLatestRun] = useState<WorkflowRun | null>(null);
   const [recentRuns, setRecentRuns] = useState<WorkflowRun[]>([]);
   const [results, setResults] = useState<Record<string, CategoryResult>>({});
@@ -58,8 +60,13 @@ export function TestReportsPanel() {
       setRunStatus(data.status === 'none' ? 'none' : data.conclusion || data.status);
       setLatestRun(data.latest_run || null);
       setRecentRuns(data.recent_runs || []);
+      setNotSetUp(null);
       return data.status;
-    } catch {
+    } catch (e: any) {
+      const msg = `${e?.message || ''} ${typeof e?.data?.detail === 'string' ? e.data.detail : ''}`;
+      if (e?.status === 503 || /503|not configured/i.test(msg)) {
+        setNotSetUp(/GITHUB_TOKEN/i.test(msg) ? 'the GitHub token that starts the test pipeline (GITHUB_TOKEN) is not set on the backend' : 'the test pipeline is not configured on the backend');
+      }
       return 'none';
     }
   }, []);
@@ -144,6 +151,11 @@ export function TestReportsPanel() {
       </header>
 
       {error && <InlineError>{error}</InlineError>}
+      {notSetUp && (
+        <p role="status" className="rounded-lg border border-border bg-surface-2/60 px-4 py-3 text-sm text-muted-foreground">
+          Test runs are not set up on this environment: {notSetUp}. Reports from earlier runs still open from the report dashboard.
+        </p>
+      )}
 
       {/* Choose suites and run */}
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -154,7 +166,7 @@ export function TestReportsPanel() {
           </div>
           <div className="flex items-center gap-3">
             {statusPill(runStatus, true)}
-            <Button onClick={handleRunTests} disabled={triggering || isRunning || selected.size === 0}>
+            <Button onClick={handleRunTests} disabled={!!notSetUp || triggering || isRunning || selected.size === 0}>
               <Icon name={triggering || isRunning ? 'spinner' : 'play'} className={cn('h-3.5 w-3.5', (triggering || isRunning) && 'animate-spin')} />
               {triggering ? 'Starting' : isRunning ? 'Running' : selected.size > 1 ? `Run ${selected.size} suites` : 'Run suite'}
             </Button>

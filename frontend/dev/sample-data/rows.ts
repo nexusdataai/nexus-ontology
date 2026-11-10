@@ -282,9 +282,26 @@ const STATUS_BY_ENTITY: Record<string, readonly string[]> = {
 /** Result entities that are naturally small. Others get 48 generated rows. */
 const ENTITY_ROWS: Record<string, number> = { Product_Offering: 12, Sourcing_Scenario: 5, RFx_Event: 14, Should_Cost_Model: 10, Sourcing_Award: 8, Quote_Line: 8 };
 
+/**
+ * The other solutions write their actions with a different row shape than
+ * O2C_Action_Log (target_entity / target_id / notes / taken_at), as on the
+ * real backend. Actions per solution, in the backend's "kind:verb" form.
+ */
+const ACTIONS_BY_PREFIX: Record<string, readonly string[]> = {
+  C360: ['save:call', 'retain:offer', 'save:call', 'campaign:launch', 'upsell:bundle', 'retain:offer'],
+  DF: ['model:retrain', 'forecast:override', 'model:retrain', 'consensus:review'],
+  ESG: ['supplier:engage', 'target:review', 'packaging:swap', 'supplier:engage'],
+  IO: ['reorder:raise', 'transfer:stock', 'reorder:raise', 'safety_stock:adjust'],
+  PA: ['invoice:hold', 'spend:flag', 'contract:renegotiate', 'invoice:hold'],
+  PQ: ['line:inspect', 'batch:hold', 'schedule:resequence', 'line:inspect'],
+  SCR: ['supplier:dual_source', 'risk:escalate', 'buffer:increase', 'risk:escalate'],
+};
+const OTHER_ACTION_COLS = ['action_id', 'action_type', 'target_entity', 'target_id', 'status', 'notes', 'taken_by', 'taken_at'];
+
 /** Columns returned when a query names none. */
 const DEFAULT_COLS: Record<string, string[]> = {
   O2C_Action_Log: ['action_id', 'action_type', 'entity_type', 'entity_id', 'status', 'policy_reference', 'details', 'job_id', 'processed_at'],
+  ...Object.fromEntries(Object.keys(ACTIONS_BY_PREFIX).map((p) => [`${p}_Action_Log`, OTHER_ACTION_COLS])),
   O2C_Order_Result: ['opportunity_id', 'account_name', 'order_amount', 'match_status', 'anomaly_score', 'risk_rank'],
   Quote_Header: ['Quote_ID', 'Account_ID', 'Status', 'Total_Net', 'Discount_Pct', 'Margin_Pct', 'Validity_Date'],
   Quote_Line: ['Line_ID', 'Offering_ID', 'Qty', 'Unit_Price', 'Discount_Pct', 'Margin_Pct_Line'],
@@ -299,6 +316,22 @@ const EXTRA_COLS: Record<string, string[]> = {
 };
 
 function synValue(col: string, i: number, entity: string): unknown {
+  const actionPrefix = /^([A-Z0-9]+)_Action_Log$/.exec(entity)?.[1];
+  if (actionPrefix && ACTIONS_BY_PREFIX[actionPrefix]) {
+    const kinds = ACTIONS_BY_PREFIX[actionPrefix];
+    const kind = pick(kinds, i);
+    switch (col) {
+      case 'action_id': return `ACT-${actionPrefix}-${1793733600 + i * 37}-${String(i).padStart(3, '0')}`;
+      case 'action_type': return kind;
+      case 'target_entity': return kind.split(':')[0];
+      case 'target_id': return `${actionPrefix}-T-${between(`tgt-${actionPrefix}-${i}`, 100, 990)}`;
+      case 'status': return pick(['executed', 'pending', 'executed', 'executed', 'failed', 'pending'], i);
+      case 'notes': return `Auto-triggered by ${actionPrefix} action loop`;
+      case 'taken_by': return 'system';
+      case 'taken_at': return ago(60 * (2 + i * 7));
+      default: break;
+    }
+  }
   if (col === 'Status' || col === 'status') {
     const list = STATUS_BY_ENTITY[entity];
     return list ? pick(list, i) : pick(['Active', 'Active', 'Pending', 'Active', 'Closed'], i);

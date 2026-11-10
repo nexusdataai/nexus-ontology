@@ -4,7 +4,22 @@ import { cn } from '@/lib/utils';
 import { PanelState, fieldLabel } from '../_shared';
 
 /** One headline number, with a target marker when the panel has a target. */
-export function KPICardPanel({ data, options, loading }: PanelProps) {
+/**
+ * Whether a lower number is the good direction. The dashboards on the backend
+ * give a target but no direction, so read it from what the KPI measures.
+ * Returns null when the name does not say, and then no verdict is shown.
+ */
+const LOWER_IS_BETTER = /(dso|days|leakage|churn|stock-?out|defect|scrap|overdue|past.?due|aging|mape|bias|error|cost|spend|lead.?time|cycle.?time|downtime|emission|co2|carbon|water|waste|risk|exception|dispute|mismatch|late|delay|backlog|variance)/i;
+const HIGHER_IS_BETTER = /(match|fill|yield|otif|on.?time|accuracy|coverage|margin|revenue|share|turns|recycl|score|compliance|savings|win|retention|clv|nps|uptime|adoption)/i;
+function lowerIsBetter(direction: unknown, title: string): boolean | null {
+  if (direction === 'lower') return true;
+  if (direction === 'higher') return false;
+  if (HIGHER_IS_BETTER.test(title)) return false;
+  if (LOWER_IS_BETTER.test(title)) return true;
+  return null;
+}
+
+export function KPICardPanel({ data, options, loading, title }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) return <PanelState loading={loading} />;
 
   const frame = data[0];
@@ -14,8 +29,9 @@ export function KPICardPanel({ data, options, loading }: PanelProps) {
 
   const isCurrency = options.format === 'currency';
   const unit = isCurrency ? '' : (options.unit as string) || '';
-  const target = options.target as number | undefined;
-  const lower = ((options.direction as string) || 'higher') === 'lower';
+  const rawTarget = options.target === null || options.target === undefined || options.target === '' ? NaN : Number(options.target);
+  const target = Number.isFinite(rawTarget) ? rawTarget : undefined;
+  const lower = lowerIsBetter(options.direction, title || '');
   const multiply = options.multiply as number | undefined;
 
   let value = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue));
@@ -31,7 +47,7 @@ export function KPICardPanel({ data, options, loading }: PanelProps) {
 
   const format = (n: number) =>
     isCurrency ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const onTarget = target !== undefined ? (lower ? value <= target : value >= target) : null;
+  const onTarget = target !== undefined && lower !== null ? (lower ? value <= target : value >= target) : null;
   const scale = target !== undefined ? Math.max(value, target) * 1.2 || 1 : 1;
   const unitWord = unit === '%' ? '%' : unit ? ` ${unit}` : '';
 
@@ -44,12 +60,12 @@ export function KPICardPanel({ data, options, loading }: PanelProps) {
       {target !== undefined && (
         <div className="mt-3">
           <div className="relative h-1 rounded-full bg-surface-3">
-            <div className={cn('grow-x absolute inset-y-0 left-0 rounded-full', onTarget ? 'bg-success' : 'bg-destructive')} style={{ width: `${Math.min(100, (value / scale) * 100)}%` }} />
+            <div className={cn('grow-x absolute inset-y-0 left-0 rounded-full', onTarget === null ? 'bg-primary' : onTarget ? 'bg-success' : 'bg-destructive')} style={{ width: `${Math.min(100, (value / scale) * 100)}%` }} />
             <span className="absolute -top-1 h-3 w-px bg-foreground/60" style={{ left: `${Math.min(100, (target / scale) * 100)}%` }} aria-hidden="true" />
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
-            <span className="truncate text-muted-foreground">Target {lower ? 'under' : 'over'} <span className="num text-foreground">{target}{unitWord}</span></span>
-            <span className={cn('shrink-0 font-medium', onTarget ? 'text-success' : 'text-destructive')}>{onTarget ? 'On target' : 'Off target'}</span>
+            <span className="truncate text-muted-foreground">Target{lower === null ? '' : lower ? ' under' : ' over'} <span className="num text-foreground">{target}{unitWord}</span></span>
+            {onTarget !== null && <span className={cn('shrink-0 font-medium', onTarget ? 'text-success' : 'text-destructive')}>{onTarget ? 'On target' : 'Off target'}</span>}
           </div>
         </div>
       )}

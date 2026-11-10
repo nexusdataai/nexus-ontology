@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { CallProcessingJourney } from '../../types/callProcessingJourney';
+import { CallProcessingJourney, JourneyFilter } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 import { JourneyListView } from './JourneyListView';
 import { JourneyStudioView } from './JourneyStudioView';
@@ -120,7 +120,8 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
 
   // Delete journey handler
   const handleDelete = async (journeyId: string) => {
-    if (!(await confirmDialog({ title: 'Delete this journey?', description: 'This cannot be undone.', destructive: true }))) {
+    const name = journeys.find(j => j.id === journeyId)?.name;
+    if (!(await confirmDialog({ title: name ? `Delete "${name}"?` : 'Delete this journey?', description: 'The journey and its run history are removed. This cannot be undone.', destructive: true }))) {
       return;
     }
     

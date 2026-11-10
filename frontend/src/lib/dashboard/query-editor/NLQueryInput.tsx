@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
 import { nlQueryTranslate, type NLQueryResponse } from '../datasources/vdl-datasource';
 
 interface Props {
@@ -49,58 +51,53 @@ export function NLQueryInput({ onQueryGenerated, currentEntity }: Props) {
   };
 
   return (
-    <div className="border rounded-lg bg-gradient-to-r from-primary/5 to-transparent p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium">AI Query Builder</span>
-        </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
+    <div className="rounded-lg border border-border bg-surface-2/60">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Icon name="sparkles" className="h-3.5 w-3.5 text-primary dark:text-brand-hi" />
+          Describe it in words
+        </span>
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} className="h-3.5 w-3.5 text-muted-foreground" />
+      </button>
 
       {expanded && (
-        <>
-          <div className="flex gap-2">
-            <textarea
-              className="flex-1 min-h-[60px] max-h-[100px] rounded-md border bg-background px-3 py-2 text-xs resize-none placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Describe what data you want to see... e.g. &quot;Show top 10 vendors by risk score&quot; or &quot;Forecast accuracy by region as a bar chart&quot;"
-              disabled={loading}
-            />
+        <div className="space-y-2 px-3 pb-3">
+          <Textarea
+            className="max-h-28 min-h-[64px] resize-none bg-card text-sm"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="For example: top 10 vendors by risk score, or forecast accuracy by region as a bar chart"
+            aria-label="Describe the data you want to see"
+            disabled={loading}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-subtle-foreground">Fills in the entity, fields and filters below. You can adjust them after.</p>
             <Button
+              variant="outline"
               size="sm"
-              className="h-auto px-3 self-end"
               onClick={handleGenerate}
               disabled={loading || !query.trim()}
+              type="button"
             >
-              {loading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Generate
-                </>
-              )}
+              <Icon name={loading ? 'spinner' : 'sparkles'} className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+              {loading ? 'Working it out' : 'Build the query'}
             </Button>
           </div>
 
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
+          {error && <InlineError onRetry={handleGenerate}>{error}</InlineError>}
 
           {lastExplanation && !error && (
-            <p className="text-xs text-muted-foreground bg-muted/30 rounded px-2 py-1">
+            <p className="rounded-md border border-border bg-card px-2.5 py-2 text-xs text-muted-foreground">
               {lastExplanation}
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   );

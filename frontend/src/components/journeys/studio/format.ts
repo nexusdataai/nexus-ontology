@@ -16,9 +16,12 @@ export function sentenceCase(label?: string | null): string {
 
 /** "semantic-rag" -> "Semantic rag", "order_to_cash" -> "Order to cash". */
 export function humanize(key?: string | null): string {
-  const s = String(key || '').replace(/[_-]+/g, ' ').trim();
+  const s = String(key || '').replace(/[_-]+/g, ' ').trim().replace(ACRONYMS, (w) => ACRONYM_CASE[w.toLowerCase()] || w.toUpperCase());
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
+/** Business abbreviations that must keep their capitals: "cpq buy" -> "CPQ buy". */
+const ACRONYMS = /\b(cpq|esg|o2c|kpi|ar|ap|gl|sla|rfx|rag|erp|crm|sap|sku|dso|clv|api|vdl|fdw|etl|cdc|tpm|ai)\b/gi;
+const ACRONYM_CASE: Record<string, string> = { rfx: 'RFx', o2c: 'O2C' };
 
 /** Minutes -> "5 min", "6 h", "24 h". */
 export function intervalInWords(minutes?: number | string | null): string {

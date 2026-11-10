@@ -1,233 +1,130 @@
 /**
- * Ontos Dashboard Component
+ * Source overview strip
  *
- * Displays FDW health status and summary metrics.
- * When fdwSource is set, shows simulator-specific stats instead of real FDW health.
+ * One quiet line of facts about the source shown above the Tables / Query
+ * tabs: connection state, schema, server, table count and how many tables are
+ * mapped to a virtual entity. It replaces the former dashboard tab.
+ *
+ * Simulator sources read the table list; a real source reads the FDW health
+ * endpoint (same calls as before, now shared through the query cache).
  */
 
-import { useState, useEffect } from 'react';
-import {
-  Activity,
-  AlertCircle,
-  Database,
-  Globe,
-  RefreshCw,
-  Server,
-  Table2,
-  Rows3,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Skeleton } from '../ui/skeleton';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Skeleton } from '../ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, StatusPill } from '@/components/ds/kit';
 import { fdwService } from '@/services/fdwService';
-import type { FdwHealthResponse } from '@/types/fdwTypes';
+import { ontosKeys } from './queryKeys';
+import type { FdwHealthResponse, ForeignServerInfo, ForeignTableInfo } from '@/types/fdwTypes';
 
-interface SimStatus {
-  enabled: boolean;
-  loaded: boolean;
-  schema: string;
-  table_count: number;
-  tables_with_data: number;
-  total_rows: number;
+interface OntosDashboardProps {
+  fdwSource?: string;
+  /** Tables of this source bound to a virtual entity. Omit while unknown. */
+  mappedCount?: number;
+  className?: string;
 }
 
-function DashboardSkeleton() {
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="dashboard-skeleton">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-4 rounded" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16 mb-1" />
-            <Skeleton className="h-3 w-32" />
-          </CardContent>
-        </Card>
-      ))}
+    <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-foreground">{children}</dd>
     </div>
   );
 }
 
-interface StatusCardProps {
-  title: string;
-  value: string | number;
-  description?: string;
-  icon: React.ReactNode;
-  statusColor?: 'green' | 'red' | 'amber';
-}
+export function OntosDashboard({ fdwSource, mappedCount, className }: OntosDashboardProps) {
+  const queryClient = useQueryClient();
+  const isSimulated = !!fdwSource && fdwSource !== 'real';
 
-function StatusCard({ title, value, description, icon, statusColor }: StatusCardProps) {
+  const tablesQuery = useQuery<ForeignTableInfo[]>({
+    queryKey: [...ontosKeys.tables(), fdwSource],
+    queryFn: () => fdwService.listTables(undefined, fdwSource),
+    enabled: isSimulated,
+    staleTime: 300000,
+  });
+
+  const healthQuery = useQuery<FdwHealthResponse>({
+    queryKey: [...ontosKeys.health],
+    queryFn: () => fdwService.getHealth(),
+    enabled: !isSimulated,
+    staleTime: 60000,
+  });
+
+  const serversQuery = useQuery<ForeignServerInfo[]>({
+    queryKey: [...ontosKeys.servers, fdwSource],
+    queryFn: () => fdwService.listServers(fdwSource),
+    staleTime: 300000,
+  });
+
+  const main = isSimulated ? tablesQuery : healthQuery;
+  const refreshing = tablesQuery.isFetching || healthQuery.isFetching || serversQuery.isFetching;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['fdw'] });
+
+  if (main.isLoading) {
+    return (
+      <div className={className} data-testid="dashboard-skeleton" aria-busy="true">
+        <Skeleton className="h-5 w-72 max-w-full" />
+      </div>
+    );
+  }
+
+  if (main.isError) {
+    return (
+      <InlineError className={className} onRetry={() => main.refetch()}>
+        {(main.error as Error)?.message || 'Could not load the status of this source.'}
+      </InlineError>
+    );
+  }
+
+  const tables = tablesQuery.data ?? [];
+  const servers = serversQuery.data ?? [];
+  const schemas = [...new Set(tables.map(t => t.schemaName))];
+  const health = healthQuery.data;
+  const healthy = health?.status === 'healthy';
+
+  const tableCount = isSimulated ? tables.length : health?.foreignTablesCount;
+  const serverCount = isSimulated ? servers.length : health?.foreignServersCount ?? servers.length;
+
   return (
-    <Card data-testid={`status-card-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2">
-          {statusColor && (
-            <span className={`inline-block h-3 w-3 rounded-full ${
-              statusColor === 'green' ? 'bg-success' : statusColor === 'amber' ? 'bg-warning' : 'bg-destructive'
-            }`} />
+    <dl className={`flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm ${className ?? ''}`} data-testid="source-overview">
+      <div className="flex items-center">
+        <dt className="sr-only">Status</dt>
+        <dd>
+          {isSimulated ? (
+            <StatusPill tone={tables.length > 0 ? 'success' : 'warning'}>
+              {tables.length > 0 ? 'Connected' : 'No tables loaded'}
+            </StatusPill>
+          ) : (
+            <StatusPill tone={!healthy ? 'danger' : serverCount === 0 ? 'warning' : 'success'}>
+              {!healthy ? health?.error || 'Connection problem' : serverCount === 0 ? 'No server set up' : 'Connected'}
+            </StatusPill>
           )}
-          <div className="text-2xl font-semibold">{value}</div>
-        </div>
-        {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function OntosDashboard({ fdwSource }: { fdwSource?: string }) {
-  const [loading, setLoading] = useState(true);
-  const [health, setHealth] = useState<FdwHealthResponse | null>(null);
-  const [simStatus, setSimStatus] = useState<SimStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (fdwSource && fdwSource !== 'real') {
-        const tables = await fdwService.listTables(undefined, fdwSource);
-        setSimStatus({
-          enabled: true,
-          loaded: tables.length > 0,
-          schema: tables[0]?.schemaName || '',
-          table_count: tables.length,
-          tables_with_data: tables.length,
-          total_rows: 0,
-        });
-        setHealth(null);
-      } else {
-        const data = await fdwService.getHealth();
-        setHealth(data);
-        setSimStatus(null);
-      }
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load status');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadData(); }, [fdwSource]);
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Dashboard</h2>
-        <DashboardSkeleton />
+        </dd>
       </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Dashboard</h2>
-        <Card className="border-destructive">
-          <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            <CardTitle className="text-base">Connection Error</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="outline" size="sm" onClick={loadData}>
-              <RefreshCw className="h-4 w-4 mr-1" /> Retry
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+      {schemas.length === 1 && <Fact label="Schema"><span className="font-mono text-xs">{schemas[0]}</span></Fact>}
+      {schemas.length > 1 && <Fact label="Schemas"><span className="num">{schemas.length}</span></Fact>}
 
-  if (simStatus) {
-    const sourceLabel = fdwSource === 'oracle' ? 'Oracle ERP' : fdwSource === 'sap' ? 'SAP S/4HANA' : fdwSource === 'external' ? 'External Sources' : 'Salesforce';
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Dashboard</h2>
-            <Badge className="bg-warning/20 text-warning text-xs">Simulator</Badge>
-            <Badge className="bg-primary/20 text-primary text-xs">{sourceLabel}</Badge>
-          </div>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="h-4 w-4 mr-1" /> Refresh
-          </Button>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatusCard
-            title="Status"
-            value={simStatus.loaded ? 'Loaded' : 'Not Loaded'}
-            icon={<Globe className="h-4 w-4 text-muted-foreground" />}
-            statusColor={simStatus.loaded ? 'green' : 'red'}
-            description={`Schema: ${simStatus.schema || '—'}`}
-          />
-          <StatusCard
-            title="Tables"
-            value={simStatus.table_count.toLocaleString()}
-            icon={<Table2 className="h-4 w-4 text-muted-foreground" />}
-            description={`${simStatus.tables_with_data} with data`}
-          />
-          <StatusCard
-            title="Total Rows"
-            value={simStatus.total_rows.toLocaleString()}
-            icon={<Rows3 className="h-4 w-4 text-muted-foreground" />}
-            description="Simulated data rows"
-          />
-          <StatusCard
-            title="Data Source"
-            value={sourceLabel}
-            icon={<Database className="h-4 w-4 text-muted-foreground" />}
-            statusColor="amber"
-            description="Simulator mode active"
-          />
-        </div>
-      </div>
-    );
-  }
+      {servers.length === 1
+        ? <Fact label="Server"><span className="font-mono text-xs">{servers[0].serverName}</span></Fact>
+        : serverCount != null && <Fact label="Servers"><span className="num">{serverCount.toLocaleString()}</span></Fact>}
 
-  const isHealthy = health?.status === 'healthy';
-  return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Dashboard</h2>
-          <Badge className="bg-success/20 text-success text-xs">Real FDW</Badge>
-        </div>
-        {health?.latencyMs != null && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Activity className="h-4 w-4" />
-            <span>Latency: {health.latencyMs}ms</span>
-          </div>
-        )}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatusCard
-          title="Connection Status"
-          value={isHealthy ? 'Healthy' : health?.error ?? 'Error'}
-          icon={<Globe className="h-4 w-4 text-muted-foreground" />}
-          statusColor={isHealthy ? 'green' : 'red'}
-          description={isHealthy ? 'FDW connection is active' : 'FDW connection has issues'}
-        />
-        <StatusCard
-          title="Foreign Servers"
-          value={health?.foreignServersCount ?? 0}
-          icon={<Server className="h-4 w-4 text-muted-foreground" />}
-          description="Configured foreign servers"
-        />
-        <StatusCard
-          title="Foreign Tables"
-          value={health?.foreignTablesCount ?? 0}
-          icon={<Table2 className="h-4 w-4 text-muted-foreground" />}
-          description="Available foreign tables"
-        />
-      </div>
-    </div>
+      {tableCount != null && <Fact label="Tables"><span className="num">{tableCount.toLocaleString()}</span></Fact>}
+
+      {mappedCount != null && !!tableCount && (
+        <Fact label="Mapped to entities"><span className="num">{mappedCount.toLocaleString()}</span></Fact>
+      )}
+
+      {!isSimulated && health?.latencyMs != null && (
+        <Fact label="Response time"><span className="num">{health.latencyMs}</span> ms</Fact>
+      )}
+
+      <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh source details" title="Refresh" data-testid="refresh-button" className="-my-1">
+        <Icon name="refresh" className={refreshing ? 'animate-spin' : undefined} />
+      </Button>
+    </dl>
   );
 }
 

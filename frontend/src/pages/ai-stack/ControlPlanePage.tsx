@@ -301,7 +301,7 @@ function KnowledgePipelinesTable() {
                             <span className="truncate text-xs text-muted-foreground" title={formatDateTime(lastTs)}>{timeAgo(lastTs) || 'Time not recorded'}</span>
                           </>
                         ) : (
-                          <span className="text-xs text-subtle-foreground">Not run yet</span>
+                          <span className="text-xs text-subtle-foreground">Run history below</span>
                         )}
                       </span>
                     </button>

@@ -632,7 +632,9 @@ class CallProcessingJourneyService {
     if (response.success && response.data) {
       return { success: true, data: response.data.data || [] };
     }
-    return response as ServiceResponse<any[]>;
+    // Only errors (no data) or an empty JSON body (null) reach here: nothing to unwrap.
+    const { data: emptyBody, ...rest } = response;
+    return emptyBody === undefined ? rest : { ...rest, data: null };
   }
 
   async getSchedule(scheduleId: string): Promise<ServiceResponse<any>> {

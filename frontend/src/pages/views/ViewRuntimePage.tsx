@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
+import { EditorHeader } from '@/components/analytics/EditorHeader';
 import type { View } from '@/lib/foundry/model';
 import { viewService } from '@/services/viewService';
-import { ViewRuntime } from '@/components/views/ViewRuntime';
+import { DashboardSkeleton, ViewRuntime } from '@/components/views/ViewRuntime';
+
+const LIBRARY = '/ai-analytics?tab=views';
 
 export default function ViewRuntimePage() {
   const { viewId } = useParams<{ viewId: string }>();
@@ -15,7 +19,7 @@ export default function ViewRuntimePage() {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!viewId) return;
     setLoading(true);
     viewService
@@ -25,24 +29,28 @@ export default function ViewRuntimePage() {
       .finally(() => setLoading(false));
   }, [viewId]);
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </Layout>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  if (!view) {
+  if (loading || !view) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center h-64">
-          <p className="text-sm text-muted-foreground mb-3">View not found</p>
-          <Button variant="outline" size="sm" onClick={() => navigate('/views')}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to views
-          </Button>
+        <div className="flex flex-col">
+          <EditorHeader
+            backLabel="AI Analytics"
+            onBack={() => navigate(LIBRARY)}
+            title={loading ? <Skeleton className="h-7 w-56" /> : <h1 className="text-lg font-medium tracking-tight text-foreground">View</h1>}
+          />
+          <div className="p-4 sm:p-6">
+            {loading ? (
+              <DashboardSkeleton />
+            ) : (
+              <InlineError onRetry={load}>
+                This view could not be loaded. It may have been deleted, or the server did not answer.
+              </InlineError>
+            )}
+          </div>
         </div>
       </Layout>
     );
@@ -50,32 +58,27 @@ export default function ViewRuntimePage() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between gap-3 p-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate('/views')}>
-              <ArrowLeft className="h-3.5 w-3.5" />
+      <div className="flex flex-col">
+        <EditorHeader
+          backLabel="AI Analytics"
+          onBack={() => navigate(LIBRARY)}
+          title={<h1 className="min-w-0 truncate text-lg font-medium tracking-tight text-foreground">{view.name}</h1>}
+          meta={
+            <span className="num shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              {view.tabs.length} {view.tabs.length === 1 ? 'tab' : 'tabs'}
+              {view.version > 0 && ` · version ${view.version}`}
+            </span>
+          }
+          actions={
+            <Button size="sm" onClick={() => navigate(`/views/builder/${view.viewId}`)}>
+              <Icon name="edit" className="h-3.5 w-3.5" /> Edit view
             </Button>
-            <h1 className="text-sm font-medium truncate">{view.name}</h1>
-            {view.version > 0 && (
-              <Badge variant="outline" className="text-xs">v{view.version}</Badge>
-            )}
-            <span className="text-xs text-muted-foreground">{view.tabs.length} tabs</span>
-          </div>
+          }
+        >
+          {view.description && <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{view.description}</p>}
+        </EditorHeader>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => navigate(`/views/builder/${view.viewId}`)}
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0">
+        <div className="min-h-0 flex-1">
           <ViewRuntime view={view} />
         </div>
       </div>

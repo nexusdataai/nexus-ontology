@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Layers, Loader2, Search, AppWindow, Plus, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { SearchInput } from '@/components/ds/kit';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -157,132 +158,107 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
         <Button
           variant="outline"
           size="sm"
-          className="h-8"
           disabled={disabled || !viewId}
-          title={!viewId ? 'Save the view first to manage solutions' : undefined}
+          title={!viewId ? 'Save the view first, then attach it to a solution' : 'Choose the solutions that show this view'}
         >
-          <Layers className="h-3.5 w-3.5 mr-1" />
+          <Icon name="apps" className="h-3.5 w-3.5" />
           Solutions
-          {attachedCount > 0 && (
-            <span className="ml-1 text-xs bg-primary/10 text-primary rounded-full px-1.5 py-0.5">
-              {attachedCount}
-            </span>
-          )}
+          {attachedCount > 0 && <span className="num text-xs text-muted-foreground">{attachedCount}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="px-3 pt-3 pb-2 border-b">
-          <div className="text-xs font-semibold text-muted-foreground mb-2">
-            Solutions for this View
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="h-7 pl-8 text-xs"
-            />
-          </div>
+      <PopoverContent align="end" className="w-[min(340px,calc(100vw-2rem))] p-0">
+        <div className="border-b border-border px-3 pb-3 pt-3.5">
+          <div className="text-sm font-medium text-foreground">Show this view in</div>
+          <p className="mb-2.5 mt-0.5 text-xs text-muted-foreground">
+            Attached solutions list the view in their side menu. Changes apply straight away.
+          </p>
+          <SearchInput value={query} onChange={setQuery} placeholder="Search solutions" className="w-full sm:w-full" />
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-24">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <div className="space-y-3 p-3" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-2.5">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 flex-1" />
+              </div>
+            ))}
           </div>
         ) : (
           <ScrollArea className="max-h-72">
             {filteredSolutions.length > 0 ? (
-              <div className="p-2 space-y-1">
+              <ul className="p-1.5">
                 {filteredSolutions.map((s) => {
                   const app = s.appId ? appLookup.get(s.appId) : undefined;
-                  const Icon = app?.icon;
+                  const AppIcon = app?.icon;
                   const attached = isAttached(s.solutionId);
                   const isPending = pending.has(s.solutionId);
                   return (
-                    <button
-                      key={s.solutionId}
-                      onClick={() => toggleMembership(s.solutionId)}
-                      disabled={isPending}
-                      className={cn(
-                        'w-full flex items-start gap-2 p-2 rounded-md text-left text-xs transition-colors hover:bg-muted/50',
-                        attached && 'bg-primary/5',
-                      )}
-                    >
-                      <Checkbox
-                        checked={attached}
+                    <li key={s.solutionId}>
+                      <button
+                        type="button"
+                        onClick={() => toggleMembership(s.solutionId)}
                         disabled={isPending}
-                        onCheckedChange={() => toggleMembership(s.solutionId)}
-                        className="mt-0.5"
-                      />
-                      {Icon && app ? (
-                        <div className={`p-1 rounded bg-gradient-to-br ${app.color} shrink-0`}>
-                          <Icon className="h-3 w-3 text-white" />
-                        </div>
-                      ) : (
-                        <AppWindow className="h-3.5 w-3.5 mt-0.5 text-muted-foreground" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{s.name}</div>
-                        {s.appId && (
-                          <div className="text-xs text-muted-foreground font-mono truncate">
-                            {s.appId}
-                          </div>
+                        aria-pressed={attached}
+                        className={cn(
+                          'flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          attached && 'bg-accent',
                         )}
-                      </div>
-                      {isPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                    </button>
+                      >
+                        <Checkbox checked={attached} disabled={isPending} tabIndex={-1} aria-hidden="true" className="pointer-events-none" />
+                        {AppIcon ? (
+                          <AppIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <Icon name="apps" className="text-muted-foreground" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{s.name}</span>
+                        {isPending && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                      </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             ) : (
-              <div className="p-3 text-xs text-muted-foreground text-center">
+              <p className="px-3 py-5 text-center text-xs text-muted-foreground">
                 {solutions.length === 0
-                  ? 'No solutions yet. Link to an app below.'
-                  : 'No matches.'}
-              </div>
+                  ? 'No solutions yet. Start one from an app below.'
+                  : 'No solution matches this search.'}
+              </p>
             )}
 
             {unlinkedApps.length > 0 && (
-              <div className="border-t p-2 space-y-1">
-                <div className="text-xs text-muted-foreground px-2 py-1">
-                  Link to an unused app
+              <div className="border-t border-border p-1.5">
+                <div className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
+                  Start a solution for an app and attach this view
                 </div>
-                {unlinkedApps.map((app) => {
-                  const Icon = app.icon;
-                  const isCreating = creatingForAppId === app.id;
-                  return (
-                    <button
-                      key={app.id}
-                      onClick={() => handleCreateAndAttach(app.id)}
-                      disabled={isCreating}
-                      className="w-full flex items-center gap-2 p-2 rounded-md text-left text-xs hover:bg-muted/50 transition-colors"
-                    >
-                      <div className={`p-1 rounded bg-gradient-to-br ${app.color} shrink-0`}>
-                        <Icon className="h-3 w-3 text-white" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{app.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {app.id}
-                        </div>
-                      </div>
-                      {isCreating ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Plus className="h-3 w-3 text-muted-foreground" />
-                      )}
-                    </button>
-                  );
-                })}
+                <ul>
+                  {unlinkedApps.map((app) => {
+                    const AppIcon = app.icon;
+                    const isCreating = creatingForAppId === app.id;
+                    return (
+                      <li key={app.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleCreateAndAttach(app.id)}
+                          disabled={isCreating}
+                          className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <AppIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1 truncate text-foreground">{app.name}</span>
+                          <Icon name={isCreating ? 'spinner' : 'plus'} className={cn('h-3.5 w-3.5 text-muted-foreground', isCreating && 'animate-spin')} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
           </ScrollArea>
         )}
 
-        <div className="border-t px-3 py-2 flex items-center justify-end">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>
-            <X className="h-3 w-3 mr-1" /> Close
+        <div className="flex items-center justify-end border-t border-border px-3 py-2">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            Done
           </Button>
         </div>
       </PopoverContent>

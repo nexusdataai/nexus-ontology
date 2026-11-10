@@ -33,8 +33,19 @@ const LOG_LEVEL_COLORS: Record<string, string> = {
   error: 'text-destructive',
 };
 
+/** The backend can emit the same line twice in a row; show it once. */
+function dedupe(logs: LogEntry[]): LogEntry[] {
+  const ms = (t: unknown) => { const n = new Date(t as string).getTime(); return Number.isNaN(n) ? 0 : n; };
+  return logs.filter((l, i) => {
+    if (i === 0) return true;
+    const p = logs[i - 1];
+    // The two copies are written a few milliseconds apart.
+    return !(l.message === p.message && l.level === p.level && Math.abs(ms(l.timestamp) - ms(p.timestamp)) < 1500);
+  });
+}
+
 export function StepConsole({
-  logs,
+  logs: rawLogs,
   isExpanded = false,
   onToggle,
   maxHeight = '200px',
@@ -45,6 +56,7 @@ export function StepConsole({
   taskProgress = null,
   onClear,
 }: StepConsoleProps) {
+  const logs = dedupe(rawLogs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -195,7 +207,7 @@ export function StepConsole({
 
 // Compact inline version for embedding in step cards
 export function InlineStepConsole({
-  logs,
+  logs: rawLogs,
   maxLines = 3,
   onExpand,
 }: {
@@ -203,6 +215,7 @@ export function InlineStepConsole({
   maxLines?: number;
   onExpand?: () => void;
 }) {
+  const logs = dedupe(rawLogs);
   const recentLogs = logs.slice(-maxLines);
 
   if (logs.length === 0) {

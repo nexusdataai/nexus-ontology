@@ -3,44 +3,87 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import Layout from "./components/Layout";
+import { Skeleton } from "./components/ui/skeleton";
 import { ThemeProvider } from "./hooks/use-theme";
 import { EnterpriseAuthProvider, useEnterpriseAuth } from "./context/EnterpriseAuthContext";
 import { ChatProvider } from "./context/ChatContext";
 import { ConfirmHost } from "./components/ds/confirm";
+// The assistant loads after the page: it is not needed for the first paint.
+const AssistantDock = lazyPage(() => import('@/components/assistant/AssistantDock').then(m => ({ default: m.AssistantDock })));
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
-import Settings from "./pages/Settings";
-import UserManagement from "./pages/UserManagement";
-import HomePage from "./pages/HomePage";
+/**
+ * Pages are separate files in the build. After a new release, a tab opened
+ * before it may ask for a file that no longer exists; reload once to pick up
+ * the new release instead of showing a broken page.
+ */
+function lazyPage<T extends React.ComponentType<any>>(load: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    load().then(
+      (m) => { sessionStorage.removeItem('page-reload'); return m; },
+      (err) => {
+        if (!sessionStorage.getItem('page-reload')) {
+          sessionStorage.setItem('page-reload', '1');
+          window.location.reload();
+          return new Promise<{ default: T }>(() => {});
+        }
+        throw err;
+      },
+    ),
+  );
+}
 
-import DataPlaneCreatePage from "./pages/DataPlaneCreatePage";
-import DataPlaneExplorer from "./pages/DataPlaneExplorer";
-import DataPlanePage from "./pages/ai-stack/DataPlanePage";
-import ControlPlanePage from "./pages/ai-stack/ControlPlanePage";
-import ReasoningPage from "./pages/ai-stack/ReasoningPage";
-import ToolsCataloguePage from "./pages/workspace/ToolsCataloguePage";
-import AppCataloguePage from "./pages/workspace/AppCataloguePage";
-import AIAutomationPage from "./pages/workspace/AIAutomationPage";
-import AppPage from "./pages/apps/AppPage";
-import DiagnosticsPage from "./pages/DiagnosticsPage";
-import Operations from "./pages/Operations";
-import DashboardListPage from "./pages/dashboard/DashboardListPage";
-import DashboardBuilderPage from "./pages/dashboard/DashboardBuilderPage";
-import DashboardViewerPage from "./pages/dashboard/DashboardViewerPage";
-import ViewListPage from "./pages/views/ViewListPage";
-import ViewBuilderPage from "./pages/views/ViewBuilderPage";
-import ViewRuntimePage from "./pages/views/ViewRuntimePage";
-import AIAnalyticsPage from "./pages/AIAnalyticsPage";
-import DesignSystemPage from "./pages/DesignSystemPage";
-import { AssistantDock } from '@/components/assistant/AssistantDock';
-import HelpPage from './pages/HelpPage';
-import SimulatorPage from './pages/SimulatorPage';
+const Settings = lazyPage(() => import("./pages/Settings"));
+const UserManagement = lazyPage(() => import("./pages/UserManagement"));
+const HomePage = lazyPage(() => import("./pages/HomePage"));
+
+const DataPlaneCreatePage = lazyPage(() => import("./pages/DataPlaneCreatePage"));
+const DataPlaneExplorer = lazyPage(() => import("./pages/DataPlaneExplorer"));
+const DataPlanePage = lazyPage(() => import("./pages/ai-stack/DataPlanePage"));
+const ControlPlanePage = lazyPage(() => import("./pages/ai-stack/ControlPlanePage"));
+const ReasoningPage = lazyPage(() => import("./pages/ai-stack/ReasoningPage"));
+const ToolsCataloguePage = lazyPage(() => import("./pages/workspace/ToolsCataloguePage"));
+const AppCataloguePage = lazyPage(() => import("./pages/workspace/AppCataloguePage"));
+const AIAutomationPage = lazyPage(() => import("./pages/workspace/AIAutomationPage"));
+const AppPage = lazyPage(() => import("./pages/apps/AppPage"));
+const DiagnosticsPage = lazyPage(() => import("./pages/DiagnosticsPage"));
+const Operations = lazyPage(() => import("./pages/Operations"));
+const DashboardListPage = lazyPage(() => import("./pages/dashboard/DashboardListPage"));
+const DashboardBuilderPage = lazyPage(() => import("./pages/dashboard/DashboardBuilderPage"));
+const DashboardViewerPage = lazyPage(() => import("./pages/dashboard/DashboardViewerPage"));
+const ViewListPage = lazyPage(() => import("./pages/views/ViewListPage"));
+const ViewBuilderPage = lazyPage(() => import("./pages/views/ViewBuilderPage"));
+const ViewRuntimePage = lazyPage(() => import("./pages/views/ViewRuntimePage"));
+const AIAnalyticsPage = lazyPage(() => import("./pages/AIAnalyticsPage"));
+const DesignSystemPage = lazyPage(() => import("./pages/DesignSystemPage"));
+const HelpPage = lazyPage(() => import("./pages/HelpPage"));
+const SimulatorPage = lazyPage(() => import("./pages/SimulatorPage"));
 
 const queryClient = new QueryClient();
+
+/**
+ * Shown while a page's code is fetched (each page is its own file in the
+ * build). The app shell stays, so only the content area waits.
+ */
+const PageLoading = () => {
+  const path = window.location.pathname;
+  if (/^\/(login|signup|auth\/)/.test(path)) return null;
+  return (
+    <Layout>
+      <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8" aria-busy="true" aria-label="Loading page">
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    </Layout>
+  );
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useEnterpriseAuth();
@@ -62,6 +105,7 @@ const AuthRoutes = () => {
 
   return (
     <ChatProvider profileName={profile?.full_name}>
+      <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -126,7 +170,8 @@ const AuthRoutes = () => {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {user && !loading && !/^\/(login|signup|design-system\/login)/.test(window.location.pathname) && <AssistantDock userName={profile?.full_name} />}
+      </Suspense>
+      {user && !loading && !/^\/(login|signup|design-system\/login)/.test(window.location.pathname) && <Suspense fallback={null}><AssistantDock userName={profile?.full_name} /></Suspense>}
     </ChatProvider>
   );
 };

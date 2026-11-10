@@ -1,6 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { getAppConfig } from '@/config/appRegistry';
 import { AppShell } from '@/components/apps/AppShell';
+import Layout from '@/components/Layout';
+import { EmptyState } from '@/components/ds/primitives';
+import { Button } from '@/components/ui/button';
 
 export default function AppPage() {
   const { appId } = useParams<{ appId: string }>();
@@ -10,15 +13,16 @@ export default function AppPage() {
 
   if (!app) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">App Not Found</h2>
-          <p className="text-muted-foreground mb-4">The application "{appId}" does not exist.</p>
-          <button onClick={() => nav('/workspace/apps')} className="text-primary hover:underline">
-            Back to App Catalogue
-          </button>
+      <Layout title="Solution not found">
+        <div className="mx-auto w-full max-w-[720px] px-4 py-16 sm:px-6">
+          <EmptyState
+            icon="apps"
+            title="This solution is not available"
+            description={`There is no solution called "${appId}". It may not be installed yet, or the link is out of date.`}
+            action={<Button onClick={() => nav('/workspace/apps')}>Back to Solutions</Button>}
+          />
         </div>
-      </div>
+      </Layout>
     );
   }
 

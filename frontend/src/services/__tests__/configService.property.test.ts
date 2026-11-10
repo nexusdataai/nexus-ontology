@@ -28,8 +28,8 @@ const validUserPoolIdArb = fc.tuple(
 // Arbitrary for generating valid client IDs
 const validClientIdArb = fc.hexaString({ minLength: 26, maxLength: 26 });
 
-// Arbitrary for generating valid URLs
-const validUrlArb = fc.webUrl({ withPath: true });
+// Arbitrary for generating valid URLs (fast-check 3.x webUrl always includes a path)
+const validUrlArb = fc.webUrl();
 
 // Arbitrary for generating valid AppConfig
 const validAppConfigArb = fc.record({
