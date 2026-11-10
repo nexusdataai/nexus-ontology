@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
 import { cn } from '@/lib/utils';
 import type { RegistryColumn } from './types';
 
@@ -80,59 +80,68 @@ export function RegistryTable<T>(props: RegistryTableProps<T>) {
   };
 
   return (
-    <div className="border rounded-md flex flex-col bg-card/30" style={{ height }}>
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs" style={{ height }}>
       {resultSummary && (
-        <div className="flex items-center justify-end gap-3 px-2 py-1 border-b text-[11px] text-muted-foreground">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground">
           {resultSummary}
         </div>
       )}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-[12px]">
-          <thead className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
-            <tr className="text-left">
+      <div className="scroll-thin min-h-0 flex-1 overflow-auto pb-14">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead className="sticky top-0 z-10 bg-surface-2">
+            <tr className="border-b border-border text-left">
               {columns.map((c) => {
                 const sortable = !!c.sortBy;
                 const active = sortKey === c.key;
                 return (
                   <th
                     key={c.key}
-                    className={cn(
-                      'px-2 py-1.5 font-medium text-muted-foreground select-none',
-                      c.headerClassName,
-                      sortable && 'cursor-pointer hover:text-foreground',
-                    )}
-                    onClick={sortable ? () => toggleSort(c.key) : undefined}
+                    scope="col"
+                    aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                    className={cn('h-10 whitespace-nowrap px-4 text-xs font-medium text-muted-foreground', c.headerClassName)}
                   >
-                    <span className="inline-flex items-center gap-1">
-                      {c.label}
-                      {sortable && active && (
-                        sortDir === 'asc'
-                          ? <ChevronUp className="h-3 w-3" />
-                          : <ChevronDown className="h-3 w-3" />
-                      )}
-                    </span>
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(c.key)}
+                        className={cn(
+                          'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          active && 'text-foreground',
+                        )}
+                      >
+                        {c.label}
+                        <Icon
+                          name={active && sortDir === 'desc' ? 'chevron-down' : 'chevron-up'}
+                          className={cn('h-3 w-3 transition-opacity', active ? 'opacity-100' : 'opacity-0 group-hover/sort:opacity-50')}
+                        />
+                      </button>
+                    ) : c.label}
                   </th>
                 );
               })}
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row) => {
+            {sorted.map((row, i) => {
               const k = rowKey(row);
               const selected = selectedKey === k;
               return (
                 <tr
                   key={k}
                   data-key={k}
+                  tabIndex={onSelect ? 0 : undefined}
+                  aria-selected={onSelect ? selected : undefined}
                   onClick={onSelect ? () => onSelect(row) : undefined}
+                  onKeyDown={onSelect ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(row); } } : undefined}
+                  style={{ ['--i' as any]: Math.min(i, 14) }}
                   className={cn(
-                    'border-t border-border/30 transition-colors',
-                    onSelect && 'cursor-pointer hover:bg-muted/30',
-                    selected && 'bg-primary/10 hover:bg-primary/15',
+                    'rise border-b border-border transition-colors duration-150 last:border-b-0',
+                    onSelect && 'cursor-pointer hover:bg-surface-2/60 focus-visible:bg-surface-2/60 focus-visible:outline-none',
+                    selected && 'bg-accent hover:bg-accent',
                   )}
                 >
                   {columns.map((c) => (
-                    <td key={c.key} className={cn('px-2 py-1.5 align-top', c.className)}>
+                    <td key={c.key} className={cn('px-4 py-2.5 align-middle', c.className)}>
                       {c.render(row)}
                     </td>
                   ))}
@@ -141,7 +150,7 @@ export function RegistryTable<T>(props: RegistryTableProps<T>) {
             })}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-8 text-center text-muted-foreground text-xs">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   {emptyMessage || 'No rows match the current filters.'}
                 </td>
               </tr>

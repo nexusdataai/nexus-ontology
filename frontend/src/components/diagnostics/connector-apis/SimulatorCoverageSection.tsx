@@ -23,8 +23,8 @@ export default function SimulatorCoverageSection({ report }: Props) {
       </div>
 
       {report.totals.blocking > 0 && (
-        <div className="border-l-2 border-red-500/40 pl-3 py-1 text-xs">
-          <div className="text-red-300">
+        <div className="border-l-2 border-destructive/40 pl-3 py-1 text-xs">
+          <div className="text-destructive">
             Empty tables block PATCH canary discovery. Re-seed the simulator
             (or pick alternate hint paths) to unblock these APIs.
           </div>
@@ -32,7 +32,7 @@ export default function SimulatorCoverageSection({ report }: Props) {
       )}
 
       <div className="border rounded-md max-h-96 overflow-auto">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs">
           <thead className="sticky top-0 bg-muted/40">
             <tr className="text-left">
               <th className="px-2 py-1">schema.table</th>
@@ -45,22 +45,22 @@ export default function SimulatorCoverageSection({ report }: Props) {
           <tbody>
             {report.rows.map(r => (
               <tr key={`${r.sim_key}/${r.schema}/${r.table}`} className="border-t border-border/40">
-                <td className="px-2 py-1 font-mono text-[10px]">{r.schema}.{r.table}</td>
+                <td className="px-2 py-1 font-mono text-xs">{r.schema}.{r.table}</td>
                 <td className="px-2 py-1 text-muted-foreground">{r.sim_key}</td>
-                <td className={`px-2 py-1 font-mono ${r.row_count === 0 ? 'text-red-300' : ''}`}>
+                <td className={`px-2 py-1 font-mono ${r.row_count === 0 ? 'text-destructive' : ''}`}>
                   {r.row_count}
                 </td>
                 <td className="px-2 py-1">
                   <div className="flex flex-wrap gap-1">
                     {r.used_by_apis.map(a => (
-                      <span key={a} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{a}</span>
+                      <span key={a} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-xs">{a}</span>
                     ))}
                   </div>
                 </td>
                 <td className="px-2 py-1">
                   {r.blocking
-                    ? <Badge variant="outline" className="text-[9px] text-red-300 border-red-500/30 bg-red-500/10">blocking</Badge>
-                    : <Badge variant="outline" className="text-[9px] text-green-300 border-green-500/30 bg-green-500/10">ok</Badge>}
+                    ? <Badge variant="outline" className="text-xs text-destructive border-destructive/30 bg-destructive/10">blocking</Badge>
+                    : <Badge variant="outline" className="text-xs text-success border-success/30 bg-success/10">ok</Badge>}
                 </td>
               </tr>
             ))}
@@ -72,9 +72,9 @@ export default function SimulatorCoverageSection({ report }: Props) {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number | string; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
+  const cls = tone === 'green' ? 'text-success'
+    : tone === 'amber' ? 'text-warning'
+    : tone === 'red' ? 'text-destructive'
     : '';
   return (
     <div>

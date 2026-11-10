@@ -48,7 +48,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Customer Management & CRM",
     icon: Users,
     description: "Customer lifecycle, party management, and relationship management applications",
-    color: "bg-blue-500",
+    color: "bg-primary",
     products: [
       {
         id: "salesforce-comm",
@@ -101,7 +101,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Product & Service Management",
     icon: Package,
     description: "Product catalog, service catalog, and inventory management",
-    color: "bg-green-500",
+    color: "bg-success",
     products: [
       {
         id: "amdocs-optima-catalog",
@@ -154,7 +154,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Order Management & Fulfillment",
     icon: ShoppingCart,
     description: "Order capture, orchestration, and fulfillment systems",
-    color: "bg-purple-500",
+    color: "bg-primary",
     products: [
       {
         id: "amdocs-optima-order",
@@ -207,7 +207,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Billing & Revenue Management",
     icon: CreditCard,
     description: "Billing, charging, payment, and revenue management systems",
-    color: "bg-orange-500",
+    color: "bg-warning",
     products: [
       {
         id: "amdocs-optima-billing",
@@ -260,7 +260,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Campaign & Offer Management",
     icon: Target,
     description: "Marketing campaigns, promotions, and offer management",
-    color: "bg-pink-500",
+    color: "bg-primary",
     products: [
       {
         id: "amdocs-optima-campaign",
@@ -313,7 +313,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Network & Resource Management",
     icon: Network,
     description: "Network operations, resource management, and OSS applications",
-    color: "bg-indigo-500",
+    color: "bg-primary",
     products: [
       {
         id: "amdocs-optima-network",
@@ -366,7 +366,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Analytics & Intelligence",
     icon: BarChart3,
     description: "Business intelligence, analytics, and data management platforms",
-    color: "bg-cyan-500",
+    color: "bg-primary",
     products: [
       {
         id: "amdocs-optima-analytics",
@@ -419,7 +419,7 @@ const tmfCategories: TMFCategory[] = [
     name: "Security & Compliance",
     icon: Shield,
     description: "Security, identity management, and compliance applications",
-    color: "bg-red-500",
+    color: "bg-destructive",
     products: [
       {
         id: "amdocs-optima-security",
@@ -496,7 +496,7 @@ export default function TMFCanvas({ className }: TMFCanvasProps) {
               <Layers className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h2 className="font-bold text-lg text-foreground">TMF Canvas</h2>
+              <h2 className="font-semibold text-lg text-foreground">TMF Canvas</h2>
               <p className="text-sm text-muted-foreground">BSS/OSS Application Catalogue</p>
             </div>
           </div>

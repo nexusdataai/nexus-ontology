@@ -14,10 +14,10 @@ import { uploadExternalDocument } from '@/services/simulatorLink';
 type Tab = 'invoices' | 'lab_reports';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType }> = {
-  Validated: { color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: CheckCircle2 },
-  Rejected: { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: XCircle },
-  Needs_Review: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: AlertTriangle },
-  Pending: { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: Clock },
+  Validated: { color: 'bg-success/20 text-success border-success/30', icon: CheckCircle2 },
+  Rejected: { color: 'bg-destructive/20 text-destructive border-destructive/30', icon: XCircle },
+  Needs_Review: { color: 'bg-warning/20 text-warning border-warning/30', icon: AlertTriangle },
+  Pending: { color: 'bg-primary/20 text-primary border-primary/30', icon: Clock },
 };
 
 export default function FileUploadsPanel() {
@@ -63,8 +63,8 @@ export default function FileUploadsPanel() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Upload className="h-5 w-5 text-purple-400" />
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Upload className="h-5 w-5 text-primary" />
             File Uploads
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export default function FileUploadsPanel() {
       </div>
 
       {uploadResult && (
-        <div className={`rounded-lg border px-3 py-2 text-sm ${uploadResult.includes('failed') ? 'border-red-300 bg-red-950/20 text-red-400' : 'border-green-300 bg-green-950/20 text-green-400'}`}>
+        <div className={`rounded-lg border px-3 py-2 text-sm ${uploadResult.includes('failed') ? 'border-destructive/25 bg-destructive/20 text-destructive' : 'border-success/25 bg-success/20 text-success'}`}>
           {uploadResult}
         </div>
       )}
@@ -95,19 +95,19 @@ export default function FileUploadsPanel() {
         <button onClick={() => { setTab('invoices'); setSelected(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'invoices' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
           <FileText className="h-3.5 w-3.5" /> Invoices
-          <Badge variant="outline" className="text-[10px] ml-1">{invoices.total}</Badge>
+          <Badge variant="outline" className="text-xs ml-1">{invoices.total}</Badge>
         </button>
         <button onClick={() => { setTab('lab_reports'); setSelected(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'lab_reports' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
           <FlaskConical className="h-3.5 w-3.5" /> Lab Reports
-          <Badge variant="outline" className="text-[10px] ml-1">{labReports.total}</Badge>
+          <Badge variant="outline" className="text-xs ml-1">{labReports.total}</Badge>
         </button>
       </div>
 
       {activeData.loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : activeData.error ? (
-        <div className="text-center py-10 text-sm text-red-400">{activeData.error}</div>
+        <div className="text-center py-10 text-sm text-destructive">{activeData.error}</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: 420 }}>
           <Card className="lg:col-span-1">
@@ -130,15 +130,15 @@ export default function FileUploadsPanel() {
                     <button key={i} onClick={() => setSelected(row)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left border-b border-border/50 hover:bg-muted/30 transition-colors ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}>
                       <div className="shrink-0">
-                        {isInvoice ? <FileText className="h-8 w-8 text-blue-400 p-1.5 bg-blue-500/10 rounded" />
-                          : <FlaskConical className="h-8 w-8 text-emerald-400 p-1.5 bg-emerald-500/10 rounded" />}
+                        {isInvoice ? <FileText className="h-8 w-8 text-primary p-1.5 bg-primary/10 rounded" />
+                          : <FlaskConical className="h-8 w-8 text-success p-1.5 bg-success/10 rounded" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-medium truncate">{fileName}</div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Progress value={confidence} className="h-1 w-16" />
-                          <span className="text-[10px] text-muted-foreground">{confidence}%</span>
-                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${cfg.color}`}>
+                          <span className="text-xs text-muted-foreground">{confidence}%</span>
+                          <Badge variant="outline" className={`text-xs px-1 py-0 ${cfg.color}`}>
                             <Icon className="h-2.5 w-2.5 mr-0.5" />{statusKey}
                           </Badge>
                         </div>
@@ -173,20 +173,20 @@ export default function FileUploadsPanel() {
 
                         return (
                           <div key={key} className={`rounded-lg border p-3 ${key.includes('ID') || key.includes('Upload_ID') ? 'col-span-2 bg-muted/20' : ''}`}>
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</div>
+                            <div className="text-xs text-muted-foreground mb-1">{label}</div>
                             {isConfidence ? (
                               <div className="flex items-center gap-2">
                                 <Progress value={Number(val)} className="h-2 flex-1" />
-                                <span className="text-sm font-mono font-bold">{strVal}%</span>
+                                <span className="text-sm font-mono font-semibold">{strVal}%</span>
                               </div>
                             ) : isStatus ? (
                               <Badge className={`${(STATUS_CONFIG[strVal] || STATUS_CONFIG.Pending).color}`}>{strVal}</Badge>
                             ) : isCompliance ? (
-                              <Badge className={val ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
+                              <Badge className={val ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}>
                                 {val ? 'Compliant' : 'Non-Compliant'}
                               </Badge>
                             ) : isMoney ? (
-                              <span className="text-sm font-mono font-bold">${Number(val).toLocaleString()}</span>
+                              <span className="text-sm font-mono font-semibold">${Number(val).toLocaleString()}</span>
                             ) : (
                               <span className="text-sm font-medium">{strVal}</span>
                             )}
@@ -195,7 +195,7 @@ export default function FileUploadsPanel() {
                       })}
                     </div>
                     <div className="rounded-lg border p-3 bg-muted/10">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Source File</div>
+                      <div className="text-xs text-muted-foreground mb-1">Source File</div>
                       <span className="text-xs font-mono">{String(selected.File_Path)}</span>
                     </div>
                   </div>

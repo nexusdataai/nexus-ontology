@@ -25,13 +25,13 @@ export default function CatalogueHealthSection({ report }: Props) {
               <div className="font-mono text-xs mb-1">{apiId}</div>
               <div className="space-y-1">
                 {issues.map((it: CatalogueIssue, i: number) => (
-                  <div key={i} className="flex items-start gap-2 text-[11px]">
+                  <div key={i} className="flex items-start gap-2 text-xs">
                     <Badge
                       variant="outline"
-                      className={`text-[9px] shrink-0 ${
+                      className={`text-xs shrink-0 ${
                         it.severity === 'error'
-                          ? 'text-red-300 border-red-500/30 bg-red-500/10'
-                          : 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                          ? 'text-destructive border-destructive/30 bg-destructive/10'
+                          : 'text-warning border-warning/30 bg-warning/10'
                       }`}
                     >{it.severity}</Badge>
                     <span className="font-mono text-muted-foreground shrink-0">{it.code}</span>
@@ -48,9 +48,9 @@ export default function CatalogueHealthSection({ report }: Props) {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
+  const cls = tone === 'green' ? 'text-success'
+    : tone === 'amber' ? 'text-warning'
+    : tone === 'red' ? 'text-destructive'
     : '';
   return (
     <div>

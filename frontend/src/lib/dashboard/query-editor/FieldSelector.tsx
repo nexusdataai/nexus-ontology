@@ -46,9 +46,9 @@ export function FieldSelector({ entity, value, onChange }: Props) {
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">Fields</Label>
         <div className="flex gap-1">
-          <button onClick={selectAll} className="text-[10px] text-blue-500 hover:underline" type="button">All</button>
-          <span className="text-[10px] text-muted-foreground">|</span>
-          <button onClick={clearAll} className="text-[10px] text-blue-500 hover:underline" type="button">None</button>
+          <button onClick={selectAll} className="text-xs text-primary hover:underline" type="button">All</button>
+          <span className="text-xs text-muted-foreground">|</span>
+          <button onClick={clearAll} className="text-xs text-primary hover:underline" type="button">None</button>
         </div>
       </div>
       {loading ? (
@@ -63,7 +63,7 @@ export function FieldSelector({ entity, value, onChange }: Props) {
               <Badge
                 key={f.name}
                 variant={selected ? 'default' : 'outline'}
-                className="text-[10px] cursor-pointer select-none"
+                className="text-xs cursor-pointer select-none"
                 onClick={() => toggle(f.name)}
               >
                 {f.name}

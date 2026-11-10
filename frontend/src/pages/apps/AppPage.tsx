@@ -12,7 +12,7 @@ export default function AppPage() {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">App Not Found</h2>
+          <h2 className="text-xl font-semibold mb-2">App Not Found</h2>
           <p className="text-muted-foreground mb-4">The application "{appId}" does not exist.</p>
           <button onClick={() => nav('/workspace/apps')} className="text-primary hover:underline">
             Back to App Catalogue

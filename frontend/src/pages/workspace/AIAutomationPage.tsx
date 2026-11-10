@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { CopilotJourney } from '@/components/CopilotJourney';
@@ -6,27 +6,34 @@ import { JourneyBuilder } from '@/components/JourneyBuilder';
 import { JourneysPanel } from '@/components/journeys/JourneysPanel';
 import { CopilotSavedJourneysSection } from '@/components/journeys/CopilotSavedJourneysSection';
 import { AutomationRegistryPanel } from '@/components/workspace/AutomationRegistryPanel';
-import { Sparkles, Workflow, ListChecks, BookmarkCheck, Library } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { PageTabsBar, type TabSection } from '@/components/ds/PageTabs';
 
 type Tab = 'copilot' | 'builder' | 'journeys' | 'copilot-saved' | 'registry';
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'journeys', label: 'Journeys', icon: ListChecks },
-  { id: 'copilot-saved', label: 'Copilot Saved', icon: BookmarkCheck },
-  { id: 'copilot', label: 'AI Copilot', icon: Sparkles },
-  { id: 'builder', label: 'Journey Builder', icon: Workflow },
-  { id: 'registry', label: 'Automation Registry', icon: Library },
+/** Tabs grouped into sections. Item values are the original ?tab= values. */
+const SECTIONS: TabSection[] = [
+  { label: 'Journeys', icon: 'route', items: [
+    { value: 'journeys', label: 'All journeys' },
+    { value: 'copilot-saved', label: 'Saved from Copilot' },
+  ] },
+  { label: 'Copilot', icon: 'chat-bot', items: [{ value: 'copilot', label: 'AI Copilot' }] },
+  { label: 'Builder', icon: 'workflow', items: [{ value: 'builder', label: 'Journey builder' }] },
+  { label: 'Registry', icon: 'list', items: [{ value: 'registry', label: 'Automation registry' }] },
 ];
+const VALID: Tab[] = ['journeys', 'copilot-saved', 'copilot', 'builder', 'registry'];
 
 export default function AIAutomationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'journeys');
+  const raw = searchParams.get('tab') as Tab | null;
+  const activeTab: Tab = raw && VALID.includes(raw) ? raw : 'journeys';
 
-  useEffect(() => {
-    const t = searchParams.get('tab') as Tab;
-    if (t && TABS.some(tab => tab.id === t)) setActiveTab(t);
-  }, [searchParams]);
+  // The tab lives in the URL. Leaving a tab also clears its journey selection.
+  const setActiveTab = useCallback((tab: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'journeys') next.delete('tab'); else next.set('tab', tab);
+    next.delete('journeyId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Deep-link selection for the Copilot Saved studio.
   // ``?tab=copilot-saved&journeyId=<id>`` -> studio view for that
@@ -41,39 +48,26 @@ export default function AIAutomationPage() {
 
   return (
     <Layout>
-      <div className="h-full flex flex-col">
-        <div className="border-b px-1 shrink-0">
-          <nav className="flex gap-1" aria-label="AI Automation tabs">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                    active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
-                  )}>
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="flex-1 overflow-auto">
-          {activeTab === 'journeys' && <JourneysPanel initialJourneyId={searchParams.get('journeyId') || undefined} />}
-          {activeTab === 'copilot-saved' && (
-            <div className="px-4 pt-4">
-              <CopilotSavedJourneysSection
-                selectedJourneyId={searchParams.get('journeyId') || undefined}
-                onSelectJourney={handleSelectCopilotSavedJourney}
-              />
-            </div>
-          )}
-          {activeTab === 'copilot' && <CopilotJourney />}
-          {activeTab === 'builder' && <JourneyBuilder />}
-          {activeTab === 'registry' && <AutomationRegistryPanel />}
-        </div>
+      <PageTabsBar
+        title="AI Automation"
+        description="Create, run, schedule and monitor journeys. Plan one with the Copilot or draw it in the builder."
+        sections={SECTIONS}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
+      <div className="animate-fade-in" key={activeTab}>
+        {activeTab === 'journeys' && <JourneysPanel initialJourneyId={searchParams.get('journeyId') || undefined} />}
+        {activeTab === 'copilot-saved' && (
+          <div className="page">
+            <CopilotSavedJourneysSection
+              selectedJourneyId={searchParams.get('journeyId') || undefined}
+              onSelectJourney={handleSelectCopilotSavedJourney}
+            />
+          </div>
+        )}
+        {activeTab === 'copilot' && <div className="h-pane"><CopilotJourney /></div>}
+        {activeTab === 'builder' && <div className="h-pane"><JourneyBuilder /></div>}
+        {activeTab === 'registry' && <AutomationRegistryPanel />}
       </div>
     </Layout>
   );

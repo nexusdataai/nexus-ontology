@@ -330,7 +330,7 @@ export default function ViewBuilderPage() {
                         {activeTab.dashboardId ? (
                           <>
                             {' '}— bound to dashboard{' '}
-                            <span className="font-mono text-[11px]">{activeTab.dashboardId}</span>
+                            <span className="font-mono text-xs">{activeTab.dashboardId}</span>
                           </>
                         ) : (
                           ' — drop a dashboard from the palette to bind one'

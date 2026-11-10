@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState, type DragEvent } from 'react';
 import {
-  ReactFlow, ReactFlowProvider, Background, Controls,
+  ReactFlow, ReactFlowProvider, Controls,
   addEdge, applyEdgeChanges, applyNodeChanges,
   type Connection, type Edge, type EdgeChange, type EdgeTypes, type Node, type NodeChange, type NodeTypes,
 } from '@xyflow/react';
@@ -46,6 +46,11 @@ export interface JourneyGraphCanvasHandle {
   removeEdgeForTarget: (toNode: string, toParam: string) => void;
   /** Cancel an in-progress click-to-connect. Safe to call when none is pending. */
   cancelConnection: () => void;
+  /**
+   * Add a step for the named tool without drag and drop (palette click,
+   * keyboard, touch). Same node shape as a drop; placed below the last step.
+   */
+  addTool: (toolName: string) => void;
 }
 
 /** State of an in-progress click-to-connect session. */
@@ -195,8 +200,30 @@ const JourneyGraphCanvasInner = forwardRef<JourneyGraphCanvasHandle, Props>(func
         setConnectingFrom(null);
         onPendingConnectionChange?.(null);
       },
+      addTool: (toolName) => {
+        const tool = resolveTool(toolName);
+        if (!tool) return;
+        const id = nextNodeId();
+        const data: BuilderNodeData = {
+          tool: tool.name,
+          name: tool.name,
+          params: {},
+          requires_approval: false,
+          toolDef: tool,
+        };
+        const last = nodes[nodes.length - 1];
+        const position = last
+          ? { x: last.position.x + 40, y: last.position.y + 180 }
+          : { x: 80, y: 60 };
+        setNodes((curr) => [...curr, {
+          id, type: 'tool', position,
+          data: data as BuilderNodeData & Record<string, unknown>,
+        }]);
+        setSelectedId(id);
+        onSelectionChange(id);
+      },
     }),
-    [nodes, edges, onPendingConnectionChange],
+    [nodes, edges, onPendingConnectionChange, resolveTool, onSelectionChange],
   );
 
   // ---- click-to-connect helpers ----
@@ -327,7 +354,7 @@ const JourneyGraphCanvasInner = forwardRef<JourneyGraphCanvasHandle, Props>(func
         type: 'smoothstep',
         animated: false,
         // Muted style to distinguish from dataflow connections.
-        style: { strokeWidth: 1.5, strokeDasharray: '4 4', opacity: 0.7 },
+        style: { strokeWidth: 1.25, strokeDasharray: '4 4', stroke: 'hsl(var(--border-strong))' },
         // No handle ids -- React-Flow falls back to node centroid.
         selectable: false,
         focusable: false,
@@ -532,7 +559,7 @@ const JourneyGraphCanvasInner = forwardRef<JourneyGraphCanvasHandle, Props>(func
   }, [nodes, selectedId, onSelectionChange]);
 
   return (
-    <div className="w-full h-full" onDrop={onDrop} onDragOver={onDragOver}>
+    <div className="canvas-dots h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={decoratedNodes}
         edges={isSequential ? sequentialDisplayEdges : edges}
@@ -549,9 +576,8 @@ const JourneyGraphCanvasInner = forwardRef<JourneyGraphCanvasHandle, Props>(func
         deleteKeyCode={DELETE_KEY_CODES}
         fitView
         fitViewOptions={FIT_VIEW_OPTIONS}
-        defaultEdgeOptions={{ type: 'deletable', animated: true, style: { strokeWidth: 1.75 } }}
+        defaultEdgeOptions={{ type: 'deletable', animated: false }}
       >
-        <Background gap={20} size={1} />
         <Controls position="bottom-left" showInteractive={false} />
       </ReactFlow>
     </div>

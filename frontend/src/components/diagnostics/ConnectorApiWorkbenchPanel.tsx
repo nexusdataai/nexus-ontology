@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import {
-  Activity, BookOpen, CheckCircle2, Database, Loader2, MinusCircle,
-  Play, Plug, RefreshCw, ShieldCheck, Target, Wrench, Zap,
-} from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Activity, Database, Plug, ShieldCheck, Target, Wrench, Zap } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, MetricStrip, SearchInput, StatusPill, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
+import { SystemLogo, systemName } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
 import {
   connectorApiWorkbenchService,
   type ConnectorAPIListResponse,
@@ -23,12 +25,6 @@ import SmokeTestSection from './connector-apis/SmokeTestSection';
 import AuditDisciplineSection from './connector-apis/AuditDisciplineSection';
 import SimulatorCoverageSection from './connector-apis/SimulatorCoverageSection';
 
-function riskColor(risk: string): string {
-  if (risk === 'high_risk_write') return 'text-red-300';
-  if (risk === 'low_risk_write') return 'text-amber-300';
-  return 'text-green-300';
-}
-
 export default function ConnectorApiWorkbenchPanel() {
   const [data, setData] = useState<ConnectorAPIListResponse | null>(null);
   const [diag, setDiag] = useState<DiagnosticReport | null>(null);
@@ -42,6 +38,7 @@ export default function ConnectorApiWorkbenchPanel() {
   const [orphansOnly, setOrphansOnly] = useState(false);
   const [neverInvokedOnly, setNeverInvokedOnly] = useState(false);
   const [activeApiId, setActiveApiId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'apis' | 'checks'>('apis');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,245 +92,174 @@ export default function ConnectorApiWorkbenchPanel() {
   }, [data, systemFilter, search, orphansOnly, neverInvokedOnly]);
 
   const totals = data?.totals;
+  const systems = totals ? Object.entries(totals.by_target_system) : [];
+  const checks = diag ? [diag.catalogue_health, diag.tool_mapping, diag.verification_hints, diag.audit_discipline, diag.simulator_coverage] : [];
+  const checksFailing = checks.filter(c => !['ok', 'pass', 'healthy'].includes(c.overall)).length;
+  const riskLabel = (r: string) => (r === 'high_risk_write' ? 'High-risk write' : r === 'low_risk_write' ? 'Low-risk write' : r === 'read_only' ? 'Read only' : r.replace(/_/g, ' '));
+  const lastCall = (iso?: string | null) => {
+    if (!iso) return 'Never called';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Plug className="h-5 w-5 text-purple-300" />
-            Connector API Workbench
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Cross-system catalogue of every Connector API spec with diagnostic health checks, tool callers, audit history, and a Test surface that hits the REST endpoint and verifies the simulator actually moved.
+    <div className="page space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">API workbench</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Every connector API in one place. Test a call against its system, see which agent tools use it, and check that it has been verified.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => load()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </Button>
-        </div>
-      </div>
+        <Button variant="outline" onClick={() => load()} disabled={loading}>
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+        </Button>
+      </header>
 
-      {error && (
-        <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
-          {error}
-        </div>
-      )}
+      {error && <InlineError onRetry={load}>{error}</InlineError>}
 
-      {/* ---- Diagnostic sections ---- */}
-
-      {diag && (
+      {!data && loading ? (
+        <div className="space-y-3" aria-busy="true"><Skeleton className="h-24 w-full rounded-xl" /><Skeleton className="h-80 w-full rounded-xl" /></div>
+      ) : (
         <>
-          <Section
-            title={`Summary (${diag.summary.checked} APIs)`}
-            icon={Plug}
-            status={diag.summary.overall}
-            defaultOpen
-          >
-            <SummarySection summary={diag.summary} />
-          </Section>
-
-          <Section
-            title={`Catalogue Health (${diag.catalogue_health.totals.errors} errors / ${diag.catalogue_health.totals.warnings} warnings)`}
-            icon={ShieldCheck}
-            status={diag.catalogue_health.overall}
-            defaultOpen={false}
-          >
-            <CatalogueHealthSection report={diag.catalogue_health} />
-          </Section>
-
-          <Section
-            title={`Tool Mapping (${diag.tool_mapping.totals.tools_with_binding}/${diag.tool_mapping.totals.tools} tools bound)`}
-            icon={Wrench}
-            status={diag.tool_mapping.overall}
-            defaultOpen={false}
-          >
-            <ToolMappingSection report={diag.tool_mapping} />
-          </Section>
-
-          <Section
-            title={`Verification Hints (${diag.verification_hints.totals.with_hint}/${diag.verification_hints.totals.checked} hinted)`}
-            icon={Target}
-            status={diag.verification_hints.overall}
-            defaultOpen={false}
-          >
-            <VerificationHintsSection report={diag.verification_hints} />
-          </Section>
-
-          <Section
-            title={`Run-all Smoke${smoke ? ` (${smoke.totals.verified}/${smoke.totals.checked} verified)` : ''}`}
-            icon={Zap}
-            status={smoke?.overall || 'ok'}
-            defaultOpen={!!smoke}
-            rightSlot={
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" onClick={runSmoke} disabled={smokeRunning}>
-                  {smokeRunning
-                    ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                    : <Play className="h-3.5 w-3.5 mr-1" />}
-                  Run all
-                </Button>
-              </div>
-            }
-          >
-            <SmokeTestSection
-              report={smoke}
-              loading={smokeRunning}
-              skipHighRisk={skipHighRisk}
-              onSkipHighRiskChange={setSkipHighRisk}
+          {totals && (
+            <MetricStrip
+              columns={4}
+              items={[
+                { label: 'APIs', value: totals.checked, hint: `${systems.length} systems` },
+                { label: 'Verified', value: totals.verified, tone: 'success', hint: totals.checked ? `${Math.round((totals.verified / totals.checked) * 100)}% of the catalogue` : undefined },
+                { label: 'Never called', value: totals.never_invoked, tone: totals.never_invoked ? 'warning' : 'neutral', hint: 'No audit record yet', onClick: () => { setTab('apis'); setNeverInvokedOnly(v => !v); } },
+                { label: 'Not used by any tool', value: totals.orphans, tone: totals.orphans ? 'warning' : 'neutral', hint: 'No agent tool calls them', onClick: () => { setTab('apis'); setOrphansOnly(v => !v); } },
+              ]}
             />
-          </Section>
+          )}
 
-          <Section
-            title={`Audit Discipline (${diag.audit_discipline.totals.audit_missing} missing / ${diag.audit_discipline.totals.never_called} never called)`}
-            icon={Activity}
-            status={diag.audit_discipline.overall}
-            defaultOpen={false}
-          >
-            <AuditDisciplineSection report={diag.audit_discipline} />
-          </Section>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'apis' | 'checks')}>
+            <TabsList variant="line">
+              <TabsTrigger value="apis">APIs{data ? <span className="num ml-1.5 text-xs text-muted-foreground">{data.items.length}</span> : null}</TabsTrigger>
+              <TabsTrigger value="checks">Health checks{diag ? <span className={cn('num ml-1.5 text-xs', checksFailing ? 'text-warning' : 'text-muted-foreground')}>{checksFailing ? `${checksFailing} to review` : 'all passing'}</span> : null}</TabsTrigger>
+            </TabsList>
 
-          <Section
-            title={`Simulator Coverage (${diag.simulator_coverage.totals.blocking} blocking / ${diag.simulator_coverage.totals.tables} tables)`}
-            icon={Database}
-            status={diag.simulator_coverage.overall}
-            defaultOpen={false}
-          >
-            <SimulatorCoverageSection report={diag.simulator_coverage} />
-          </Section>
+            {/* ------------------------------------------------------ APIs */}
+            <TabsContent value="apis" className="mt-5">
+              <Toolbar>
+                <SearchInput value={search} onChange={setSearch} placeholder="Search by API, operation or tool" className="w-full sm:w-72" />
+                <Select value={systemFilter || '__all'} onValueChange={(v) => setSystemFilter(v === '__all' ? '' : v)}>
+                  <SelectTrigger className="h-9 w-[190px]" aria-label="System"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">All systems ({totals?.checked ?? 0})</SelectItem>
+                    {systems.map(([s, c]) => (
+                      <SelectItem key={s} value={s}><span className="inline-flex items-center gap-2"><SystemLogo system={s} size="xs" />{systemName(s)} ({c})</span></SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FilterToggle on={neverInvokedOnly} onChange={setNeverInvokedOnly}>Never called</FilterToggle>
+                <FilterToggle on={orphansOnly} onChange={setOrphansOnly}>Not used by a tool</FilterToggle>
+                <ToolbarSpacer />
+                <span className="num text-xs text-muted-foreground">{filtered.length} of {data?.items.length ?? 0}</span>
+              </Toolbar>
+
+              <div className="scroll-thin mt-3 max-h-[640px] overflow-auto rounded-xl border border-border bg-card shadow-xs">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      {['API', 'System', 'Access', 'Used by', 'Last call', ''].map((h, i) => (
+                        <th key={i} scope="col" className="sticky top-0 z-10 whitespace-nowrap border-b border-border bg-surface-2 px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(r => (
+                      <tr key={r.api_id} className="group border-b border-border transition-colors last:border-b-0 hover:bg-surface-2/60">
+                        <td className="max-w-[340px] px-4 py-2.5">
+                          <span className="flex items-center gap-2">
+                            {r.verified
+                              ? <Icon name="check-circle" className="h-3.5 w-3.5 shrink-0 text-success" />
+                              : <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-dashed border-border-strong" title="Not verified yet" />}
+                            <span className="truncate font-mono text-xs text-foreground" title={r.api_id}>{r.api_id}</span>
+                          </span>
+                          <span className="mt-0.5 block truncate pl-[22px] text-xs text-muted-foreground" title={r.description || r.operation}>{r.description || r.operation}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5"><span className="inline-flex items-center gap-2 text-muted-foreground"><SystemLogo system={r.target_system} size="xs" />{systemName(r.target_system)}</span></td>
+                        <td className="whitespace-nowrap px-4 py-2.5"><StatusPill status={r.risk_level}>{riskLabel(r.risk_level)}</StatusPill></td>
+                        <td className="max-w-[260px] px-4 py-2.5">
+                          {r.tool_caller_count === 0 ? (
+                            <span className="text-xs text-warning">No tool uses it</span>
+                          ) : (
+                            <span className="block truncate font-mono text-xs text-muted-foreground" title={r.tool_callers.join(', ')}>
+                              {r.tool_callers.slice(0, 2).join(', ')}{r.tool_callers.length > 2 && <span className="font-sans"> +{r.tool_callers.length - 2}</span>}
+                            </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
+                          {lastCall(r.last_invocation_ts)}
+                          {r.audit_count > 0 && <span className="num ml-1.5 text-foreground">· {r.audit_count} calls</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <Button size="sm" variant="outline" onClick={() => setActiveApiId(r.api_id)}>
+                            <Icon name="play" className="h-3 w-3" /> Test
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && !loading && (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">No APIs match these filters.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+
+            {/* ---------------------------------------------- Health checks */}
+            <TabsContent value="checks" className="mt-5 space-y-3">
+              {!diag ? (
+                <div className="space-y-3" aria-busy="true">{[0, 1, 2].map(i => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>
+              ) : (
+                <>
+                  <Section title={`Summary of ${diag.summary.checked} APIs`} icon={Plug} status={diag.summary.overall} defaultOpen>
+                    <SummarySection summary={diag.summary} />
+                  </Section>
+
+                  <Section
+                    title={`Test every API${smoke ? `: ${smoke.totals.verified} of ${smoke.totals.checked} verified` : ''}`}
+                    icon={Zap}
+                    status={smoke?.overall || 'ok'}
+                    defaultOpen={!!smoke}
+                    rightSlot={
+                      <Button size="sm" onClick={runSmoke} disabled={smokeRunning}>
+                        <Icon name={smokeRunning ? 'spinner' : 'play'} className={cn('h-3 w-3', smokeRunning && 'animate-spin')} />
+                        {smokeRunning ? 'Running' : 'Run all'}
+                      </Button>
+                    }
+                  >
+                    <SmokeTestSection report={smoke} loading={smokeRunning} skipHighRisk={skipHighRisk} onSkipHighRiskChange={setSkipHighRisk} />
+                  </Section>
+
+                  <Section title={`Catalogue health: ${diag.catalogue_health.totals.errors} errors, ${diag.catalogue_health.totals.warnings} warnings`} icon={ShieldCheck} status={diag.catalogue_health.overall} defaultOpen={false}>
+                    <CatalogueHealthSection report={diag.catalogue_health} />
+                  </Section>
+
+                  <Section title={`Tool mapping: ${diag.tool_mapping.totals.tools_with_binding} of ${diag.tool_mapping.totals.tools} tools bound`} icon={Wrench} status={diag.tool_mapping.overall} defaultOpen={false}>
+                    <ToolMappingSection report={diag.tool_mapping} />
+                  </Section>
+
+                  <Section title={`Verification hints: ${diag.verification_hints.totals.with_hint} of ${diag.verification_hints.totals.checked}`} icon={Target} status={diag.verification_hints.overall} defaultOpen={false}>
+                    <VerificationHintsSection report={diag.verification_hints} />
+                  </Section>
+
+                  <Section title={`Audit records: ${diag.audit_discipline.totals.audit_missing} missing, ${diag.audit_discipline.totals.never_called} never called`} icon={Activity} status={diag.audit_discipline.overall} defaultOpen={false}>
+                    <AuditDisciplineSection report={diag.audit_discipline} />
+                  </Section>
+
+                  <Section title={`Simulator coverage: ${diag.simulator_coverage.totals.blocking} blocking of ${diag.simulator_coverage.totals.tables} tables`} icon={Database} status={diag.simulator_coverage.overall} defaultOpen={false}>
+                    <SimulatorCoverageSection report={diag.simulator_coverage} />
+                  </Section>
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </>
       )}
-
-      {!diag && loading && (
-        <div className="text-xs text-muted-foreground italic flex items-center gap-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading diagnostic...
-        </div>
-      )}
-
-      {/* ---- Catalogue table (existing surface) ---- */}
-
-      <Section
-        title={`Catalogue (${data?.items.length ?? 0} APIs)`}
-        icon={BookOpen}
-        status="ok"
-        defaultOpen
-      >
-        {totals && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mb-3">
-            <KpiCard label="APIs" value={totals.checked} />
-            <KpiCard label="Verified" value={totals.verified} tone="green" />
-            <KpiCard label="Never invoked" value={totals.never_invoked} tone="amber" />
-            <KpiCard label="Orphans" value={totals.orphans} tone={totals.orphans ? 'amber' : 'green'} />
-            <KpiCard label="Risk mix" value={Object.entries(totals.by_risk_level).map(([k, v]) => `${v} ${k.replace('_write','')}`).join(' \u00b7 ') || '-'} />
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
-          <span className="text-muted-foreground">Target system:</span>
-          <Button
-            size="sm"
-            variant={!systemFilter ? 'default' : 'outline'}
-            className="h-6 text-[10px] px-2"
-            onClick={() => setSystemFilter('')}
-          >
-            all ({totals?.checked ?? 0})
-          </Button>
-          {totals && Object.entries(totals.by_target_system).map(([s, c]) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={systemFilter === s ? 'default' : 'outline'}
-              className="h-6 text-[10px] px-2"
-              onClick={() => setSystemFilter(systemFilter === s ? '' : s)}
-            >
-              {s} ({c})
-            </Button>
-          ))}
-          <span className="mx-2 text-border">|</span>
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={orphansOnly} onChange={e => setOrphansOnly(e.target.checked)} />
-            <span>orphans only</span>
-          </label>
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={neverInvokedOnly} onChange={e => setNeverInvokedOnly(e.target.checked)} />
-            <span>never invoked</span>
-          </label>
-          <Input
-            placeholder="Search api_id / op / caller..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="h-7 text-xs max-w-xs ml-auto"
-          />
-          <span className="text-muted-foreground">
-            {filtered.length} / {data?.items.length ?? 0}
-          </span>
-        </div>
-
-        <div className="border rounded-md max-h-[36rem] overflow-auto">
-          <table className="w-full text-[11px]">
-            <thead className="sticky top-0 bg-muted/40 z-10">
-              <tr className="text-left">
-                <th className="px-2 py-1.5">api_id</th>
-                <th className="px-2 py-1.5">System</th>
-                <th className="px-2 py-1.5">Operation</th>
-                <th className="px-2 py-1.5">Risk</th>
-                <th className="px-2 py-1.5">Tool callers</th>
-                <th className="px-2 py-1.5">Audit</th>
-                <th className="px-2 py-1.5">Verified</th>
-                <th className="px-2 py-1.5"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(r => (
-                <tr key={r.api_id} className="border-t border-border/40 hover:bg-muted/20">
-                  <td className="px-2 py-1 font-mono">{r.api_id}</td>
-                  <td className="px-2 py-1 text-muted-foreground">{r.target_system}</td>
-                  <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{r.operation}</td>
-                  <td className="px-2 py-1">
-                    <span className={riskColor(r.risk_level)}>{r.risk_level}</span>
-                  </td>
-                  <td className="px-2 py-1">
-                    {r.tool_caller_count === 0 ? (
-                      <Badge variant="outline" className="text-[9px] text-amber-300 border-amber-500/30">orphan</Badge>
-                    ) : (
-                      <CallerChips callers={r.tool_callers} />
-                    )}
-                  </td>
-                  <td className="px-2 py-1 font-mono">
-                    {r.audit_count}
-                    {r.last_invocation_ts && (
-                      <div className="text-[9px] text-muted-foreground truncate max-w-[140px]">{r.last_invocation_ts}</div>
-                    )}
-                  </td>
-                  <td className="px-2 py-1">
-                    {r.verified
-                      ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
-                      : <MinusCircle className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </td>
-                  <td className="px-2 py-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[10px] px-2"
-                      onClick={() => setActiveApiId(r.api_id)}
-                    >
-                      <Play className="h-3 w-3 mr-1" /> Test
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground text-xs">
-                    No APIs match the current filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Section>
 
       {activeApiId && (
         <ConnectorApiTestDrawer apiId={activeApiId} onClose={() => { setActiveApiId(null); load(); }} />
@@ -342,26 +268,20 @@ export default function ConnectorApiWorkbenchPanel() {
   );
 }
 
-function KpiCard({ label, value, tone }: { label: string; value: number | string; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
-    : '';
+function FilterToggle({ on, onChange, children }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode }) {
   return (
-    <div>
-      <div className="text-muted-foreground text-xs">{label}</div>
-      <div className={`font-mono ${cls}`}>{value}</div>
-    </div>
-  );
-}
-
-function CallerChips({ callers }: { callers: string[] }) {
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {callers.map(c => (
-        <span key={c} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{c}</span>
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => onChange(!on)}
+      className={cn(
+        'flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        on ? 'border-brand/60 bg-accent text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {on && <Icon name="check" className="h-3 w-3 text-primary dark:text-brand-hi" />}
+      {children}
+    </button>
   );
 }
 

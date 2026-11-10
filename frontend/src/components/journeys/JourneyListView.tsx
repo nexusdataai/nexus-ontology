@@ -1,13 +1,13 @@
 /**
  * JourneyListView Component
  * 
- * Displays a list of journeys with filtering and search capabilities.
+ * The journeys collection: a toolbar (search, status chips, type, refresh,
+ * new journey) and one row per journey. Rows open the Journey Studio.
  * 
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.7
  */
 
 import React, { useState, useMemo } from 'react';
-import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import {
   Select,
@@ -16,8 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { Plus, Search, RefreshCw, Loader2 } from 'lucide-react';
-import { JourneyCard } from './JourneyCard';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import { Skeleton } from '../ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { Chips, InlineError, SearchInput, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
+import { JourneyCard, JOURNEY_ROW_GRID } from './JourneyCard';
 import {
   CallProcessingJourney,
   JourneyStatus,
@@ -42,11 +49,13 @@ export interface JourneyListViewProps {
   onDelete: (journeyId: string) => void;
   onRefresh: () => void;
   actionLoadingId?: string | null;
+  /** The last load failed (the list shows an error with a retry). */
+  error?: boolean;
 }
 
 const STATUS_OPTIONS: { value: JourneyStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'created', label: 'Created' },
+  { value: 'all', label: 'All' },
+  { value: 'created', label: 'Not run yet' },
   { value: 'running', label: 'Running' },
   { value: 'paused', label: 'Paused' },
   { value: 'completed', label: 'Completed' },
@@ -55,16 +64,16 @@ const STATUS_OPTIONS: { value: JourneyStatus | 'all'; label: string }[] = [
 ];
 
 const TYPE_OPTIONS: { value: JourneyType | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Types' },
-  { value: 'call-processing', label: 'Call Processing' },
-  { value: 'operation-management', label: 'Operation Management' },
-  { value: 'demand-forecasting', label: 'Demand Forecasting' },
-  { value: 'inventory-optimization', label: 'Inventory Optimization' },
-  { value: 'procurement-analytics', label: 'Procurement Analytics' },
-  { value: 'production-quality', label: 'Production & Quality' },
-  { value: 'supply-chain-risk', label: 'Supply Chain Risk' },
+  { value: 'all', label: 'All types' },
+  { value: 'call-processing', label: 'Call processing' },
+  { value: 'operation-management', label: 'Operation management' },
+  { value: 'demand-forecasting', label: 'Demand forecasting' },
+  { value: 'inventory-optimization', label: 'Inventory optimization' },
+  { value: 'procurement-analytics', label: 'Procurement analytics' },
+  { value: 'production-quality', label: 'Production and quality' },
+  { value: 'supply-chain-risk', label: 'Supply chain risk' },
   { value: 'customer-360', label: 'Customer 360' },
-  { value: 'esg-sustainability', label: 'ESG & Sustainability' },
+  { value: 'esg-sustainability', label: 'ESG and sustainability' },
 ];
 
 export function JourneyListView({
@@ -83,6 +92,7 @@ export function JourneyListView({
   onDelete,
   onRefresh,
   actionLoadingId,
+  error = false,
 }: JourneyListViewProps) {
   const [filter, setFilter] = useState<JourneyFilter>({});
 
@@ -111,195 +121,126 @@ export function JourneyListView({
     }));
   };
 
+  // Presentation only: counts per status for the filter chips.
+  const statusCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const j of journeys) c[j.status] = (c[j.status] || 0) + 1;
+    return c;
+  }, [journeys]);
+  const activeStatus = (filter.statusFilter || 'all') as JourneyStatus | 'all';
+  const statusChips = STATUS_OPTIONS
+    .filter(o => o.value === 'all' || o.value === activeStatus || (statusCounts[o.value] || 0) > 0)
+    .map(o => ({ value: o.value, label: o.label, count: o.value === 'all' ? journeys.length : statusCounts[o.value] || 0 }));
+  const hasFilter = !!(filter.searchQuery || filter.statusFilter || filter.typeFilter);
+  const runningCount = statusCounts.running || 0;
+  const failedCount = statusCounts.failed || 0;
+
   return (
-    <div className="h-full flex flex-col" data-testid="journey-list-view">
-      {/* Header with filters */}
-      <div className="p-4 border-b space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Journeys</h2>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              disabled={isLoading}
-              data-testid="refresh-button"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              onClick={onCreateSemanticRag}
-              size="sm"
-              variant="outline"
-              data-testid="create-semantic-rag-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Semantic RAG Journey
-            </Button>
-            <Button
-              onClick={onCreateO2C}
-              size="sm"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New O2C Journey
-            </Button>
-            <Button
-              onClick={onCreateDemandForecasting}
-              size="sm"
-              variant="outline"
-              data-testid="create-demand-forecasting-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Demand Forecasting Journey
-            </Button>
-            <Button
-              onClick={onCreateInventoryOpt}
-              size="sm"
-              variant="outline"
-              data-testid="create-inventory-opt-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Inventory Optimization
-            </Button>
-            <Button
-              onClick={onCreateProcurement}
-              size="sm"
-              variant="outline"
-              data-testid="create-procurement-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Procurement Journey
-            </Button>
-            <Button
-              onClick={onCreateProductionQuality}
-              size="sm"
-              variant="outline"
-              data-testid="create-production-quality-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Production & Quality
-            </Button>
-            <Button
-              onClick={onCreateSupplyChainRisk}
-              size="sm"
-              variant="outline"
-              data-testid="create-supply-chain-risk-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Supply Chain Risk
-            </Button>
-            <Button
-              onClick={onCreateCustomer360}
-              size="sm"
-              variant="outline"
-              data-testid="create-customer-360-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Customer 360
-            </Button>
-            <Button
-              onClick={onCreateESG}
-              size="sm"
-              variant="outline"
-              data-testid="create-esg-button"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New ESG & Sustainability
-            </Button>
-          </div>
+    <div className="page" data-testid="journey-list-view">
+      <Toolbar>
+        <div data-testid="search-input-wrap" className="w-full sm:w-auto">
+          <SearchInput
+            value={filter.searchQuery || ''}
+            onChange={(v) => handleSearchChange({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)}
+            placeholder="Search journeys"
+            data-testid="search-input"
+          />
         </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search journeys..."
-              value={filter.searchQuery || ''}
-              onChange={handleSearchChange}
-              className="pl-9"
-              data-testid="search-input"
-            />
-          </div>
-
-          <Select
-            value={filter.statusFilter || 'all'}
-            onValueChange={handleStatusChange}
-          >
-            <SelectTrigger className="w-[160px]" data-testid="status-filter">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={filter.typeFilter || 'all'}
-            onValueChange={handleTypeChange}
-          >
-            <SelectTrigger className="w-[180px]" data-testid="type-filter">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              {TYPE_OPTIONS.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div data-testid="status-filter" className="min-w-0">
+          <Chips label="Status" options={statusChips} value={activeStatus} onChange={handleStatusChange} />
         </div>
-      </div>
+        <ToolbarSpacer />
+        <Select value={filter.typeFilter || 'all'} onValueChange={handleTypeChange}>
+          <SelectTrigger className="h-8 w-[180px]" data-testid="type-filter" aria-label="Type">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoading} data-testid="refresh-button">
+          <Icon name="refresh" className={isLoading ? 'animate-spin' : undefined} /> Refresh
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" data-testid="create-journey-button">
+              <Icon name="plus" /> New journey <Icon name="chevron-down" className="-mr-1 h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Choose a journey type</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onCreateSemanticRag} data-testid="create-semantic-rag-button">Knowledge pipeline (Semantic RAG)</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateO2C}>Order-to-Cash</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateDemandForecasting} data-testid="create-demand-forecasting-button">Demand forecasting</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateInventoryOpt} data-testid="create-inventory-opt-button">Inventory optimization</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateProcurement} data-testid="create-procurement-button">Procurement</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateProductionQuality} data-testid="create-production-quality-button">Production and quality</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateSupplyChainRisk} data-testid="create-supply-chain-risk-button">Supply chain risk</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateCustomer360} data-testid="create-customer-360-button">Customer 360</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateESG} data-testid="create-esg-button">ESG and sustainability</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </Toolbar>
 
-      {/* Journey List */}
-      <div className="flex-1 overflow-auto p-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredJourneys.length === 0 ? (
-          <div
-            className="flex flex-col items-center justify-center h-full text-muted-foreground"
-            data-testid="empty-state"
-          >
-            <p className="text-lg">No journeys found</p>
-            <p className="text-sm">
-              {journeys.length === 0
-                ? 'Create your first journey to get started'
-                : 'Try adjusting your filters'}
-            </p>
-          </div>
-        ) : (
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            data-testid="journey-grid"
-          >
-            {filteredJourneys.map(journey => (
-              <JourneyCard
-                key={journey.id}
-                journey={journey}
-                onViewStudio={onSelectJourney}
-                onDelete={onDelete}
-                isActionLoading={actionLoadingId === journey.id}
-              />
+      <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+        {isLoading && journeys.length === 0 ? 'Loading journeys' : (
+          <>
+            <span className="num text-foreground">{filteredJourneys.length}</span>
+            {hasFilter ? <> of <span className="num">{journeys.length}</span></> : null} {journeys.length === 1 && !hasFilter ? 'journey' : 'journeys'}
+            {!hasFilter && runningCount > 0 ? <>, <span className="num">{runningCount}</span> running now</> : null}
+            {!hasFilter && failedCount > 0 ? <>, <span className="num text-destructive">{failedCount}</span> failed on the last run</> : null}
+          </>
+        )}
+      </p>
+
+      <div className="mt-4">
+        {error ? (
+          <InlineError onRetry={onRefresh}>The journeys could not be loaded.</InlineError>
+        ) : isLoading && journeys.length === 0 ? (
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="flex items-center gap-6 border-b border-border px-5 py-4 last:border-b-0">
+                <div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-56 max-w-full" /><Skeleton className="h-3 w-80 max-w-full" /></div>
+                <Skeleton className="hidden h-2 w-40 lg:block" />
+                <Skeleton className="hidden h-4 w-24 lg:block" />
+              </div>
             ))}
           </div>
+        ) : filteredJourneys.length === 0 ? (
+          <div data-testid="empty-state">
+            <EmptyState
+              icon="route"
+              title={journeys.length === 0 ? 'No journeys yet' : 'No journeys match'}
+              description={journeys.length === 0 ? 'Create your first journey to automate a business process.' : 'Try another search, or clear the filters.'}
+              action={hasFilter ? <Button variant="outline" size="sm" onClick={() => setFilter({})}>Clear filters</Button> : undefined}
+            />
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            <div className={cn('hidden border-b border-border bg-surface-2 px-5 py-2 text-xs font-medium text-muted-foreground', JOURNEY_ROW_GRID)} aria-hidden="true">
+              <span>Journey</span>
+              <span>Progress</span>
+              <span>Runs</span>
+              <span>Status</span>
+              <span />
+            </div>
+            <div className="divide-y divide-border" data-testid="journey-grid">
+              {filteredJourneys.map((journey, i) => (
+                <JourneyCard
+                  key={journey.id}
+                  journey={journey}
+                  index={i}
+                  onViewStudio={onSelectJourney}
+                  onDelete={onDelete}
+                  isActionLoading={actionLoadingId === journey.id}
+                />
+              ))}
+            </div>
+          </div>
         )}
-      </div>
-
-      {/* Footer with count */}
-      <div className="p-4 border-t text-sm text-muted-foreground">
-        Showing {filteredJourneys.length} of {journeys.length} journeys
       </div>
     </div>
   );

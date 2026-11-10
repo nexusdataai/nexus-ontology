@@ -24,10 +24,10 @@ export function ContractDiffWidget({ widget, data, loading }: Props) {
     <Card className="h-full">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <FileDiff className="h-4 w-4 text-indigo-500" />
+          <FileDiff className="h-4 w-4 text-primary" />
           {widget.title}
         </CardTitle>
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="outline" className="text-xs">
           {baseline ? 'Diff vs template' : 'Draft only'}
         </Badge>
       </CardHeader>
@@ -48,7 +48,7 @@ export function ContractDiffWidget({ widget, data, loading }: Props) {
               return (
                 <span
                   key={i}
-                  className={isNew ? 'bg-emerald-500/15 block' : 'block'}
+                  className={isNew ? 'bg-success/15 block' : 'block'}
                 >
                   {line || '\u00A0'}
                 </span>

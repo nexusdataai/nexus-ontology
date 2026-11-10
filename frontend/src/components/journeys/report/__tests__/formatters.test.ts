@@ -61,10 +61,10 @@ describe('formatValue', () => {
 });
 
 describe('statusColorClass', () => {
-  it('maps status -> tailwind colour', () => {
-    expect(statusColorClass('critical')).toBe('text-red-500');
-    expect(statusColorClass('warn')).toBe('text-amber-500');
-    expect(statusColorClass('ok')).toBe('text-green-500');
+  it('maps status -> design token colour classes', () => {
+    expect(statusColorClass('critical')).toBe('text-destructive');
+    expect(statusColorClass('warn')).toBe('text-warning');
+    expect(statusColorClass('ok')).toBe('text-success');
   });
 
   it('returns empty string for null / unknown status', () => {

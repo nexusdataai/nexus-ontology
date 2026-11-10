@@ -315,15 +315,15 @@ export function isActionAvailable(status: JourneyStatus, action: JourneyAction):
 export function getStageStatusColor(status: StageStatus): string {
   switch (status) {
     case 'completed':
-      return 'text-green-500 bg-green-100';
+      return 'text-success bg-success/10';
     case 'running':
-      return 'text-blue-500 bg-blue-100';
+      return 'text-primary bg-primary/10';
     case 'pending':
-      return 'text-gray-500 bg-gray-100';
+      return 'text-muted-foreground bg-surface-2';
     case 'failed':
-      return 'text-red-500 bg-red-100';
+      return 'text-destructive bg-destructive/10';
     default:
-      return 'text-gray-500 bg-gray-100';
+      return 'text-muted-foreground bg-surface-2';
   }
 }
 
@@ -333,15 +333,15 @@ export function getStageStatusColor(status: StageStatus): string {
 export function getStageStatusBorderColor(status: StageStatus): string {
   switch (status) {
     case 'completed':
-      return 'border-green-500';
+      return 'border-success/40';
     case 'running':
-      return 'border-blue-500';
+      return 'border-primary/40';
     case 'pending':
-      return 'border-gray-300';
+      return 'border-border';
     case 'failed':
-      return 'border-red-500';
+      return 'border-destructive/40';
     default:
-      return 'border-gray-300';
+      return 'border-border';
   }
 }
 
@@ -351,19 +351,19 @@ export function getStageStatusBorderColor(status: StageStatus): string {
 export function getJourneyStatusColor(status: JourneyStatus): string {
   switch (status) {
     case 'created':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-surface-2 text-foreground';
     case 'running':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-primary/10 text-primary';
     case 'paused':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-warning/10 text-warning';
     case 'completed':
-      return 'bg-green-100 text-green-800';
+      return 'bg-success/10 text-success';
     case 'failed':
-      return 'bg-red-100 text-red-800';
+      return 'bg-destructive/10 text-destructive';
     case 'cancelled':
-      return 'bg-gray-100 text-gray-600';
+      return 'bg-surface-2 text-muted-foreground';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-surface-2 text-foreground';
   }
 }
 

@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { DashboardWidget } from '@/config/dashboardWidgets';
+import { ChartTooltip, CHART_MARGIN, AreaFill, axisProps, gridProps, lineProps, cursorLine, seriesColor } from '@/components/ds/charts';
+import { WidgetFrame, labelOf, compact } from './WidgetFrame';
 
 interface Props {
   widget: DashboardWidget;
@@ -13,31 +13,28 @@ export function LineChartWidget({ widget, data, loading }: Props) {
   const { config } = widget;
   const xKey = (config.xKey as string) || 'name';
   const yKey = (config.yKey as string) || 'value';
-  const color = (config.color as string) || '#3b82f6';
-  const rows = data?.rows ?? [];
+  const rows = (data?.rows ?? []).map((r: any) => ({ ...r, [yKey]: Number(r[yKey] ?? 0) }));
+  const last = rows.length ? rows[rows.length - 1][yKey] : null;
+  const gid = `area-${widget.id}`;
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{widget.title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center justify-center h-[220px]"><Loader2 className="h-5 w-5 animate-spin" /></div>
-        ) : rows.length === 0 ? (
-          <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data available</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-              <XAxis dataKey={xKey} tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 10 }} width={45} />
-              <Tooltip contentStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
+    <WidgetFrame
+      title={widget.title}
+      description={`${labelOf(yKey)} over ${labelOf(xKey).toLowerCase()}`}
+      aside={last !== null ? <span className="num text-lg font-medium text-foreground">{compact(last)}</span> : null}
+      loading={loading}
+      empty={rows.length === 0}
+    >
+      <ResponsiveContainer width="100%" height={240}>
+        <AreaChart data={rows} margin={CHART_MARGIN}>
+          <defs><AreaFill id={gid} color={seriesColor(0)} /></defs>
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey={xKey} {...axisProps} />
+          <YAxis {...axisProps} width={44} tickFormatter={(v) => compact(Number(v), 0)} />
+          <Tooltip content={<ChartTooltip valueFormatter={(v) => compact(Number(v))} />} cursor={cursorLine} />
+          <Area dataKey={yKey} name={labelOf(yKey)} stroke={seriesColor(0)} fill={`url(#${gid})`} {...lineProps} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </WidgetFrame>
   );
 }

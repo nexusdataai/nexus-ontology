@@ -1,7 +1,5 @@
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import type { FacetDescriptor, FacetState } from './types';
 
 interface FacetFiltersProps {
@@ -10,6 +8,8 @@ interface FacetFiltersProps {
   onChange: (next: FacetState) => void;
   className?: string;
 }
+
+const linkBtn = 'rounded text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
  * Left-rail multi-select checkboxes. Each facet is a group of options;
@@ -45,36 +45,31 @@ export function FacetFilters({ facets, state, onChange, className }: FacetFilter
   const totalSelected = Object.values(state).reduce((sum, s) => sum + s.size, 0);
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-medium">Filters {totalSelected > 0 ? `(${totalSelected})` : ''}</span>
+    <div className={cn('flex flex-col gap-5', className)}>
+      <div className="flex h-5 items-center justify-between">
+        <span className="text-sm font-medium text-foreground">
+          Filters {totalSelected > 0 ? <span className="num font-normal text-muted-foreground">{`(${totalSelected})`}</span> : ''}
+        </span>
         {totalSelected > 0 && (
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={clearAll}>
-            <X className="h-3 w-3 mr-1" /> Clear
-          </Button>
+          <button type="button" className={linkBtn} onClick={clearAll}>Clear</button>
         )}
       </div>
       {facets.map((f) => {
         const selected = state[f.key] || new Set<string>();
         const hasSel = selected.size > 0;
         return (
-          <div key={f.key} className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {f.label}
-              </div>
+          <div key={f.key}>
+            <div className="mb-1 flex items-center justify-between">
+              <div className="text-xs font-medium text-muted-foreground">{f.label}</div>
               {hasSel && (
-                <button
-                  className="text-[10px] text-muted-foreground hover:text-foreground"
-                  onClick={() => clearFacet(f.key)}
-                >
-                  clear
+                <button type="button" className={linkBtn} aria-label={`Reset ${f.label}`} onClick={() => clearFacet(f.key)}>
+                  Reset
                 </button>
               )}
             </div>
-            <div className="space-y-1 max-h-44 overflow-auto pr-1">
+            <div className="scroll-thin -mx-1.5 max-h-48 overflow-auto">
               {f.options.length === 0 && (
-                <div className="text-[11px] text-muted-foreground italic">no options</div>
+                <div className="px-1.5 text-xs text-subtle-foreground">No options</div>
               )}
               {f.options.map((opt) => {
                 const isChecked = selected.has(opt.value);
@@ -82,21 +77,19 @@ export function FacetFilters({ facets, state, onChange, className }: FacetFilter
                   <label
                     key={opt.value}
                     className={cn(
-                      'flex items-center gap-2 text-xs cursor-pointer rounded px-1 py-0.5',
-                      'hover:bg-muted/40',
-                      isChecked && 'bg-primary/10',
+                      'flex min-h-8 cursor-pointer items-center gap-2.5 rounded-md px-1.5 text-sm transition-colors duration-150 hover:bg-accent/70',
+                      isChecked ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <Checkbox
                       checked={isChecked}
                       onCheckedChange={(v) => toggle(f.key, opt.value, !!v)}
-                      className="h-3.5 w-3.5"
                     />
                     <span className="flex-1 truncate" title={opt.label || opt.value}>
                       {opt.label || opt.value}
                     </span>
                     {opt.count != null && (
-                      <span className="text-[10px] text-muted-foreground font-mono">{opt.count}</span>
+                      <span className="num text-xs text-subtle-foreground">{opt.count}</span>
                     )}
                   </label>
                 );

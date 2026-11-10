@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { PanelState } from '../_shared';
 
 const COLOR_SCHEMES: Record<string, string[]> = {
   blues: ['#1e3a5f', '#1e5090', '#2563eb', '#60a5fa', '#bfdbfe'],
@@ -13,9 +14,7 @@ const COLOR_SCHEMES: Record<string, string[]> = {
 export function HeatmapPanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 

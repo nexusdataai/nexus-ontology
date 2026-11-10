@@ -36,17 +36,17 @@ export function StepBreakdownSection({ section }: Props) {
                 <tr key={s.step_id} className="border-b last:border-b-0 hover:bg-muted/30">
                   <td className="px-2 py-1">
                     <div className="font-medium">{s.name}</div>
-                    <div className="text-[10px] font-mono text-muted-foreground">{s.step_id}</div>
+                    <div className="text-xs font-mono text-muted-foreground">{s.step_id}</div>
                   </td>
                   <td className="px-2 py-1">
                     {s.tool ? (
-                      <Badge variant="outline" className="text-[9px]">{s.tool}</Badge>
+                      <Badge variant="outline" className="text-xs">{s.tool}</Badge>
                     ) : (
                       <span className="text-muted-foreground">--</span>
                     )}
                   </td>
-                  <td className="px-2 py-1 text-right tabular-nums text-green-500">{s.completed}</td>
-                  <td className="px-2 py-1 text-right tabular-nums text-red-500">{s.failed}</td>
+                  <td className="px-2 py-1 text-right tabular-nums text-success">{s.completed}</td>
+                  <td className="px-2 py-1 text-right tabular-nums text-destructive">{s.failed}</td>
                   <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                     {s.other + s.pending}
                   </td>

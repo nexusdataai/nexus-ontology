@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { StatusPill } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
 import {
   encodeInputHandle, encodeOutputHandle, consumedParamsOf,
@@ -39,16 +40,10 @@ type ToolNodeProps = NodeProps<Node<ToolNodePayload, 'tool'>>;
 // red on error / unsatisfied, primary on selected, green when ready.
 // Decoupling risk from status fixes the prior confusion where a
 // healthy high-risk-write node read as "error" because both used red.
-const RISK_BG: Record<string, string> = {
-  read_only: 'bg-green-500/10',
-  low_risk_write: 'bg-amber-500/10',
-  high_risk_write: 'bg-red-500/10',
-};
-
 const RISK_LABEL: Record<string, string> = {
   read_only: 'Read-only',
   low_risk_write: 'Low-risk write',
-  high_risk_write: 'High-risk write -- requires approval',
+  high_risk_write: 'High-risk write, needs approval',
 };
 
 /**
@@ -59,8 +54,8 @@ const RISK_LABEL: Record<string, string> = {
  * ring so the drop target is obvious before the user starts dragging.
  */
 const HANDLE_BASE =
-  '!w-3.5 !h-3.5 !border-2 !border-card transition-shadow ' +
-  'hover:!ring-2 hover:!ring-primary/60';
+  '!w-3 !h-3 !border-[1.5px] transition-shadow ' +
+  'hover:!ring-2 hover:!ring-ring/60';
 
 /**
  * Custom React-Flow node for one journey step.
@@ -117,16 +112,18 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
   // Traffic-light status ring: red = needs attention, primary =
   // currently selected, green = ready. Risk level is encoded by the
   // header background + icon below, NOT by the ring.
-  const ringColor = (issues.length || hasUnsatisfied)
-    ? 'ring-red-500'
-    : selected
-      ? 'ring-primary'
-      : 'ring-green-500/60';
+  const needsAttention = issues.length > 0 || hasUnsatisfied;
+  const risk = data.toolDef?.risk_level || 'read_only';
+  const ringColor = selected
+    ? 'border-brand ring-2 ring-ring/40'
+    : needsAttention
+      ? 'border-destructive/60'
+      : 'border-border-strong hover:border-brand/50';
 
   return (
     <div
       className={cn(
-        'rounded-md border bg-card text-foreground shadow-sm w-[280px] ring-2 transition-colors',
+        'w-[280px] rounded-xl border bg-card text-foreground shadow-xs transition-[border-color,box-shadow] duration-200',
         ringColor,
       )}
     >
@@ -136,55 +133,51 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
       {order != null && (
         <div
           className={cn(
-            'absolute -top-2 -left-2 w-5 h-5 rounded-full text-[10px]',
-            'font-semibold flex items-center justify-center border-2 border-card shadow',
+            'num absolute -left-2.5 -top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full border px-1 text-xs font-medium',
             order === -1
-              ? 'bg-red-500 text-white'
-              : 'bg-primary text-primary-foreground',
+              ? 'border-destructive/60 bg-card text-destructive'
+              : 'border-border-strong bg-card text-muted-foreground',
           )}
-          title={order === -1 ? 'On a cycle -- resolve before running' : `Step ${order} in execution order`}
+          title={order === -1 ? 'Part of a loop: remove one connection before running' : `Step ${order} in run order`}
         >
           {order === -1 ? '!' : order}
         </div>
       )}
 
-      <div className={cn('px-3 py-2 border-b flex items-center justify-between gap-2', RISK_BG[data.toolDef?.risk_level || 'read_only'])}>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
         <button
           className="flex-1 min-w-0 text-left"
           onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-          title={open ? 'collapse' : 'expand'}
+          title={open ? 'Collapse' : 'Expand'}
         >
-          <div className="text-[12px] font-mono truncate font-medium">{data.tool || '(no tool)'}</div>
-          <div className="text-[10px] text-muted-foreground truncate">
+          <div className="truncate font-mono text-xs font-medium text-foreground">{data.tool || 'No tool chosen'}</div>
+          <div className="text-xs text-muted-foreground truncate">
             {data.name && data.name !== data.tool ? data.name : (tool?.description || '').slice(0, 60)}
           </div>
         </button>
         {/* Status icon: green check when ready, red triangle when
             something needs attention. The risk-level tint on the
             header background communicates risk independently. */}
-        {issues.length > 0 || hasUnsatisfied ? (
+        {needsAttention ? (
           <span
             title={
               hasUnsatisfied
-                ? `${missingCount} required input${missingCount === 1 ? '' : 's'} unset`
+                ? `${missingCount} required input${missingCount === 1 ? '' : 's'} not set`
                 : issues.map((i) => `${i.code}: ${i.message}`).join('\n')
             }
           >
-            <AlertTriangle className="h-3.5 w-3.5 text-red-300" />
+            <Icon name="alert-triangle" className="h-3.5 w-3.5 text-destructive" />
           </span>
-        ) : (
-          <span
-            title={`Ready -- ${RISK_LABEL[data.toolDef?.risk_level || 'read_only'] || 'Read-only'}`}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-          </span>
-        )}
+        ) : risk !== 'read_only' ? (
+          <StatusPill status={risk} className="font-normal">{risk === 'high_risk_write' ? 'High-risk write' : 'Write'}</StatusPill>
+        ) : null}
         <button
-          className="text-muted-foreground hover:text-red-300"
+          className="rounded-sm text-subtle-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Remove step"
+          aria-label="Remove step"
           onClick={(e) => { e.stopPropagation(); data.__onDelete?.(id); }}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Icon name="trash" className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -193,12 +186,11 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
           user does not have to hover the AlertTriangle to learn
           why the node is red. */}
       {(issues.length > 0 || hasUnsatisfied) && (
-        <div className="px-3 py-1 border-b text-[10px] bg-red-500/10 text-red-200 flex items-start gap-1">
-          <AlertTriangle className="h-3 w-3 mt-[1px] shrink-0" />
+        <div className="flex items-start gap-1.5 border-b border-border bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
           <div className="min-w-0 leading-snug">
             {hasUnsatisfied && (
               <div className="truncate">
-                {missingCount} required input{missingCount === 1 ? '' : 's'} unset -- open Step Editor to fill
+                {missingCount} required input{missingCount === 1 ? '' : 's'} not set. Fill {missingCount === 1 ? 'it' : 'them'} in the step properties.
               </div>
             )}
             {issues.length > 0 && (
@@ -212,11 +204,11 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
       )}
 
       {open && (
-        <div className="px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-3 py-2.5 font-mono text-xs">
           {/* Inputs (left column, target handles on the OUTSIDE edge) */}
           <div className="space-y-1.5">
             {paramKeys.length === 0 && (
-              <div className="text-muted-foreground italic">no inputs</div>
+              <div className="font-sans text-subtle-foreground">No inputs</div>
             )}
             {paramKeys.map((p) => {
               const isRequired = requiredSet.has(p);
@@ -229,11 +221,11 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                     'relative pl-2 truncate transition-colors',
                     // In connect-target mode every input port lights up as a
                     // landing zone, with required ports nudged a shade brighter.
-                    isConnectTargetMode && 'rounded -ml-2 pl-3 pr-1 py-0.5 cursor-pointer hover:ring-2 hover:ring-blue-400/60',
-                    isConnectTargetMode && (isRequired ? 'bg-amber-500/15' : 'bg-muted/30'),
+                    isConnectTargetMode && 'rounded -ml-2 pl-3 pr-1 py-0.5 cursor-pointer hover:ring-2 hover:ring-ring/60',
+                    isConnectTargetMode && (isRequired ? 'bg-brand/10' : 'bg-surface-2'),
                     // Required-but-unsatisfied takes precedence visually so
                     // the user knows exactly which field still needs input.
-                    isUnsatisfied && !isConnectTargetMode && 'rounded -ml-2 pl-3 pr-1 py-0.5 bg-red-500/10 ring-1 ring-red-500/40',
+                    isUnsatisfied && !isConnectTargetMode && 'rounded -ml-2 pl-3 pr-1 py-0.5 bg-destructive/10',
                   )}
                   title={
                     isConnectTargetMode
@@ -258,12 +250,12 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                       className={cn(
                         HANDLE_BASE,
                         isConsumed
-                          ? '!bg-blue-400'
+                          ? '!border-brand !bg-brand'
                           : isConnectTargetMode
-                            ? '!bg-blue-400 !ring-2 !ring-blue-400/40'
+                            ? '!border-brand !bg-card !ring-2 !ring-ring/40'
                             : isUnsatisfied
-                              ? '!bg-red-500 !ring-2 !ring-red-500/40'
-                              : isRequired ? '!bg-amber-400' : '!bg-muted-foreground',
+                              ? '!border-destructive !bg-card'
+                              : '!border-border-strong !bg-card',
                       )}
                       style={{ top: '50%', left: -7 }}
                       onClick={(e) => {
@@ -278,8 +270,8 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                   <span
                     className={cn(
                       isRequired ? 'text-foreground' : 'text-muted-foreground',
-                      isConsumed && 'text-blue-300',
-                      isUnsatisfied && 'text-red-300',
+                      isConsumed && 'text-primary dark:text-brand-hi',
+                      isUnsatisfied && 'text-destructive',
                     )}
                   >
                     {p}{isRequired ? '*' : ''}
@@ -292,7 +284,7 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
           {/* Outputs (right column, source handles on the OUTSIDE edge) */}
           <div className="space-y-1.5 text-right">
             {outputs.length === 0 && (
-              <div className="text-muted-foreground italic">no outputs</div>
+              <div className="font-sans text-subtle-foreground">No outputs</div>
             )}
             {outputs.map((h) => {
               const isPendingSource = isPendingSourceNode && pending?.key === h.key;
@@ -302,8 +294,8 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                   className={cn(
                     'relative pr-2 truncate transition-colors',
                     // Output rows are always clickable to start a wire.
-                    'rounded -mr-2 pr-3 pl-1 py-0.5 cursor-pointer hover:ring-2 hover:ring-primary/40',
-                    isPendingSource && 'bg-primary/20 ring-2 ring-primary',
+                    'rounded -mr-2 pr-3 pl-1 py-0.5 cursor-pointer hover:bg-surface-2',
+                    isPendingSource && 'bg-brand/10 ring-1 ring-brand/50',
                   )}
                   title={
                     isPendingSource
@@ -323,7 +315,7 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                     data.__beginConnection?.(h.key);
                   }}
                 >
-                  <span className={cn(isPendingSource ? 'text-primary font-medium' : 'text-muted-foreground')}>
+                  <span className={cn(isPendingSource ? 'font-medium text-primary dark:text-brand-hi' : 'text-muted-foreground')}>
                     {h.key}
                   </span>
                   {!hideHandles && (
@@ -333,7 +325,7 @@ function ToolNodeImpl({ id, data, selected }: ToolNodeProps) {
                       position={Position.Right}
                       aria-label={`Output port ${h.key}`}
                       title={`Output: ${h.key} (${h.kind}) -- click to start a wire, or drag onto a target port`}
-                      className={cn(HANDLE_BASE, isPendingSource ? '!bg-primary !ring-2 !ring-primary' : '!bg-primary')}
+                      className={cn(HANDLE_BASE, isPendingSource ? '!border-brand !bg-brand !ring-2 !ring-ring/50' : '!border-brand !bg-card')}
                       style={{ top: '50%', right: -7 }}
                       onClick={(e) => {
                         // Mirror the row click so the small dot also starts a wire.

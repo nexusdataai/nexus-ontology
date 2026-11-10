@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X as XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Icon } from '@/components/ds/Icon';
 import type { BuilderStageState } from './builderState';
+import { confirmDialog } from '@/components/ds/confirm';
 
 interface Props {
   stages: BuilderStageState[];
@@ -13,6 +15,8 @@ interface Props {
   className?: string;
 }
 
+const ICON_BTN = 'flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 /**
  * Horizontal tab strip rendered above the Journey Builder canvas.
  * One tab per stage; clicking switches the active stage which causes
@@ -21,10 +25,10 @@ interface Props {
  * Affordances per tab:
  *   - Click the tab body to activate it.
  *   - Double-click (or click the pencil icon when active) to rename.
- *   - Click the X icon on a non-last stage to delete (the last stage
+ *   - Click the trash icon on the active stage to delete (the last stage
  *     cannot be deleted -- every journey has at least one stage).
  *
- * Plus a trailing ``+`` button to add a new stage at the end.
+ * Plus a trailing "Add stage" button to add a new stage at the end.
  */
 export function StageTabs({
   stages, activeStageId, onActiveChange, onAdd, onRename, onDelete, className,
@@ -51,62 +55,68 @@ export function StageTabs({
   };
 
   return (
-    <div className={cn('flex items-center gap-1 mb-2 flex-wrap', className)}>
-      {stages.map((s) => {
+    <div role="tablist" aria-label="Stages" className={cn('mb-2 flex flex-wrap items-center gap-1', className)}>
+      {stages.map((s, i) => {
         const active = s.stageId === activeStageId;
         const editing = editingId === s.stageId;
         return (
           <div
             key={s.stageId}
             role="tab"
+            tabIndex={0}
             aria-selected={active}
             className={cn(
-              'flex items-center gap-1 h-7 px-2 rounded border text-xs transition-colors',
+              'flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               active
-                ? 'bg-primary/15 border-primary/40 text-primary'
-                : 'bg-card border-border hover:bg-muted/30 cursor-pointer',
+                ? 'border-border-strong bg-accent font-medium text-foreground'
+                : 'cursor-pointer border-transparent text-muted-foreground hover:bg-accent/70 hover:text-foreground',
             )}
             onClick={() => !editing && onActiveChange(s.stageId)}
+            onKeyDown={(e) => { if (!editing && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onActiveChange(s.stageId); } }}
             onDoubleClick={(e) => { e.stopPropagation(); beginEdit(s); }}
           >
+            <span className="num text-xs font-normal text-subtle-foreground">{i + 1}</span>
             {editing ? (
-              <input
+              <Input
                 autoFocus
                 value={draft}
+                aria-label="Stage name"
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') commitEdit();
                   if (e.key === 'Escape') cancelEdit();
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="h-5 text-xs px-1 bg-background border rounded w-28"
+                className="h-6 w-32 px-1.5 text-sm"
               />
             ) : (
-              <span className="font-medium">{s.name}</span>
+              <span>{s.name}</span>
             )}
             {active && !editing && (
               <>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground"
+                  className={ICON_BTN}
                   title="Rename stage"
+                  aria-label="Rename stage"
                   onClick={(e) => { e.stopPropagation(); beginEdit(s); }}
                 >
-                  <Pencil className="h-3 w-3" />
+                  <Icon name="edit" className="h-3 w-3" />
                 </button>
                 {stages.length > 1 && (
                   <button
                     type="button"
-                    className="text-muted-foreground hover:text-red-300"
+                    className={cn(ICON_BTN, 'hover:text-destructive')}
                     title="Delete stage"
-                    onClick={(e) => {
+                    aria-label="Delete stage"
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      if (window.confirm(`Delete stage "${s.name}"? Its steps and connections will be lost.`)) {
+                      if (await confirmDialog({ title: `Delete stage "${s.name}"?`, description: 'Its steps and connections will be lost.', destructive: true })) {
                         onDelete(s.stageId);
                       }
                     }}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Icon name="trash" className="h-3 w-3" />
                   </button>
                 )}
               </>
@@ -115,19 +125,21 @@ export function StageTabs({
               <>
                 <button
                   type="button"
-                  className="text-green-400 hover:text-green-300"
+                  className={cn(ICON_BTN, 'text-foreground')}
                   title="Save (Enter)"
+                  aria-label="Save name"
                   onClick={(e) => { e.stopPropagation(); commitEdit(); }}
                 >
-                  <Check className="h-3 w-3" />
+                  <Icon name="check" className="h-3 w-3" />
                 </button>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground"
+                  className={ICON_BTN}
                   title="Cancel (Esc)"
+                  aria-label="Cancel rename"
                   onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
                 >
-                  <XIcon className="h-3 w-3" />
+                  <Icon name="close" className="h-3 w-3" />
                 </button>
               </>
             )}
@@ -138,9 +150,9 @@ export function StageTabs({
         type="button"
         onClick={onAdd}
         title="Add a new stage"
-        className="flex items-center gap-1 h-7 px-2 rounded border border-dashed text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30"
+        className="flex h-8 items-center gap-1.5 rounded-md border border-dashed border-border-strong px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Plus className="h-3 w-3" /> Stage
+        <Icon name="plus" className="h-3 w-3" /> Add stage
       </button>
     </div>
   );

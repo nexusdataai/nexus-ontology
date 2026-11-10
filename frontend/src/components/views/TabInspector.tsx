@@ -53,7 +53,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
   return (
     <div className="h-full flex flex-col border-l bg-background overflow-auto">
       <div className="px-3 pt-3 pb-2 border-b flex items-center justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-xs font-semibold text-muted-foreground">
           Tab settings
         </div>
         <Button variant="ghost" size="sm" className="h-6 px-2 text-destructive" onClick={onRemove}>
@@ -63,7 +63,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
 
       <div className="p-3 space-y-3 text-xs">
         <div>
-          <label className="block text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             Label
           </label>
           <Input
@@ -74,7 +74,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
         </div>
 
         <div>
-          <label className="block text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             Dashboard
           </label>
           <select
@@ -92,7 +92,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
         </div>
 
         <div>
-          <label className="block text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             Time override
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -121,7 +121,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+            <label className="block text-xs text-muted-foreground">
               Simulator data refs
             </label>
             <Button variant="ghost" size="sm" className="h-6 px-2" onClick={addSimRef}>
@@ -129,7 +129,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
             </Button>
           </div>
           {tab.simulatorRefs.length === 0 ? (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Optional. Reference simulator datasets stored in S3 to scope the dashboard's data.
             </p>
           ) : (
@@ -141,7 +141,7 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
                       placeholder="service (sfdc, oracle, sap, external...)"
                       value={ref.service}
                       onChange={(e) => updateSimRef(idx, { service: e.target.value })}
-                      className="h-6 text-[11px]"
+                      className="h-6 text-xs"
                     />
                     <Button
                       variant="ghost"
@@ -156,13 +156,13 @@ export function TabInspector({ tab, onChange, onRemove }: TabInspectorProps) {
                     placeholder="scenario (optional)"
                     value={ref.scenario || ''}
                     onChange={(e) => updateSimRef(idx, { scenario: e.target.value })}
-                    className="h-6 text-[11px]"
+                    className="h-6 text-xs"
                   />
                   <Input
                     placeholder="s3 key / manifest path"
                     value={ref.s3Key || ''}
                     onChange={(e) => updateSimRef(idx, { s3Key: e.target.value })}
-                    className="h-6 text-[11px]"
+                    className="h-6 text-xs"
                   />
                 </div>
               ))}

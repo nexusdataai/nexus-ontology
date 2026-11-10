@@ -144,8 +144,8 @@ export function AppToolsCatalogue({ app }: Props) {
                 onClick={() => setActiveCategory(category)}
                 className={
                   activeCategory === category
-                    ? 'bg-[#802dc8] text-white hover:bg-[#6b25a8]'
-                    : 'hover:bg-[#802dc8]/10'
+                    ? 'bg-primary text-white hover:bg-primary/90'
+                    : 'hover:bg-primary/10'
                 }
               >
                 {category}
@@ -163,15 +163,15 @@ export function AppToolsCatalogue({ app }: Props) {
                 >
                   <CardHeader className="space-y-4">
                     <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 bg-[#802dc8] rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
                         <Icon className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex gap-2">
                         <Badge
                           className={
                             tool.status === 'Available'
-                              ? 'bg-[#802dc8] text-white'
-                              : 'bg-gray-400 text-white'
+                              ? 'bg-primary text-white'
+                              : 'bg-border-strong text-white'
                           }
                         >
                           {tool.status}
@@ -215,8 +215,8 @@ export function AppToolsCatalogue({ app }: Props) {
                     <Button
                       className={`w-full text-white ${
                         tool.status === 'Available'
-                          ? 'bg-[#802dc8] hover:bg-[#6b25a8]'
-                          : 'bg-gray-400 cursor-not-allowed'
+                          ? 'bg-primary hover:bg-primary/90'
+                          : 'bg-border-strong cursor-not-allowed'
                       }`}
                       disabled={tool.status === 'Coming Soon'}
                     >

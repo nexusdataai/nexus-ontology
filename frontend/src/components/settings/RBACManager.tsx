@@ -1,53 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useRBAC, RBACRole, RBACPermission, RBACCategory, RBACAuditEntry } from '@/hooks/useRBAC';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Shield, Users, Settings, Info, AlertCircle, CheckCircle, XCircle, History, RefreshCw, Save } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, DetailSheet, InlineError, KeyValues, Meter, StatusPill, SubHeading, TableShell } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
 import { useEnterpriseAuth } from '@/context/EnterpriseAuthContext';
+import { cn } from '@/lib/utils';
 
-const RiskLevelBadge: React.FC<{ level: string }> = ({ level }) => {
-  const getBadgeStyle = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'critical':
-        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800';
-      case 'high':
-        return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
-      case 'low':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800';
-      default:
-        return 'bg-muted text-muted-foreground border-border';
-    }
-  };
-
-  const getIcon = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'critical':
-        return <AlertCircle className="w-3 h-3" />;
-      case 'high':
-        return <XCircle className="w-3 h-3" />;
-      case 'medium':
-        return <Info className="w-3 h-3" />;
-      case 'low':
-        return <CheckCircle className="w-3 h-3" />;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <Badge variant="outline" className={`${getBadgeStyle(level)} flex items-center gap-1`}>
-      {getIcon(level)}
-      {level.charAt(0).toUpperCase() + level.slice(1)}
-    </Badge>
-  );
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? 'Unknown'
+    : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
+
+const pretty = (s: string) => String(s || '').replace(/[_.-]+/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
+const SCOPE_LABEL: Record<string, string> = {
+  individual: 'Own records',
+  team: 'Team records',
+  organization: 'Whole organisation',
+};
+
+/** Risk of a permission: a dot and a word, never a filled badge. */
+const RiskLevelBadge: React.FC<{ level: string }> = ({ level }) => (
+  <StatusPill status={level}>{level.charAt(0).toUpperCase() + level.slice(1)}</StatusPill>
+);
+
+const HEAD_CELL = 'sticky top-0 z-20 border-b border-border bg-surface-2 px-4 py-2.5 text-xs font-medium text-muted-foreground';
 
 const PermissionRow: React.FC<{
   permission: RBACPermission;
@@ -58,41 +41,35 @@ const PermissionRow: React.FC<{
   isSaving: boolean;
 }> = ({ permission, roles, rolePermissions, onTogglePermission, isEditable, isSaving }) => {
   return (
-    <div className="grid grid-cols-11 gap-4 py-3 border-b border-border hover:bg-muted/50">
-      <div className="col-span-5">
-        <div className="flex flex-col space-y-1">
-          <span className="font-medium text-sm">{permission.displayName}</span>
-          <span className="text-xs text-muted-foreground">{permission.description}</span>
-          <div className="flex items-center gap-2">
-            <RiskLevelBadge level={permission.riskLevel} />
-            <Badge variant="outline" className="text-xs">
-              {permission.dataScope}
-            </Badge>
-          </div>
-        </div>
-      </div>
-      
-      {roles.map((role) => (
-        <div key={role.id} className="col-span-2 flex items-center justify-center">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center">
-                  <Switch
-                    checked={rolePermissions[role.id]?.includes(permission.id) || false}
-                    onCheckedChange={() => isEditable && !isSaving && onTogglePermission(role.id, permission.id)}
-                    disabled={!isEditable || isSaving}
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{rolePermissions[role.id]?.includes(permission.id) ? 'Enabled' : 'Disabled'} for {role.displayName}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      ))}
-    </div>
+    <tr className="group">
+      <th scope="row" className="sticky left-0 z-10 border-b border-border bg-card px-4 py-3 text-left align-top font-normal transition-colors group-hover:bg-surface-2">
+        <div className="text-sm font-medium text-foreground">{permission.displayName}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{permission.description}</div>
+      </th>
+      <td className="whitespace-nowrap border-b border-border px-4 py-3 align-top transition-colors group-hover:bg-surface-2/60">
+        <RiskLevelBadge level={permission.riskLevel} />
+        <div className="mt-0.5 text-xs text-muted-foreground">{SCOPE_LABEL[permission.dataScope] || pretty(permission.dataScope)}</div>
+      </td>
+      {roles.map((role) => {
+        const on = rolePermissions[role.id]?.includes(permission.id) || false;
+        return (
+          <td key={role.id} className="border-b border-border px-4 py-3 text-center align-middle transition-colors group-hover:bg-surface-2/60">
+            {isEditable ? (
+              <Switch
+                checked={on}
+                onCheckedChange={() => isEditable && !isSaving && onTogglePermission(role.id, permission.id)}
+                disabled={!isEditable || isSaving}
+                aria-label={`${permission.displayName} for ${role.displayName}`}
+              />
+            ) : on ? (
+              <Icon name="check" label={`Allowed for ${role.displayName}`} className="mx-auto h-4 w-4 text-foreground" />
+            ) : (
+              <span className="text-subtle-foreground" role="img" aria-label={`Not allowed for ${role.displayName}`}>-</span>
+            )}
+          </td>
+        );
+      })}
+    </tr>
   );
 };
 
@@ -106,37 +83,35 @@ const CategorySection: React.FC<{
   isSaving: boolean;
 }> = ({ category, permissions, roles, rolePermissions, onTogglePermission, isEditable, isSaving }) => {
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">{category.icon}</span>
-        <div>
-          <h3 className="text-lg font-semibold">{category.name}</h3>
-          <p className="text-sm text-muted-foreground">{category.description}</p>
-        </div>
-      </div>
-      
-      <div className="bg-card rounded-lg border border-border">
-        <div className="p-4">
-          {permissions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No permissions defined for this category
-            </div>
-          ) : (
-            permissions.map((permission) => (
-              <PermissionRow
-                key={permission.id}
-                permission={permission}
-                roles={roles}
-                rolePermissions={rolePermissions}
-                onTogglePermission={onTogglePermission}
-                isEditable={isEditable}
-                isSaving={isSaving}
-              />
-            ))
-          )}
-        </div>
-      </div>
-    </div>
+    <tbody>
+      <tr>
+        <th scope="colgroup" colSpan={roles.length + 2} className="border-b border-border bg-surface-2/50 p-0 text-left font-normal">
+          <div className="sticky left-0 inline-flex max-w-[min(100%,560px)] flex-wrap items-baseline gap-x-2.5 px-4 py-2">
+            <span className="text-sm font-medium text-foreground">{category.name}</span>
+            <span className="text-xs text-muted-foreground">{category.description}</span>
+          </div>
+        </th>
+      </tr>
+      {permissions.length === 0 ? (
+        <tr>
+          <td colSpan={roles.length + 2} className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
+            No permissions defined for this area.
+          </td>
+        </tr>
+      ) : (
+        permissions.map((permission) => (
+          <PermissionRow
+            key={permission.id}
+            permission={permission}
+            roles={roles}
+            rolePermissions={rolePermissions}
+            onTogglePermission={onTogglePermission}
+            isEditable={isEditable}
+            isSaving={isSaving}
+          />
+        ))
+      )}
+    </tbody>
   );
 };
 
@@ -144,6 +119,7 @@ const AuditLogTab: React.FC = () => {
   const { getAuditLog } = useRBAC();
   const [auditEntries, setAuditEntries] = useState<RBACAuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openEntry, setOpenEntry] = useState<RBACAuditEntry | null>(null);
 
   useEffect(() => {
     const fetchAuditLog = async () => {
@@ -158,60 +134,105 @@ const AuditLogTab: React.FC = () => {
     fetchAuditLog();
   }, [getAuditLog]);
 
-  if (loading) {
+  if (loading && auditEntries.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Loading audit log...
+      <div className="space-y-px overflow-hidden rounded-xl border border-border" aria-busy="true">
+        {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full rounded-none" />)}
       </div>
     );
   }
 
+  if (auditEntries.length === 0) {
+    return <EmptyState icon="history" title="No changes recorded" description="Changes to roles and permissions are listed here once someone makes one." />;
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-4">
-        <History className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">Change History</h3>
-      </div>
-      
-      {auditEntries.length === 0 ? (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>No audit entries found.</AlertDescription>
-        </Alert>
-      ) : (
-        <div className="space-y-2">
-          {auditEntries.map((entry, index) => (
-            <div key={index} className="p-4 border border-border rounded-lg bg-card">
-              <div className="flex items-center justify-between mb-2">
-                <Badge variant="outline">{entry.action}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(entry.timestamp).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-sm">{entry.changes}</p>
-              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                <span>User: {entry.userId}</span>
-                {entry.roleId && <span>Role: {entry.roleId}</span>}
-                <span>Version: {entry.version}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <>
+      <TableShell>
+        <table className="w-full min-w-[680px] border-collapse text-sm">
+          <thead>
+            <tr>
+              {['When', 'Change', 'Role', 'Changed by', 'Version'].map((h) => (
+                <th key={h} scope="col" className="whitespace-nowrap border-b border-border bg-surface-2 px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {auditEntries.map((entry, index) => (
+              <tr
+                key={index}
+                tabIndex={0}
+                onClick={() => setOpenEntry(entry)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenEntry(entry); } }}
+                className="rise cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-surface-2/60 focus-visible:bg-surface-2/60 focus-visible:outline-none"
+                style={{ '--i': index } as React.CSSProperties}
+              >
+                <td className="num whitespace-nowrap px-5 py-3 text-muted-foreground">{formatDateTime(entry.timestamp)}</td>
+                <td className="px-5 py-3">
+                  <div className="font-medium text-foreground">{entry.changes}</div>
+                  <div className="text-xs text-muted-foreground">{pretty(entry.action)}</div>
+                </td>
+                <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">{entry.roleId ? pretty(entry.roleId) : 'All roles'}</td>
+                <td className="px-5 py-3 text-muted-foreground">{entry.userId}</td>
+                <td className="num whitespace-nowrap px-5 py-3 text-muted-foreground">{entry.version}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
+
+      <DetailSheet
+        open={!!openEntry}
+        onOpenChange={(open) => { if (!open) setOpenEntry(null); }}
+        title={openEntry?.changes || 'Change'}
+        description={openEntry ? `${pretty(openEntry.action)}, ${formatDateTime(openEntry.timestamp)}` : undefined}
+      >
+        {openEntry && (
+          <div className="space-y-6">
+            <KeyValues
+              items={[
+                { label: 'Changed by', value: openEntry.userId },
+                { label: 'Role', value: openEntry.roleId ? pretty(openEntry.roleId) : 'All roles' },
+                { label: 'Permission', value: openEntry.permissionId || 'Not specific to one', mono: !!openEntry.permissionId },
+                { label: 'Version', value: openEntry.version },
+                { label: 'When', value: formatDateTime(openEntry.timestamp) },
+              ]}
+            />
+            {(openEntry.previousValue || openEntry.newValue) && (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-primary dark:text-brand-hi">Technical details</summary>
+                <div className="mt-3 space-y-4">
+                  {openEntry.previousValue && (
+                    <div>
+                      <SubHeading>Before</SubHeading>
+                      <CodeBlock>{JSON.stringify(openEntry.previousValue, null, 2)}</CodeBlock>
+                    </div>
+                  )}
+                  {openEntry.newValue && (
+                    <div>
+                      <SubHeading>After</SubHeading>
+                      <CodeBlock>{JSON.stringify(openEntry.newValue, null, 2)}</CodeBlock>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+      </DetailSheet>
+    </>
   );
 };
 
 const RBACMatrix: React.FC = () => {
-  const { 
-    rbacData, 
-    loading, 
+  const {
+    rbacData,
+    loading,
     error,
     saving,
     updateRolePermissions,
     getPermissionsByCategory,
-    fetchRBACData 
+    fetchRBACData
   } = useRBAC();
 
   const { hasPermission, profile } = useEnterpriseAuth();
@@ -260,256 +281,218 @@ const RBACMatrix: React.FC = () => {
   // Check if user has permission to manage RBAC
   const canManageRBAC = hasPermission('manage_rbac') || profile?.role === 'Admin';
 
-  if (loading) {
+  const heading = (
+    <div className="min-w-0">
+      <h2 className="text-xl font-medium tracking-tight text-foreground">Roles and permissions</h2>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">What each role is allowed to do across the platform.</p>
+    </div>
+  );
+
+  if (loading && !rbacData) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading RBAC configuration...</span>
+      <div className="space-y-5" aria-busy="true">
+        {heading}
+        <Skeleton className="h-10 w-full" />
+        <div className="space-y-px overflow-hidden rounded-xl border border-border">
+          {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 w-full rounded-none" />)}
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !rbacData) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          {error}
-          <Button variant="outline" size="sm" onClick={fetchRBACData} className="ml-2">
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-5">
+        {heading}
+        <InlineError onRetry={fetchRBACData}>{error}</InlineError>
+      </div>
     );
   }
 
   if (!rbacData) {
     return (
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>No RBAC configuration found.</AlertDescription>
-      </Alert>
+      <div className="space-y-5">
+        {heading}
+        <EmptyState
+          icon="shield-check"
+          title="No roles are set up"
+          description="The server did not return a roles and permissions configuration."
+          action={<Button variant="outline" onClick={fetchRBACData}>Try again</Button>}
+        />
+      </div>
     );
   }
 
   const { roles: allRoles, transactionCategories, rolePermissions, metadata } = rbacData;
   const roles = allRoles.filter(r => r.id !== 'Admin');
+  const shownPermissions = isEditable && pendingPermissions ? pendingPermissions : rolePermissions;
+  const sortedCategories = [...transactionCategories].sort((a, b) => a.order - b.order);
+  const totalPermissions = rbacData.permissions.length;
+  const editing = isEditable && canManageRBAC;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Shield className="h-6 w-6" />
-            RBAC Management
-          </h2>
-          <p className="text-muted-foreground mt-1">{metadata.description}</p>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Roles and permissions</h2>
+          {metadata.description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{metadata.description}</p>}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>Version <span className="num text-foreground">{metadata.version}</span></span>
+            <span aria-hidden="true">·</span>
+            <span>last updated {formatDateTime(metadata.lastUpdated)}{metadata.updatedBy ? ` by ${metadata.updatedBy}` : ''}</span>
+            {metadata.environment && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{metadata.environment}</span>
+              </>
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline">v{metadata.version}</Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchRBACData}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
           {canManageRBAC && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Edit Mode:</span>
-              <Switch
-                checked={isEditable}
-                onCheckedChange={handleEditModeChange}
-                disabled={saving}
-              />
-            </div>
+            <label className="flex items-center gap-2.5 text-sm text-muted-foreground">
+              <Switch checked={isEditable} onCheckedChange={handleEditModeChange} disabled={saving} />
+              Edit mode
+            </label>
           )}
+          <Button variant="outline" onClick={fetchRBACData} disabled={loading}>
+            <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Permission Warning */}
+      {error && <InlineError onRetry={fetchRBACData}>{error}</InlineError>}
+
       {!canManageRBAC && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            You have read-only access to RBAC configuration. Contact an administrator to make changes.
-          </AlertDescription>
-        </Alert>
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
+          <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" />
+          You can read this configuration but not change it. Ask an administrator if a role needs different access.
+        </p>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="matrix">
-            <Settings className="h-4 w-4 mr-2" />
-            Permission Matrix
-          </TabsTrigger>
-          <TabsTrigger value="roles">
-            <Users className="h-4 w-4 mr-2" />
-            Roles
-          </TabsTrigger>
-          <TabsTrigger value="audit">
-            <History className="h-4 w-4 mr-2" />
-            Audit Log
-          </TabsTrigger>
+        <TabsList variant="line">
+          <TabsTrigger value="matrix">Permissions</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="audit">History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="matrix" className="mt-6">
-          {/* Metadata Info */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Configuration Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Last Updated:</span>
-                  <span className="ml-2">{new Date(metadata.lastUpdated).toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Updated By:</span>
-                  <span className="ml-2">{metadata.updatedBy}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Environment:</span>
-                  <span className="ml-2 capitalize">{metadata.environment}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Total Roles:</span>
-                  <span className="ml-2">{roles.length}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="matrix" className="mt-5">
+          {roles.length === 0 || totalPermissions === 0 ? (
+            <EmptyState icon="shield-check" title="Nothing to show yet" description="No roles or no permissions are defined in this configuration." />
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-muted-foreground">
+                <span className="num font-medium text-foreground">{totalPermissions}</span> permissions across{' '}
+                <span className="num font-medium text-foreground">{roles.length}</span> roles.{' '}
+                {editing
+                  ? 'Switch permissions on or off, then save.'
+                  : canManageRBAC ? 'Turn on edit mode to make changes.' : ''}
+              </p>
 
-          {/* Permission Matrix */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Permission Matrix
-              </CardTitle>
-              <CardDescription>
-                {isEditable ? 'Toggle permissions, then click Save to apply changes' : 'Enable edit mode to make changes'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Matrix Header */}
-              <div className="grid grid-cols-11 gap-4 py-3 border-b-2 border-border font-medium text-sm bg-muted">
-                <div className="col-span-5">Permission</div>
-                {roles.map((role) => (
-                  <div key={role.id} className="col-span-2 text-center">
-                    <Badge className={role.badgeColor}>{role.displayName}</Badge>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission Categories */}
-              <div className="mt-6">
-                {transactionCategories
-                  .sort((a, b) => a.order - b.order)
-                  .map((category) => (
+              <div className="scroll-thin max-h-[72vh] overflow-auto rounded-xl border border-border bg-card shadow-xs">
+                <table className="w-full border-separate border-spacing-0 text-sm" style={{ minWidth: 420 + roles.length * 112 }}>
+                  <thead>
+                    <tr>
+                      <th scope="col" className={cn(HEAD_CELL, 'left-0 z-30 min-w-[220px] text-left')}>Permission</th>
+                      <th scope="col" className={cn(HEAD_CELL, 'text-left')}>Risk and reach</th>
+                      {roles.map((role) => (
+                        <th key={role.id} scope="col" className={cn(HEAD_CELL, 'min-w-[104px] whitespace-nowrap text-center text-foreground')}>
+                          {role.displayName}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  {sortedCategories.map((category) => (
                     <CategorySection
                       key={category.id}
                       category={category}
                       permissions={getPermissionsByCategory(category.id)}
                       roles={roles}
-                      rolePermissions={isEditable && pendingPermissions ? pendingPermissions : rolePermissions}
+                      rolePermissions={shownPermissions}
                       onTogglePermission={handleTogglePermission}
-                      isEditable={isEditable && canManageRBAC}
+                      isEditable={editing}
                       isSaving={saving}
                     />
                   ))}
+                </table>
               </div>
 
-              {/* Save / Discard buttons */}
-              {isEditable && canManageRBAC && (
-                <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDiscard}
-                    disabled={saving || !hasPendingChanges}
-                  >
-                    Discard Changes
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={saving || !hasPendingChanges}
-                  >
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Saved changes are stored on the server and apply to every user with that role.
+              </p>
+
+              {/* Save bar: only with unsaved changes. Left-aligned so it never sits under the assistant launcher. */}
+              {editing && hasPendingChanges && (
+                <div className="sticky bottom-4 z-30 mt-4 flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl border border-border-strong bg-popover px-4 py-2.5 shadow-md animate-fade-up">
+                  <span className="text-sm text-muted-foreground">
+                    Unsaved changes in <span className="num text-foreground">{changedRoles.size}</span> {changedRoles.size === 1 ? 'role' : 'roles'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={handleSave} disabled={saving || !hasPendingChanges}>
+                      {saving && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+                      {saving ? 'Saving' : 'Save changes'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDiscard} disabled={saving || !hasPendingChanges}>
+                      Discard
+                    </Button>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </>
+          )}
         </TabsContent>
 
-        <TabsContent value="roles" className="mt-6">
-          {/* Role Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Role Overview
-              </CardTitle>
-              <CardDescription>Current roles and their access levels</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {roles.map((role) => (
-                  <div key={role.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge className={role.badgeColor}>{role.displayName}</Badge>
-                      <span className="text-xs text-muted-foreground">Level {role.level}</span>
+        <TabsContent value="roles" className="mt-5">
+          {roles.length === 0 ? (
+            <EmptyState icon="users" title="No roles defined" />
+          ) : (
+            <ul className="border-t border-border">
+              {roles.map((role, i) => {
+                const granted = rolePermissions[role.id] || [];
+                return (
+                  <li
+                    key={role.id}
+                    className="rise grid gap-x-10 gap-y-3 border-b border-border py-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,340px)]"
+                    style={{ '--i': i } as React.CSSProperties}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <h3 className="text-md font-medium text-foreground">{role.displayName}</h3>
+                        <span className="num text-xs text-muted-foreground">Level {role.level}</span>
+                      </div>
+                      <p className="mt-1 max-w-xl text-sm text-muted-foreground">{role.description}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{role.description}</p>
-                    <div className="text-xs text-muted-foreground">
-                      {rolePermissions[role.id]?.length || 0} permissions assigned
+                    <div className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="text-foreground">
+                          <span className="num font-medium">{granted.length}</span> of <span className="num">{totalPermissions}</span> permissions
+                        </span>
+                      </div>
+                      <Meter value={granted.length} max={totalPermissions || 1} className="mt-2" label={`${role.displayName}: share of permissions`} />
+                      <p className="mt-2.5 text-xs leading-5 text-muted-foreground">
+                        {sortedCategories
+                          .map((c) => {
+                            const inCat = getPermissionsByCategory(c.id);
+                            if (inCat.length === 0) return null;
+                            const have = inCat.filter(p => granted.includes(p.id)).length;
+                            return `${c.name} ${have}/${inCat.length}`;
+                          })
+                          .filter(Boolean)
+                          .join(' · ') || 'No permissions assigned'}
+                      </p>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {rolePermissions[role.id]?.slice(0, 5).map((permId) => (
-                        <Badge key={permId} variant="secondary" className="text-xs">
-                          {permId.replace(/_/g, ' ')}
-                        </Badge>
-                      ))}
-                      {(rolePermissions[role.id]?.length || 0) > 5 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{(rolePermissions[role.id]?.length || 0) - 5} more
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </TabsContent>
 
-        <TabsContent value="audit" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <AuditLogTab />
-            </CardContent>
-          </Card>
+        <TabsContent value="audit" className="mt-5">
+          <AuditLogTab />
         </TabsContent>
       </Tabs>
-
-      {/* Backend Integration Status */}
-      <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-        <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <AlertDescription className="text-blue-800 dark:text-blue-300">
-          <strong>Backend Integration Active:</strong> Changes are automatically saved to the server and synchronized across all users.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 };

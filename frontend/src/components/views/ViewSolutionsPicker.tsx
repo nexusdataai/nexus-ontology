@@ -164,7 +164,7 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
           <Layers className="h-3.5 w-3.5 mr-1" />
           Solutions
           {attachedCount > 0 && (
-            <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5">
+            <span className="ml-1 text-xs bg-primary/10 text-primary rounded-full px-1.5 py-0.5">
               {attachedCount}
             </span>
           )}
@@ -172,7 +172,7 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="px-3 pt-3 pb-2 border-b">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          <div className="text-xs font-semibold text-muted-foreground mb-2">
             Solutions for this View
           </div>
           <div className="relative">
@@ -225,7 +225,7 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{s.name}</div>
                         {s.appId && (
-                          <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          <div className="text-xs text-muted-foreground font-mono truncate">
                             {s.appId}
                           </div>
                         )}
@@ -245,7 +245,7 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
 
             {unlinkedApps.length > 0 && (
               <div className="border-t p-2 space-y-1">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground px-2 py-1">
+                <div className="text-xs text-muted-foreground px-2 py-1">
                   Link to an unused app
                 </div>
                 {unlinkedApps.map((app) => {
@@ -263,7 +263,7 @@ export function ViewSolutionsPicker({ viewId, disabled }: ViewSolutionsPickerPro
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{app.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">
+                        <div className="text-xs text-muted-foreground truncate">
                           {app.id}
                         </div>
                       </div>

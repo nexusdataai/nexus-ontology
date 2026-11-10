@@ -76,7 +76,7 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
       status: 'Available',
       inputs: ['Customer Data', 'Behavior Logs', 'Demographics'],
       outputs: ['Segment Groups', 'Behavior Patterns', 'Recommendations'],
-      backgroundColor: 'bg-[#802dc8]'
+      backgroundColor: 'bg-primary'
     },
     {
       id: 'performance-optimizer',
@@ -87,7 +87,7 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
       status: 'Available',
       inputs: ['Performance Metrics', 'Call Data', 'Training Records'],
       outputs: ['Optimization Plan', 'Training Recommendations', 'KPI Improvements'],
-      backgroundColor: 'bg-[#802dc8]'
+      backgroundColor: 'bg-primary'
     },
     {
       id: 'data-quality-enhancer',
@@ -98,7 +98,7 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
       status: 'Coming Soon',
       inputs: ['Raw Data', 'Quality Rules', 'Reference Data'],
       outputs: ['Cleaned Data', 'Quality Reports', 'Enrichment Logs'],
-      backgroundColor: 'bg-gray-400'
+      backgroundColor: 'bg-border-strong'
     },
   
   ];
@@ -266,11 +266,11 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#802dc8] rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <Settings className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Totogi Tools Catalogue</h1>
+            <h1 className="text-3xl font-semibold text-foreground">Totogi Tools Catalogue</h1>
             <p className="text-muted-foreground">
               Explore and interact with our comprehensive suite of call center analytics and transformation tools
             </p>
@@ -286,7 +286,7 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
             variant={activeCategory === category ? "default" : "ghost"}
             size="sm"
             onClick={() => setActiveCategory(category)}
-            className={activeCategory === category ? "bg-[#802dc8] text-white hover:bg-[#6b25a8]" : "hover:bg-[#802dc8]/10"}
+            className={activeCategory === category ? "bg-primary text-white hover:bg-primary/90" : "hover:bg-primary/10"}
           >
             {category}
           </Button>
@@ -306,8 +306,8 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
                   <Badge
                     variant={tool.status === 'Available' ? 'default' : 'secondary'}
                     className={tool.status === 'Available'
-                      ? 'bg-[#802dc8] text-white'
-                      : 'bg-gray-400 text-white'
+                      ? 'bg-primary text-white'
+                      : 'bg-border-strong text-white'
                     }
                   >
                     {tool.status}
@@ -362,8 +362,8 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
               <Button
                 className={`w-full text-white ${
                   tool.status === 'Available' 
-                    ? 'bg-[#802dc8] hover:bg-[#6b25a8]' 
-                    : 'bg-gray-400 cursor-not-allowed'
+                    ? 'bg-primary hover:bg-primary/90' 
+                    : 'bg-border-strong cursor-not-allowed'
                 }`}
                 onClick={() => handleTryTool(tool.id)}
                 disabled={tool.status === 'Coming Soon'}

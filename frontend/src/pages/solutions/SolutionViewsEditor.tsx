@@ -13,7 +13,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Loader2, AppWindow, ExternalLink } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -130,40 +130,32 @@ export function SolutionViewsEditor({
   const views = solution?.views ?? [];
 
   return (
-    <div className="border-t bg-muted/20 p-3 space-y-2">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Views mapped to this Solution
-          {(reordering || creating) && (
-            <Loader2 className="inline-block h-3 w-3 ml-2 animate-spin text-muted-foreground" />
-          )}
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7"
-          onClick={() => setPickerOpen(true)}
-          disabled={creating}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add View
+    <div className="px-5 py-4 sm:pl-[4.6rem]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          {views.length === 0 ? 'Nothing attached yet.' : 'Shown in this order in the solution menu. Drag to reorder.'}
+          {(reordering || creating) && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+        </p>
+        <Button size="sm" onClick={() => setPickerOpen(true)} disabled={creating}>
+          <Icon name="plus" className="h-3.5 w-3.5" /> Attach a view
         </Button>
       </div>
 
       {views.length === 0 ? (
-        <div className="border border-dashed border-border rounded-md p-4 text-center text-xs text-muted-foreground">
-          No views mapped yet. Click "Add View" to surface dashboards as menu items
-          inside <span className="font-medium text-foreground">{app.shortName}</span>.
-        </div>
+        <p className="rounded-lg border border-dashed border-border-strong px-4 py-6 text-center text-sm text-muted-foreground">
+          Attach a view to show its dashboards inside <span className="font-medium text-foreground">{app.shortName}</span>.
+        </p>
       ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext
             items={views.map((v) => v.viewId)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1.5">
-              {views.map((link) => (
+            <ol className="overflow-hidden rounded-lg border border-border bg-card">
+              {views.map((link, i) => (
                 <SortableRow
                   key={link.viewId}
+                  index={i}
                   link={link}
                   summary={viewLookup.get(link.viewId)}
                   removing={removingId === link.viewId}
@@ -172,7 +164,7 @@ export function SolutionViewsEditor({
                   onEdit={() => nav(`/views/builder/${link.viewId}`)}
                 />
               ))}
-            </div>
+            </ol>
           </SortableContext>
         </DndContext>
       )}
@@ -189,6 +181,7 @@ export function SolutionViewsEditor({
 }
 
 interface SortableRowProps {
+  index: number;
   link: SolutionViewLink;
   summary?: ViewSummary;
   removing: boolean;
@@ -197,7 +190,7 @@ interface SortableRowProps {
   onEdit: () => void;
 }
 
-function SortableRow({ link, summary, removing, onRemove, onOpen, onEdit }: SortableRowProps) {
+function SortableRow({ index, link, summary, removing, onRemove, onOpen, onEdit }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: link.viewId,
   });
@@ -212,58 +205,37 @@ function SortableRow({ link, summary, removing, onRemove, onOpen, onEdit }: Sort
   const tabCount = summary?.tabCount ?? 0;
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 rounded-md border bg-background',
-        isDragging && 'ring-1 ring-primary',
+        'flex items-center gap-3 border-b border-border bg-card px-3 py-2.5 last:border-b-0',
+        isDragging && 'relative z-10 rounded-lg border border-brand shadow-lg',
       )}
     >
-      <span
+      <button
+        type="button"
         {...listeners}
         {...attributes}
-        className="cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-foreground p-1"
+        aria-label={`Reorder ${label}`}
+        className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-subtle-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
       >
-        <GripVertical className="h-3.5 w-3.5" />
-      </span>
-      <AppWindow className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="grid grid-cols-2 gap-[3px]" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map(d => <span key={d} className="h-[3px] w-[3px] rounded-full bg-current" />)}
+        </span>
+      </button>
+      <span className="num w-4 shrink-0 text-xs text-muted-foreground">{index + 1}</span>
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-medium truncate">{label}</div>
-        {description && (
-          <div className="text-[10px] text-muted-foreground truncate">{description}</div>
-        )}
+        <div className="truncate text-sm font-medium text-foreground">{label}</div>
+        {description && <div className="truncate text-xs text-muted-foreground">{description}</div>}
       </div>
-      <span className="text-[10px] text-muted-foreground shrink-0">{tabCount} tabs</span>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0 text-muted-foreground"
-        onClick={onOpen}
-        title="Open view"
-      >
-        <ExternalLink className="h-3 w-3" />
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:block"><span className="num">{tabCount}</span> {tabCount === 1 ? 'tab' : 'tabs'}</span>
+      <Button variant="ghost" size="sm" onClick={onOpen}>Open</Button>
+      <Button variant="ghost" size="sm" onClick={onEdit}>Edit</Button>
+      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={onRemove} disabled={removing} aria-label={`Detach ${label}`} title="Detach from this solution">
+        <Icon name={removing ? 'spinner' : 'close'} className={cn('h-3.5 w-3.5', removing && 'animate-spin')} />
       </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-[10px] text-muted-foreground"
-        onClick={onEdit}
-        title="Edit view"
-      >
-        Edit
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0 text-destructive"
-        onClick={onRemove}
-        disabled={removing}
-        title="Detach"
-      >
-        {removing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-      </Button>
-    </div>
+    </li>
   );
 }
 

@@ -1,28 +1,34 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, Sliders } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Icon } from '@/components/ds/Icon';
+import { Chips } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 
 interface QueryPanelProps {
   onSearch: (query: string, contentType?: string, graphHops?: number) => void;
   loading: boolean;
 }
 
+// Chips need a non-empty value, so "all" stands for no category filter.
 const CONTENT_TYPES = [
-  { value: '', label: 'All Categories' },
+  { value: 'all', label: 'All' },
   { value: 'onto_schema', label: 'Schema' },
   { value: 'onto_policy', label: 'Policy' },
   { value: 'onto_workflow', label: 'Workflow' },
   { value: 'onto_integration', label: 'Integration' },
 ];
 
+/**
+ * Query bar of the planning playground: the question on top, its options in a
+ * quiet row underneath, and a few example questions to start from.
+ */
 const QueryPanel: React.FC<QueryPanelProps> = ({ onSearch, loading }) => {
   const [query, setQuery] = useState('');
   const [contentType, setContentType] = useState('');
   const [graphHops, setGraphHops] = useState(2);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -40,75 +46,78 @@ const QueryPanel: React.FC<QueryPanelProps> = ({ onSearch, loading }) => {
   ];
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Search className="h-5 w-5" />
-          Semantic RAG Query
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Ask about schemas, policies, workflows, integrations..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1"
-          />
-          <Button onClick={handleSearch} disabled={loading || !query.trim()}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => setShowFilters(!showFilters)}>
-            <Sliders className="h-4 w-4" />
-          </Button>
-        </div>
+    <div>
+      <form
+        onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
+        className="flex items-center gap-2 rounded-xl border border-border-strong bg-card p-1.5 pl-3.5 shadow-xs transition-[border-color,box-shadow] duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-ring/30"
+      >
+        <Icon name="search" className="shrink-0 text-subtle-foreground" />
+        <Input
+          placeholder="Ask about schemas, policies, workflows or integrations"
+          aria-label="Retrieval query"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-base shadow-none hover:border-0 focus-visible:border-0 focus-visible:ring-0"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowFilters(!showFilters)}
+          aria-label={showFilters ? 'Hide search options' : 'Show search options'}
+          aria-expanded={showFilters}
+          className={cn(showFilters && 'bg-accent text-foreground')}
+        >
+          <Icon name="sliders" />
+        </Button>
+        <Button type="submit" disabled={loading || !query.trim()}>
+          <Icon name={loading ? 'spinner' : 'search'} className={cn(loading && 'animate-spin')} />
+          <span className="hidden sm:inline">{loading ? 'Searching' : 'Search'}</span>
+        </Button>
+      </form>
 
-        {showFilters && (
-          <div className="flex gap-3 items-center text-sm">
-            <span className="text-muted-foreground">Category:</span>
-            <div className="flex gap-1 flex-wrap">
-              {CONTENT_TYPES.map((ct) => (
-                <Badge
-                  key={ct.value}
-                  variant={contentType === ct.value ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => setContentType(ct.value)}
-                >
-                  {ct.label}
-                </Badge>
-              ))}
-            </div>
-            <span className="text-muted-foreground ml-2">Graph hops:</span>
-            <select
-              value={graphHops}
-              onChange={(e) => setGraphHops(Number(e.target.value))}
-              className="bg-background border rounded px-2 py-1 text-sm"
+      {showFilters && (
+        <div className="mt-2.5 flex animate-fade-in flex-wrap items-center gap-x-5 gap-y-2 px-1 text-sm">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-xs text-muted-foreground">Category</span>
+            <Chips
+              label="Category"
+              value={contentType || 'all'}
+              onChange={(v) => setContentType(v === 'all' ? '' : v)}
+              options={CONTENT_TYPES}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="graph-hops" className="shrink-0 text-xs text-muted-foreground">Graph hops</label>
+            <Select value={String(graphHops)} onValueChange={(v) => setGraphHops(Number(v))}>
+              <SelectTrigger id="graph-hops" className="h-8 w-[72px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[0, 1, 2, 3].map((h) => (
+                  <SelectItem key={h} value={String(h)}>{h}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-2 px-1">
+        <span className="shrink-0 text-xs text-muted-foreground">Try</span>
+        <div className="scrollbar-hide -mr-1 flex min-w-0 gap-1.5 overflow-x-auto pr-1">
+          {sampleQueries.map((sq, i) => (
+            <button
+              key={i}
+              type="button"
+              title={sq}
+              onClick={() => { setQuery(sq); onSearch(sq, contentType || undefined, graphHops); }}
+              className="h-7 max-w-[280px] shrink-0 truncate rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors duration-150 hover:border-brand/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {[0, 1, 2, 3].map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Try:</span>
-          <div className="flex flex-wrap gap-1">
-            {sampleQueries.map((sq, i) => (
-              <Badge
-                key={i}
-                variant="outline"
-                className="cursor-pointer text-xs hover:bg-accent"
-                onClick={() => { setQuery(sq); onSearch(sq, contentType || undefined, graphHops); }}
-              >
-                {sq.length > 50 ? sq.slice(0, 50) + '...' : sq}
-              </Badge>
-            ))}
-          </div>
+              {sq}
+            </button>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

@@ -1,37 +1,32 @@
+/*
+ * Recharts defaults. Colours come from the --chart-* tokens in tokens.css.
+ */
 
-/* Chart color improvements for both themes */
-:root {
-  --chart-primary: #4C6EF5;
-  --chart-secondary: #12B886;
-  --chart-accent: #FA5252;
-  --chart-success: #40C057;
-  --chart-grid: #e0e0e0;
-  --chart-tooltip-bg: rgba(255, 255, 255, 0.95);
-  --chart-tooltip-border: rgba(0, 0, 0, 0.1);
-}
-
-.dark {
-  --chart-primary: #748FFC;
-  --chart-secondary: #20C997;
-  --chart-accent: #FF6B6B;
-  --chart-success: #51CF66;
-  --chart-grid: #444;
-  --chart-tooltip-bg: rgba(0, 0, 0, 0.75);
-  --chart-tooltip-border: rgba(255, 255, 255, 0.2);
-}
-
-/* Chart grid improvements */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
-  stroke: var(--chart-grid);
+  stroke: hsl(var(--chart-grid));
 }
 
-/* Light theme chart labels */
-:root .recharts-text.recharts-cartesian-axis-tick-value {
-  fill: #555;
+.recharts-text.recharts-cartesian-axis-tick-value {
+  fill: hsl(var(--chart-axis));
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
-/* Make chart containers have rounded corners */
+.recharts-legend-item-text {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 12px;
+}
+
+.recharts-default-tooltip {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-md);
+  color: hsl(var(--popover-foreground));
+  font-size: 12px;
+}
+
 [data-chart] {
-  @apply rounded-lg overflow-hidden;
+  @apply overflow-hidden rounded-lg;
 }

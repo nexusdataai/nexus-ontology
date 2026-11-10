@@ -307,7 +307,7 @@ export default function TmfOdaViewer() {
 
   // Handle loading and error states
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
+  if (error) return <div className="text-destructive p-4">{error}</div>;
   if (!currentDataset || !statistics) return <div>No TMF629 data available</div>;
 
   // Check if all categories are selected
@@ -319,7 +319,7 @@ export default function TmfOdaViewer() {
       {/* Header Info */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Badge variant="outline" className="text-sm bg-blue-50 dark:bg-blue-900/20">
+          <Badge variant="outline" className="text-sm bg-primary/10 dark:bg-primary/20">
             <Database className="h-3 w-3 mr-1" />
             TMF629
           </Badge>
@@ -525,8 +525,8 @@ export default function TmfOdaViewer() {
               <div
                 className={`fixed z-30 rounded-lg shadow-lg border text-sm max-h-96 overflow-hidden ${
                   theme === 'dark' 
-                    ? 'bg-slate-900 text-white border-slate-700' 
-                    : 'bg-white text-gray-900 border-gray-200'
+                    ? 'bg-card text-white border-border' 
+                    : 'bg-white text-foreground border-border'
                 }`}
                 style={{ 
                   left: Math.min(tooltip.x + 16, window.innerWidth - 520), 
@@ -537,17 +537,17 @@ export default function TmfOdaViewer() {
               >
                 {/* Header with close button */}
                 <div className={`flex items-center justify-between px-4 py-3 border-b ${
-                  theme === 'dark' ? 'border-slate-700' : 'border-gray-200'
+                  theme === 'dark' ? 'border-border' : 'border-border'
                 }`}>
                   <div className={`font-semibold text-base ${
-                    theme === 'dark' ? 'text-blue-300' : 'text-blue-600'
+                    theme === 'dark' ? 'text-primary' : 'text-primary'
                   }`}>{tooltip.node.name}</div>
                   <button 
                     onClick={() => setTooltip(null)}
                     className={`transition-colors p-1 rounded ${
                       theme === 'dark' 
-                        ? 'text-slate-400 hover:text-white' 
-                        : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-muted-foreground hover:text-white' 
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     ✕
@@ -557,7 +557,7 @@ export default function TmfOdaViewer() {
                 {/* Scrollable content */}
                 <div className="px-4 py-3 max-h-80 overflow-y-auto">
                   <div className={`text-xs mb-3 flex items-center gap-2 ${
-                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                    theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                   }`}>
                     <div 
                       className="w-3 h-3 rounded-full"
@@ -567,15 +567,15 @@ export default function TmfOdaViewer() {
                     <span className="text-xs bg-muted px-2 py-0.5 rounded">TMF629</span>
                   </div>
                   <div className={`mb-4 ${
-                    theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+                    theme === 'dark' ? 'text-muted-foreground' : 'text-foreground'
                   }`}>{tooltip.node.description}</div>
                   
                   {/* Fields with descriptions */}
                   <div className={`border-t pt-3 ${
-                    theme === 'dark' ? 'border-slate-600' : 'border-gray-200'
+                    theme === 'dark' ? 'border-border-strong' : 'border-border'
                   }`}>
                     <div className={`font-semibold mb-3 text-sm flex items-center gap-2 ${
-                      theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      theme === 'dark' ? 'text-success' : 'text-success'
                     }`}>
                       <FileText className="h-4 w-4" />
                       Fields ({tooltip.node.fields.length}):
@@ -584,23 +584,23 @@ export default function TmfOdaViewer() {
                       {tooltip.node.fields.map((field: TmfField, index: number) => (
                         <div key={index} className={`rounded p-3 border ${
                           theme === 'dark' 
-                            ? 'bg-slate-800 border-slate-700' 
-                            : 'bg-gray-50 border-gray-200'
+                            ? 'bg-surface-3 border-border' 
+                            : 'bg-surface-2 border-border'
                         }`}>
                           <div className="flex items-center gap-2 mb-2">
                             <span className={`font-medium ${
-                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                              theme === 'dark' ? 'text-white' : 'text-foreground'
                             }`}>{field.name}</span>
                             <span className={`text-xs px-2 py-1 rounded ${
                               theme === 'dark' 
-                                ? 'bg-blue-600 text-blue-100' 
-                                : 'bg-blue-100 text-blue-800'
+                                ? 'bg-primary text-primary' 
+                                : 'bg-primary/10 text-primary'
                             }`}>
                               {field.type}
                             </span>
                           </div>
                           <div className={`text-xs leading-relaxed ${
-                            theme === 'dark' ? 'text-slate-300' : 'text-gray-600'
+                            theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                           }`}>{field.description}</div>
                         </div>
                       ))}
@@ -666,7 +666,7 @@ export default function TmfOdaViewer() {
           {Object.entries(statistics.tablesByCategory).map(([category, count]) => (
             <div key={category} className="bg-card rounded-lg p-4 border border-border text-center">
               <div 
-                className="text-2xl font-bold mb-1"
+                className="text-2xl font-semibold mb-1"
                 style={{ color: TABLE_COLORS[category as keyof typeof TABLE_COLORS] }}
               >
                 {currentDataset.tables.filter(t => t.category === category).length}
@@ -681,7 +681,7 @@ export default function TmfOdaViewer() {
           {Object.entries(statistics.relationshipsByCategory).map(([category, count]) => (
             <div key={category} className="bg-card rounded-lg p-4 border border-border text-center">
               <div 
-                className="text-2xl font-bold mb-1"
+                className="text-2xl font-semibold mb-1"
                 style={{ color: RELATIONSHIP_COLORS[category as keyof typeof RELATIONSHIP_COLORS] }}
               >
                 {currentDataset.relationships.filter(r => r.relationship === category).length}

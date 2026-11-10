@@ -28,13 +28,13 @@ export default function MappingDashboard() {
   }, []);
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
+  if (error) return <div className="text-destructive p-4">{error}</div>;
   if (!data) return <div>No data available</div>;
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-foreground mb-2">TMF ODA Mapping Dashboard</h2>
+        <h2 className="text-2xl font-semibold text-foreground mb-2">TMF ODA Mapping Dashboard</h2>
         <p className="text-muted-foreground">Detailed view of TMF component mappings and confidence scores.</p>
       </div>
 
@@ -109,19 +109,19 @@ export default function MappingDashboard() {
       {/* Summary Metrics */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-card rounded-lg p-4 border border-border text-center">
-          <div className="text-3xl font-bold text-primary mb-2">90%</div>
+          <div className="text-3xl font-semibold text-primary mb-2">90%</div>
           <div className="text-muted-foreground text-sm">Average Confidence</div>
         </div>
         <div className="bg-card rounded-lg p-4 border border-border text-center">
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">42</div>
+          <div className="text-3xl font-semibold text-success dark:text-success mb-2">42</div>
           <div className="text-muted-foreground text-sm">Total Mappings</div>
         </div>
         <div className="bg-card rounded-lg p-4 border border-border text-center">
-          <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">4</div>
+          <div className="text-3xl font-semibold text-primary dark:text-primary mb-2">4</div>
           <div className="text-muted-foreground text-sm">TMF APIs</div>
         </div>
         <div className="bg-card rounded-lg p-4 border border-border text-center">
-          <div className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">100%</div>
+          <div className="text-3xl font-semibold text-warning dark:text-warning mb-2">100%</div>
           <div className="text-muted-foreground text-sm">Coverage</div>
         </div>
       </div>

@@ -746,11 +746,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
           </CardHeader>
           <CardContent>
             {dailyMetricsLoading ? (
-              <div className="text-3xl font-bold text-muted-foreground">Loading...</div>
+              <div className="text-3xl font-semibold text-muted-foreground">Loading...</div>
             ) : dailyMetricsError ? (
-              <div className="text-3xl font-bold text-destructive">Error</div>
+              <div className="text-3xl font-semibold text-destructive">Error</div>
             ) : (
-              <div className="text-3xl font-bold">{todayTotalSales.toLocaleString()}</div>
+              <div className="text-3xl font-semibold">{todayTotalSales.toLocaleString()}</div>
             )}
             <div className="text-sm text-muted-foreground">Live data from database</div>
           </CardContent>
@@ -762,11 +762,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
           </CardHeader>
           <CardContent>
             {dailyMetricsLoading ? (
-              <div className="text-3xl font-bold text-muted-foreground">Loading...</div>
+              <div className="text-3xl font-semibold text-muted-foreground">Loading...</div>
             ) : dailyMetricsError ? (
-              <div className="text-3xl font-bold text-destructive">Error</div>
+              <div className="text-3xl font-semibold text-destructive">Error</div>
             ) : (
-              <div className="text-3xl font-bold">₹{todayTotalRevenue.toLocaleString()}</div>
+              <div className="text-3xl font-semibold">₹{todayTotalRevenue.toLocaleString()}</div>
             )}
             <div className="text-sm text-muted-foreground">Live data from database</div>
           </CardContent>
@@ -778,11 +778,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
           </CardHeader>
           <CardContent>
             {dailyMetricsLoading ? (
-              <div className="text-3xl font-bold text-muted-foreground">Loading...</div>
+              <div className="text-3xl font-semibold text-muted-foreground">Loading...</div>
             ) : dailyMetricsError ? (
-              <div className="text-3xl font-bold text-destructive">Error</div>
+              <div className="text-3xl font-semibold text-destructive">Error</div>
             ) : (
-              <div className="text-3xl font-bold">{dailyMetrics.todayOrders.toLocaleString()}</div>
+              <div className="text-3xl font-semibold">{dailyMetrics.todayOrders.toLocaleString()}</div>
             )}
             <div className="text-sm text-muted-foreground">Live data from database</div>
           </CardContent>
@@ -1235,25 +1235,25 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
               <div className="grid grid-cols-2 gap-4 w-full max-w-md">
                 <Card className={`border shadow-sm ${theme === 'dark' ? 'bg-secondary/30' : 'bg-secondary/50'}`}>
                   <CardContent className="p-4 flex flex-col items-center">
-                    <div className="text-2xl font-bold">85%</div>
+                    <div className="text-2xl font-semibold">85%</div>
                     <div className="text-sm text-center mt-1">On-time Delivery</div>
                   </CardContent>
                 </Card>
                 <Card className={`border shadow-sm ${theme === 'dark' ? 'bg-secondary/30' : 'bg-secondary/50'}`}>
                   <CardContent className="p-4 flex flex-col items-center">
-                    <div className="text-2xl font-bold">12</div>
+                    <div className="text-2xl font-semibold">12</div>
                     <div className="text-sm text-center mt-1">Pending Deliveries</div>
                   </CardContent>
                 </Card>
                 <Card className={`border shadow-sm ${theme === 'dark' ? 'bg-secondary/30' : 'bg-secondary/50'}`}>
                   <CardContent className="p-4 flex flex-col items-center">
-                    <div className="text-2xl font-bold">42</div>
+                    <div className="text-2xl font-semibold">42</div>
                     <div className="text-sm text-center mt-1">Delivered Today</div>
                   </CardContent>
                 </Card>
                 <Card className={`border shadow-sm ${theme === 'dark' ? 'bg-secondary/30' : 'bg-secondary/50'}`}>
                   <CardContent className="p-4 flex flex-col items-center">
-                    <div className="text-2xl font-bold">8</div>
+                    <div className="text-2xl font-semibold">8</div>
                     <div className="text-sm text-center mt-1">Returns Processing</div>
                   </CardContent>
                 </Card>
@@ -1338,17 +1338,17 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                     <table className="w-full">
                       <thead className="sticky top-0 bg-background">
                         <tr className="border-b">
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Items per Order</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Order Count</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Avg Order Value</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Percentage</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Items per Order</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Order Count</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Avg Order Value</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Percentage</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sizeData.map((item, index) => (
                           <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
-                            <td className="text-[10px] py-2 px-3">{item.items_per_order || 0}</td>
-                            <td className="text-[10px] py-2 px-3">
+                            <td className="text-xs py-2 px-3">{item.items_per_order || 0}</td>
+                            <td className="text-xs py-2 px-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-12 h-1.5 bg-primary/10 rounded-full overflow-hidden">
                                   <div 
@@ -1359,8 +1359,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                 <span>{item.order_count || 0}</span>
                               </div>
                             </td>
-                            <td className="text-[10px] py-2 px-3">₹{item.avg_order_value?.toFixed(2) || '0.00'}</td>
-                            <td className="text-[10px] py-2 px-3">{item.percentage || '0'}%</td>
+                            <td className="text-xs py-2 px-3">₹{item.avg_order_value?.toFixed(2) || '0.00'}</td>
+                            <td className="text-xs py-2 px-3">{item.percentage || '0'}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1457,37 +1457,37 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                     <table className="w-full">
                       <thead className="sticky top-0 bg-background">
                         <tr className="border-b">
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Customer ID</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Mar 2025</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Apr 2025</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Growth Rate</th>
-                          <th className="text-[10px] text-muted-foreground text-left py-2 px-3">Trend</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Customer ID</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Mar 2025</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Apr 2025</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Growth Rate</th>
+                          <th className="text-xs text-muted-foreground text-left py-2 px-3">Trend</th>
                         </tr>
                       </thead>
                       <tbody>
                         {evolutionData.map((item, index) => (
                           <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
-                            <td className="text-[10px] py-2 px-3">
+                            <td className="text-xs py-2 px-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <span className="text-[8px] font-medium text-primary">C{index + 1}</span>
+                                  <span className="text-xs font-medium text-primary">C{index + 1}</span>
                                 </div>
                                 <span>{item.customer_id}</span>
                               </div>
                             </td>
-                            <td className="text-[10px] py-2 px-3">
+                            <td className="text-xs py-2 px-3">
                               <div className="flex flex-col">
                                 <span className="font-medium">₹{item.avg_order_value_mar_2025.toFixed(2)}</span>
-                                <span className="text-[8px] text-muted-foreground">Mar 2025</span>
+                                <span className="text-xs text-muted-foreground">Mar 2025</span>
                               </div>
                             </td>
-                            <td className="text-[10px] py-2 px-3">
+                            <td className="text-xs py-2 px-3">
                               <div className="flex flex-col">
                                 <span className="font-medium">₹{item.avg_order_value_apr_2025.toFixed(2)}</span>
-                                <span className="text-[8px] text-muted-foreground">Apr 2025</span>
+                                <span className="text-xs text-muted-foreground">Apr 2025</span>
                               </div>
                             </td>
-                            <td className="text-[10px] py-2 px-3">
+                            <td className="text-xs py-2 px-3">
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
                                   <div className="w-16 h-2 bg-primary/10 rounded-full overflow-hidden">
@@ -1498,19 +1498,19 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                       style={{ width: `${Math.min(Math.abs(item.growth_rate), 100)}%` }}
                                     />
                                   </div>
-                                  <span className={`text-[8px] font-medium ${
+                                  <span className={`text-xs font-medium ${
                                     item.growth_rate > 0 ? 'text-success' : 'text-destructive'
                                   }`}>
                                     {item.growth_rate.toFixed(1)}%
                                   </span>
                                 </div>
-                                <div className="text-[8px] text-muted-foreground">
+                                <div className="text-xs text-muted-foreground">
                                   {item.growth_rate > 0 ? 'Growth' : 'Decline'}
                                 </div>
                               </div>
                             </td>
-                            <td className="text-[10px] py-2 px-3">
-                              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[8px] ${
+                            <td className="text-xs py-2 px-3">
+                              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                                 item.trend === 'Increasing' ? 'bg-success/20 text-success' :
                                 item.trend === 'Decreasing' ? 'bg-destructive/20 text-destructive' :
                                 'bg-muted text-muted-foreground'

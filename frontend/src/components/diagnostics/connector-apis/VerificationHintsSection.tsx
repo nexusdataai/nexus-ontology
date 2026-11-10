@@ -16,18 +16,18 @@ export default function VerificationHintsSection({ report }: Props) {
       </div>
 
       {report.non_verifiable_api_ids.length > 0 && (
-        <div className="border-l-2 border-amber-500/40 pl-3 py-1 text-xs">
-          <div className="text-amber-300 mb-1">Non-verifiable APIs ({report.non_verifiable_api_ids.length}):</div>
+        <div className="border-l-2 border-warning/40 pl-3 py-1 text-xs">
+          <div className="text-warning mb-1">Non-verifiable APIs ({report.non_verifiable_api_ids.length}):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.non_verifiable_api_ids.map(a => (
-              <span key={a} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono text-[10px]">{a}</span>
+              <span key={a} className="px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30 font-mono text-xs">{a}</span>
             ))}
           </div>
         </div>
       )}
 
       <div className="border rounded-md max-h-96 overflow-auto">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs">
           <thead className="sticky top-0 bg-muted/40">
             <tr className="text-left">
               <th className="px-2 py-1">api_id</th>
@@ -45,21 +45,21 @@ export default function VerificationHintsSection({ report }: Props) {
                 <td className="px-2 py-1 font-mono">{r.api_id}</td>
                 <td className="px-2 py-1">
                   {r.has_hint
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
-                    : <MinusCircle className="h-3.5 w-3.5 text-amber-400" />}
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    : <MinusCircle className="h-3.5 w-3.5 text-warning" />}
                 </td>
                 <td className="px-2 py-1 text-muted-foreground">
                   {r.mode || <span className="italic">-</span>}
                 </td>
-                <td className="px-2 py-1 font-mono text-[10px]">
+                <td className="px-2 py-1 font-mono text-xs">
                   {r.schema && r.table ? `${r.schema}.${r.table}` : '-'}
                 </td>
-                <td className="px-2 py-1 font-mono text-[10px]">{r.pk_col || '-'}</td>
-                <td className="px-2 py-1 font-mono text-[10px]">{r.pk_arg || '-'}</td>
+                <td className="px-2 py-1 font-mono text-xs">{r.pk_col || '-'}</td>
+                <td className="px-2 py-1 font-mono text-xs">{r.pk_arg || '-'}</td>
                 <td className="px-2 py-1">
                   {r.has_companion
-                    ? <Badge variant="outline" className="text-[9px]">yes</Badge>
-                    : <span className="text-muted-foreground text-[10px]">-</span>}
+                    ? <Badge variant="outline" className="text-xs">yes</Badge>
+                    : <span className="text-muted-foreground text-xs">-</span>}
                 </td>
               </tr>
             ))}
@@ -71,9 +71,9 @@ export default function VerificationHintsSection({ report }: Props) {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
+  const cls = tone === 'green' ? 'text-success'
+    : tone === 'amber' ? 'text-warning'
+    : tone === 'red' ? 'text-destructive'
     : '';
   return (
     <div>

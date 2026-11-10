@@ -74,18 +74,18 @@ export default function DashboardViewerPage() {
   return (
     <Layout>
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between gap-3 p-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-20">
+        <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur-sm sm:px-5">
           <div className="flex items-center gap-2 min-w-0">
             <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate('/dashboards')}>
               <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
             <h1 className="text-sm font-medium truncate">{dashboard.title}</h1>
             {dashboard.version > 0 && (
-              <Badge variant="outline" className="text-[9px]">v{dashboard.version}</Badge>
+              <Badge variant="outline" className="text-xs">v{dashboard.version}</Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="scrollbar-hide flex max-w-full items-center gap-2 overflow-x-auto">
             <TimeRangePicker value={timeRange} onChange={setTimeRange} />
             <RefreshPicker value={refreshInterval} onChange={setRefreshInterval} />
             <Button variant="outline" size="sm" className="h-8" onClick={handleExport}>

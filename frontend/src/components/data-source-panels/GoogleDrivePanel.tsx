@@ -13,10 +13,10 @@ import { uploadExternalDocument } from '@/services/simulatorLink';
 type Tab = 'contracts' | 'sustainability';
 
 const FRAMEWORK_COLORS: Record<string, string> = {
-  GRI: 'bg-green-500/20 text-green-400 border-green-500/30',
-  SASB: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  CDP: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  TCFD: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  GRI: 'bg-success/20 text-success border-success/30',
+  SASB: 'bg-primary/20 text-primary border-primary/30',
+  CDP: 'bg-warning/20 text-warning border-warning/30',
+  TCFD: 'bg-primary/20 text-primary border-primary/30',
 };
 
 export default function GoogleDrivePanel() {
@@ -57,8 +57,8 @@ export default function GoogleDrivePanel() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Globe className="h-5 w-5 text-red-400" />
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Globe className="h-5 w-5 text-destructive" />
             Google Drive
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -77,7 +77,7 @@ export default function GoogleDrivePanel() {
       </div>
 
       {uploadResult && (
-        <div className={`rounded-lg border px-3 py-2 text-sm ${uploadResult.includes('failed') ? 'border-red-300 bg-red-950/20 text-red-400' : 'border-green-300 bg-green-950/20 text-green-400'}`}>
+        <div className={`rounded-lg border px-3 py-2 text-sm ${uploadResult.includes('failed') ? 'border-destructive/25 bg-destructive/20 text-destructive' : 'border-success/25 bg-success/20 text-success'}`}>
           {uploadResult}
         </div>
       )}
@@ -86,12 +86,12 @@ export default function GoogleDrivePanel() {
         <button onClick={() => { setTab('contracts'); setExpandedRow(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'contracts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
           <FileText className="h-3.5 w-3.5" /> Contracts
-          <Badge variant="outline" className="text-[10px] ml-1">{contracts.total}</Badge>
+          <Badge variant="outline" className="text-xs ml-1">{contracts.total}</Badge>
         </button>
         <button onClick={() => { setTab('sustainability'); setExpandedRow(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'sustainability' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
           <Leaf className="h-3.5 w-3.5" /> Sustainability Reports
-          <Badge variant="outline" className="text-[10px] ml-1">{reports.total}</Badge>
+          <Badge variant="outline" className="text-xs ml-1">{reports.total}</Badge>
         </button>
       </div>
 
@@ -133,7 +133,7 @@ export default function GoogleDrivePanel() {
                           <td className="px-2 py-2">
                             <div className="flex items-center gap-1">
                               <Progress value={confidence} className="h-1.5 w-12" />
-                              <span className="text-[10px]">{confidence}%</span>
+                              <span className="text-xs">{confidence}%</span>
                             </div>
                           </td>
                         </tr>
@@ -151,13 +151,13 @@ export default function GoogleDrivePanel() {
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground block mb-0.5">Auto Renewal</span>
-                                  <Badge variant="outline" className={r.Auto_Renewal ? 'bg-green-500/10 text-green-400' : 'bg-muted'}>
+                                  <Badge variant="outline" className={r.Auto_Renewal ? 'bg-success/10 text-success' : 'bg-muted'}>
                                     {r.Auto_Renewal ? 'Yes' : 'No'}
                                   </Badge>
                                 </div>
                                 <div className="col-span-3">
                                   <span className="text-muted-foreground block mb-0.5">Full Path</span>
-                                  <span className="font-mono text-[10px]">{String(r.Document_Path)}</span>
+                                  <span className="font-mono text-xs">{String(r.Document_Path)}</span>
                                 </div>
                               </div>
                             </td>
@@ -188,16 +188,16 @@ export default function GoogleDrivePanel() {
                     </CardHeader>
                     <CardContent className="px-4 pb-3 space-y-2">
                       <div className="flex items-center gap-2">
-                        <Leaf className="h-3.5 w-3.5 text-green-400" />
+                        <Leaf className="h-3.5 w-3.5 text-success" />
                         <span className="text-xs font-medium">{String(r.Report_Type).replace(/_/g, ' ')}</span>
-                        <Badge variant="outline" className="text-[9px] ml-auto">{String(r.Period)}</Badge>
+                        <Badge variant="outline" className="text-xs ml-auto">{String(r.Period)}</Badge>
                       </div>
-                      <div className="text-[10px] space-y-1">
+                      <div className="text-xs space-y-1">
                         <div><span className="text-muted-foreground">KPIs:</span> {String(r.KPIs_Extracted)}</div>
-                        <div><span className="text-muted-foreground">Targets:</span> <span className="text-blue-400">{String(r.Targets)}</span></div>
-                        <div><span className="text-muted-foreground">Actuals:</span> <span className="text-green-400">{String(r.Actuals)}</span></div>
+                        <div><span className="text-muted-foreground">Targets:</span> <span className="text-primary">{String(r.Targets)}</span></div>
+                        <div><span className="text-muted-foreground">Actuals:</span> <span className="text-success">{String(r.Actuals)}</span></div>
                       </div>
-                      <div className="text-[9px] font-mono text-muted-foreground truncate">{String(r.Document_Path)}</div>
+                      <div className="text-xs font-mono text-muted-foreground truncate">{String(r.Document_Path)}</div>
                     </CardContent>
                   </Card>
                 ))}

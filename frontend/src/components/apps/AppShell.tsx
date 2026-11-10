@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, RefreshCw, ChevronRight, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { AppConfig } from '@/config/appRegistry';
 import { AppSidebar } from './AppSidebar';
 import { AppOverview } from './sections/AppOverview';
@@ -13,6 +13,10 @@ import { AppToolsCatalogue } from './sections/AppToolsCatalogue';
 import { ViewRuntime } from '@/components/views/ViewRuntime';
 import { solutionService } from '@/services/solutionService';
 import type { Solution } from '@/lib/foundry/model';
+import { Icon } from '@/components/ds/Icon';
+import { PageErrorBoundary } from '@/components/ds/PageErrorBoundary';
+import UserMenu from '@/components/UserMenu';
+import { useTheme } from '@/hooks/use-theme';
 
 interface Props {
   app: AppConfig;
@@ -23,10 +27,20 @@ const SECTION_LABELS: Record<string, string> = {
   'tools-catalogue': 'Tools Catalogue',
 };
 
+const iconBtn =
+  'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/**
+ * Shell of a solution app: its own sidebar (sections, attached views,
+ * workspace) and top bar. The active section lives in the URL (?section=).
+ */
 export function AppShell({ app }: Props) {
   const nav = useNavigate();
-  const [activeSection, setActiveSection] = useState('insights');
+  const { theme, toggleTheme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get('section') || 'insights';
   const [solution, setSolution] = useState<Solution | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,8 +55,15 @@ export function AppShell({ app }: Props) {
     };
   }, [app.id]);
 
+  useEffect(() => {
+    document.title = `${app.name} · Nexus AI`;
+  }, [app.name]);
+
   const handleSectionChange = (sectionId: string) => {
-    setActiveSection(sectionId);
+    const next = new URLSearchParams(searchParams);
+    if (sectionId === 'insights') next.delete('section'); else next.set('section', sectionId);
+    setSearchParams(next, { replace: true });
+    setMenuOpen(false);
   };
 
   const handleManageViews = () => {
@@ -53,10 +74,9 @@ export function AppShell({ app }: Props) {
     }
   };
 
-  const Icon = app.icon;
   const currentSection = app.sections.find(s => s.id === activeSection);
   const sectionName = activeSection.startsWith('view:')
-    ? 'View'
+    ? (solution?.views.find(v => `view:${v.viewId}` === activeSection)?.displayName || 'View')
     : currentSection?.name || SECTION_LABELS[activeSection] || 'Business Insights';
 
   const renderContent = () => {
@@ -76,72 +96,90 @@ export function AppShell({ app }: Props) {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background text-foreground">
-      <AppSidebar
-        app={app}
-        solution={solution}
-        activeSection={activeSection}
-        onSectionChange={handleSectionChange}
-      />
+    <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
+      <div className="hidden lg:block">
+        <AppSidebar app={app} solution={solution} activeSection={activeSection} onSectionChange={handleSectionChange} />
+      </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex items-center justify-between px-5 h-12 shrink-0 border-b border-border bg-card">
-          <div className="flex items-center gap-2">
-            <div className={`p-1 rounded bg-gradient-to-br ${app.color}`}>
-              <Icon className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="text-sm font-semibold">{app.name}</span>
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{sectionName}</span>
-            <Badge className={app.status === 'available' ? 'bg-green-500/20 text-green-400 text-[9px]' : 'bg-amber-500/20 text-amber-400 text-[9px]'}>
-              {app.status === 'available' ? 'Active' : 'Coming Soon'}
-            </Badge>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-[var(--topbar-h)] shrink-0 items-center gap-3 border-b border-border bg-header px-3 sm:px-5 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open sections" className={`${iconBtn} lg:hidden`}>
+              <Icon name="menu" className="h-[18px] w-[18px]" />
+            </button>
+            <nav aria-label="Breadcrumb" className="min-w-0">
+              <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+                <li className="hidden sm:block"><Link to="/workspace/apps" className="text-muted-foreground transition-colors hover:text-foreground">Solutions</Link></li>
+                <li className="hidden text-subtle-foreground sm:block" aria-hidden="true">/</li>
+                <li className="hidden min-w-0 truncate text-muted-foreground md:block">{app.name}</li>
+                <li className="hidden text-subtle-foreground md:block" aria-hidden="true">/</li>
+                <li className="min-w-0 truncate font-medium text-foreground" aria-current="page">{sectionName}</li>
+              </ol>
+            </nav>
+            {app.status !== 'available' && <Badge variant="neutral" className="ml-1 hidden sm:inline-flex">Coming soon</Badge>}
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex shrink-0 items-center gap-1.5">
             <Button
               size="sm"
               variant="outline"
               onClick={handleManageViews}
-              title={solution ? 'Manage Views for this Solution' : 'Open Solutions manager'}
+              title={solution ? 'Manage the views attached to this solution' : 'Open solution mapping'}
+              className="hidden sm:inline-flex"
             >
-              <Settings className="h-3 w-3 mr-1" /> Manage Views
+              <Icon name="dashboard" /> Manage views
             </Button>
             {app.journeyStageId && (
-              <Button size="sm" variant="outline" onClick={() => nav('/operations/journeys')}>
-                <Play className="h-3 w-3 mr-1" /> Run Journey
+              <Button size="sm" onClick={() => nav('/operations/journeys')}>
+                <Icon name="play" /> Run journey
               </Button>
             )}
-            <Button size="sm" variant="ghost"><RefreshCw className="h-3.5 w-3.5" /></Button>
+            <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className={`${iconBtn} ml-1 hidden sm:flex`}>
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-[18px] w-[18px]" />
+            </button>
+            <div className="ml-1"><UserMenu /></div>
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto">
-          {renderContent()}
+        <main className="scroll-thin min-h-0 flex-1 overflow-auto">
+          <div key={activeSection} className="min-h-full animate-fade-in">
+            <PageErrorBoundary resetKey={activeSection}>
+              {renderContent()}
+            </PageErrorBoundary>
+          </div>
         </main>
       </div>
+
+      {/* Sections drawer on phones and tablets */}
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="left" className="w-[280px] border-sidebar-border bg-sidebar p-0 sm:max-w-[280px]">
+          <SheetTitle className="sr-only">{app.name} sections</SheetTitle>
+          <SheetDescription className="sr-only">Sections of this solution</SheetDescription>
+          <AppSidebar app={app} solution={solution} activeSection={activeSection} onSectionChange={handleSectionChange} inDrawer />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
 function AgentBuilderPlaceholder({ appName }: { appName: string }) {
+  const items = [
+    { title: 'Custom tools', desc: 'Define application-specific ReAct tools with declarative YAML.' },
+    { title: 'Journey templates', desc: 'Compose multi-step automation journeys from available tools.' },
+    { title: 'Agent profiles', desc: 'Configure agent behaviour, permissions and system prompts.' },
+    { title: 'Test harness', desc: 'Test agents with sample inputs and validate outputs.' },
+  ];
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h2 className="text-xl font-semibold mb-2">Agent Builder</h2>
-      <p className="text-sm text-muted-foreground mb-6">
-        Build and configure AI agents for the {appName} application. Define custom ReAct tools, compose journeys, and set up automation workflows.
+    <div className="page max-w-3xl">
+      <h1 className="text-2xl font-medium tracking-tight text-foreground">Agent Builder</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Build and configure AI agents for {appName}. This area is not available yet; it will cover:
       </p>
-      <div className="grid grid-cols-2 gap-4">
-        {[
-          { title: 'Custom Tools', desc: 'Define application-specific ReAct tools with declarative YAML' },
-          { title: 'Journey Templates', desc: 'Compose multi-step automation journeys from available tools' },
-          { title: 'Agent Profiles', desc: 'Configure agent behavior, permissions, and system prompts' },
-          { title: 'Test Harness', desc: 'Test agents with sample inputs and validate outputs' },
-        ].map(item => (
-          <div key={item.title} className="rounded-lg border p-4">
-            <h3 className="text-sm font-medium mb-1">{item.title}</h3>
-            <p className="text-xs text-muted-foreground">{item.desc}</p>
+      <div className="mt-6 divide-y divide-border border-y border-border">
+        {items.map(item => (
+          <div key={item.title} className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-6">
+            <h3 className="w-44 shrink-0 text-sm font-medium text-foreground">{item.title}</h3>
+            <p className="text-sm text-muted-foreground">{item.desc}</p>
           </div>
         ))}
       </div>

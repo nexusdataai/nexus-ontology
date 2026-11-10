@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StatusPill, type Tone } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
 import type { DetailDrawerTab, DetailBadge } from './types';
 
@@ -27,12 +27,12 @@ interface DetailDrawerProps<T> {
   widthClass?: string;
 }
 
-const BADGE_TONE: Record<string, string> = {
-  ok: 'bg-green-500/15 text-green-300 border-green-500/30',
-  warn: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  err: 'bg-red-500/15 text-red-300 border-red-500/30',
-  info: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  muted: 'bg-muted/40 text-muted-foreground border-border/60',
+const BADGE_TONE: Record<string, Tone> = {
+  ok: 'success',
+  warn: 'warning',
+  err: 'danger',
+  info: 'neutral',
+  muted: 'neutral',
 };
 
 /**
@@ -57,42 +57,36 @@ export function DetailDrawer<T>(props: DetailDrawerProps<T>) {
 
   if (!row) return null;
 
+  const chips = badges?.(row) || [];
+  const sub = subtitle?.(row);
+
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side={side} className={cn('p-0 flex flex-col', widthClass)}>
-        <SheetHeader className="p-4 pb-3 border-b">
-          <SheetTitle className="text-base flex items-start gap-2 flex-wrap">
-            <span className="font-mono">{title(row)}</span>
-            {badges?.(row).map((b) => (
-              <Badge
-                key={b.label}
-                variant="outline"
-                className={cn('text-[10px]', BADGE_TONE[b.tone || 'muted'])}
-                title={b.title}
-              >
-                {b.label}
-              </Badge>
-            ))}
-          </SheetTitle>
-          {subtitle && (
-            <SheetDescription className="text-xs text-muted-foreground">
-              {subtitle(row)}
-            </SheetDescription>
+      <SheetContent side={side} className={cn('flex flex-col gap-0 p-0', widthClass)}>
+        <div className="shrink-0 px-5 pb-4 pr-12 pt-5">
+          <SheetTitle className="break-all font-mono text-md font-medium leading-6">{title(row)}</SheetTitle>
+          <SheetDescription className={cn('mt-1 text-sm text-muted-foreground', !sub && 'sr-only')}>{sub || 'Details'}</SheetDescription>
+          {chips.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {chips.map((b) => (
+                <span key={b.label} title={b.title}>
+                  <StatusPill tone={BADGE_TONE[b.tone || 'muted']}>{b.label}</StatusPill>
+                </span>
+              ))}
+            </div>
           )}
-        </SheetHeader>
+        </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1">
           {tabs.length > 0 && tabKey != null && (
-            <Tabs value={tabKey} onValueChange={setTabKey} className="h-full flex flex-col">
-              <TabsList className="rounded-none border-b bg-transparent justify-start h-9 px-2 overflow-x-auto">
+            <Tabs value={tabKey} onValueChange={setTabKey} className="flex h-full flex-col">
+              <TabsList variant="line" className="shrink-0 px-5">
                 {tabs.map((t) => (
-                  <TabsTrigger key={t.key} value={t.key} className="text-xs h-7 px-2">
-                    {t.label}
-                  </TabsTrigger>
+                  <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
                 ))}
               </TabsList>
               {tabs.map((t) => (
-                <TabsContent key={t.key} value={t.key} className="flex-1 overflow-auto p-3 mt-0">
+                <TabsContent key={t.key} value={t.key} className="scroll-thin mt-0 min-h-0 flex-1 overflow-auto px-5 py-5">
                   {t.render(row)}
                 </TabsContent>
               ))}
@@ -101,7 +95,7 @@ export function DetailDrawer<T>(props: DetailDrawerProps<T>) {
         </div>
 
         {footer && (
-          <div className="border-t p-3 bg-card/40">
+          <div className="shrink-0 border-t border-border px-5 py-3">
             {footer(row)}
           </div>
         )}

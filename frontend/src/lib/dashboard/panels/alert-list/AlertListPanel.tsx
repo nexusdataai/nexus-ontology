@@ -1,8 +1,8 @@
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { StatusPill } from '@/components/ds/kit';
+import { Icon } from '@/components/ds/Icon';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { PanelState, fieldLabel } from '../_shared';
 
 interface Alert {
   type?: string;
@@ -12,19 +12,10 @@ interface Alert {
   action?: string;
 }
 
-const SEVERITY_CONFIG: Record<string, { color: string; icon: typeof AlertTriangle }> = {
-  critical: { color: 'bg-red-500/10 text-red-700 border-red-500/30', icon: AlertCircle },
-  high: { color: 'bg-orange-500/10 text-orange-700 border-orange-500/30', icon: AlertTriangle },
-  medium: { color: 'bg-amber-500/10 text-amber-700 border-amber-500/30', icon: AlertTriangle },
-  low: { color: 'bg-blue-500/10 text-blue-700 border-blue-500/30', icon: Info },
-};
-
 export function AlertListPanel({ data, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No alerts'}
-      </div>
+      <PanelState loading={loading} text="No alerts" />
     );
   }
 
@@ -45,36 +36,30 @@ export function AlertListPanel({ data, height, loading }: PanelProps) {
     }
   }
 
-  const listHeight = Math.max(height - 40, 100);
+  const sevOf = (a: Alert) => String(a.severity || 'low').toLowerCase();
+  const rank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const sorted = [...alerts].sort((a, b) => (rank[sevOf(a)] ?? 9) - (rank[sevOf(b)] ?? 9));
+
+  if (sorted.length === 0) return <PanelState text="Nothing needs attention" />;
 
   return (
-    <ScrollArea style={{ height: listHeight }} className="px-4 pb-4">
-      <div className="space-y-2">
-        {alerts.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-sm text-muted-foreground">No alerts</div>
-        ) : (
-          alerts.map((alert, i) => {
-            const sev = SEVERITY_CONFIG[alert.severity || 'low'] || SEVERITY_CONFIG.low;
-            const Icon = sev.icon;
-            return (
-              <div key={i} className={`rounded-md border p-3 ${sev.color}`}>
-                <div className="flex items-start gap-2">
-                  <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Badge variant="outline" className="text-[9px]">{alert.type || 'alert'}</Badge>
-                      <Badge variant="outline" className="text-[9px]">{alert.severity || 'low'}</Badge>
-                      {alert.entity_id && <span className="text-[9px] text-muted-foreground font-mono">{alert.entity_id}</span>}
-                    </div>
-                    <p className="text-xs">{alert.description}</p>
-                    {alert.action && <p className="text-[10px] mt-1 opacity-70">Action: {alert.action}</p>}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </ScrollArea>
+    <ul className="scroll-thin overflow-y-auto border-t border-border" style={{ height: Math.max(height, 100) }}>
+      {sorted.map((alert, i) => (
+        <li key={i} className="border-b border-border px-4 py-3 last:border-b-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <StatusPill status={sevOf(alert)} variant="soft" />
+            <span className="text-sm font-medium text-foreground">{fieldLabel(alert.type || 'alert')}</span>
+            {alert.entity_id && <span className="ml-auto font-mono text-xs text-muted-foreground">{alert.entity_id}</span>}
+          </div>
+          {alert.description && <p className="mt-1.5 text-sm text-muted-foreground">{alert.description}</p>}
+          {alert.action && (
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs text-foreground">
+              <Icon name="arrow-right" className="mt-0.5 h-3 w-3 shrink-0 text-primary dark:text-brand-hi" />
+              <span>{alert.action}</span>
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

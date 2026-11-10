@@ -17,7 +17,7 @@ export function VisualizationTab({ panelType, options, onTypeChange, onOptionsCh
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Panel Type</p>
+        <p className="text-xs text-muted-foreground mb-2">Panel Type</p>
         <div className="grid grid-cols-4 gap-1.5">
           {allPlugins.map((p) => {
             const Icon = p.meta.icon;
@@ -31,7 +31,7 @@ export function VisualizationTab({ panelType, options, onTypeChange, onOptionsCh
                 }`}
               >
                 <Icon className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className="text-[9px]">{p.meta.name}</span>
+                <span className="text-xs">{p.meta.name}</span>
               </button>
             );
           })}
@@ -40,7 +40,7 @@ export function VisualizationTab({ panelType, options, onTypeChange, onOptionsCh
 
       {OptionsEditor && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Options</p>
+          <p className="text-xs text-muted-foreground mb-2">Options</p>
           <OptionsEditor options={options} onChange={onOptionsChange} data={data} />
         </div>
       )}

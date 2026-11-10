@@ -15,16 +15,16 @@ const RECENT_RUNS = [
 
 const KnowledgeFormationPage: React.FC = () => {
   const StatusIcon = ({ status }: { status: string }) => {
-    if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-    if (status === 'running') return <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />;
-    return <XCircle className="h-4 w-4 text-red-500" />;
+    if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-success" />;
+    if (status === 'running') return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
+    return <XCircle className="h-4 w-4 text-destructive" />;
   };
 
   return (
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Knowledge Formation</h1>
+          <h1 className="text-2xl font-semibold">Knowledge Formation</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Build and manage your enterprise knowledge graph from connected data sources
           </p>

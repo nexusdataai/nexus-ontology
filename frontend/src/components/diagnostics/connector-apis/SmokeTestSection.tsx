@@ -11,15 +11,15 @@ interface Props {
 }
 
 function verdictIcon(v?: Verdict) {
-  if (v === 'verified') return <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />;
-  if (v === 'http_error') return <XCircle className="h-3.5 w-3.5 text-red-300" />;
-  return <MinusCircle className="h-3.5 w-3.5 text-amber-300" />;
+  if (v === 'verified') return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
+  if (v === 'http_error') return <XCircle className="h-3.5 w-3.5 text-destructive" />;
+  return <MinusCircle className="h-3.5 w-3.5 text-warning" />;
 }
 
 function verdictColor(v?: Verdict): string {
-  if (v === 'verified') return 'text-green-300';
-  if (v === 'http_error') return 'text-red-300';
-  return 'text-amber-300';
+  if (v === 'verified') return 'text-success';
+  if (v === 'http_error') return 'text-destructive';
+  return 'text-warning';
 }
 
 export default function SmokeTestSection({
@@ -57,15 +57,15 @@ export default function SmokeTestSection({
         <>
           <div className="flex items-center gap-3 flex-wrap text-xs">
             <span className="text-muted-foreground">total: <span className="font-mono">{report.totals.checked}</span></span>
-            <span className="text-green-300">verified: <span className="font-mono">{report.totals.verified}</span></span>
-            <span className="text-amber-300">no_change: <span className="font-mono">{report.totals.no_change}</span></span>
-            <span className="text-amber-300">audit_missing: <span className="font-mono">{report.totals.audit_missing}</span></span>
-            <span className="text-red-300">http_error: <span className="font-mono">{report.totals.http_error}</span></span>
+            <span className="text-success">verified: <span className="font-mono">{report.totals.verified}</span></span>
+            <span className="text-warning">no_change: <span className="font-mono">{report.totals.no_change}</span></span>
+            <span className="text-warning">audit_missing: <span className="font-mono">{report.totals.audit_missing}</span></span>
+            <span className="text-destructive">http_error: <span className="font-mono">{report.totals.http_error}</span></span>
             <span className="text-muted-foreground">| total time: {formatLatency(report.totals.duration_ms)}</span>
           </div>
 
           <div className="border rounded-md max-h-[28rem] overflow-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/40">
                 <tr className="text-left">
                   <th className="px-2 py-1"></th>
@@ -95,24 +95,24 @@ export default function SmokeTestSection({
                       <td className="px-2 py-1">
                         <Badge
                           variant="outline"
-                          className={`text-[9px] ${verdictColor(r.verdict)} ${
-                            r.verdict === 'verified' ? 'border-green-500/30 bg-green-500/10'
-                            : r.verdict === 'http_error' ? 'border-red-500/30 bg-red-500/10'
-                            : 'border-amber-500/30 bg-amber-500/10'
+                          className={`text-xs ${verdictColor(r.verdict)} ${
+                            r.verdict === 'verified' ? 'border-success/30 bg-success/10'
+                            : r.verdict === 'http_error' ? 'border-destructive/30 bg-destructive/10'
+                            : 'border-warning/30 bg-warning/10'
                           }`}
                         >{r.verdict}</Badge>
                       </td>
                       <td className="px-2 py-1 font-mono">{r.http_status ?? '-'}</td>
                       <td className="px-2 py-1 font-mono">{formatLatency(r.duration_ms)}</td>
-                      <td className="px-2 py-1 text-[10px] text-muted-foreground">{diffStr}</td>
+                      <td className="px-2 py-1 text-xs text-muted-foreground">{diffStr}</td>
                       <td className="px-2 py-1">
                         {audit ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                         ) : (
-                          <MinusCircle className="h-3.5 w-3.5 text-amber-400" />
+                          <MinusCircle className="h-3.5 w-3.5 text-warning" />
                         )}
                       </td>
-                      <td className="px-2 py-1 text-[10px] text-red-300 max-w-xs truncate">
+                      <td className="px-2 py-1 text-xs text-destructive max-w-xs truncate">
                         {r.http_error || ''}
                       </td>
                     </tr>

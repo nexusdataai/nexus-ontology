@@ -49,9 +49,9 @@ const Evidence: React.FC<EvidenceProps> = ({ evidence, title = "Evidence", compa
   };
 
   const getConfidenceColor = (score: number) => {
-    if (score >= 0.8) return 'text-green-600';
-    if (score >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 0.8) return 'text-success';
+    if (score >= 0.6) return 'text-warning';
+    return 'text-destructive';
   };
 
   const openTranscript = async (transcriptSource: string, timestamp?: number) => {
@@ -77,7 +77,7 @@ const Evidence: React.FC<EvidenceProps> = ({ evidence, title = "Evidence", compa
   }
 
   const EvidenceItem = ({ item, isPrimary }: { item: EvidenceItem; isPrimary: boolean }) => (
-    <div className={`p-3 border rounded-lg ${isPrimary ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/10' : 'bg-gray-50 border-gray-200 dark:bg-gray-900/10'}`}>
+    <div className={`p-3 border rounded-lg ${isPrimary ? 'bg-primary/10 border-primary/25 dark:bg-primary/10' : 'bg-surface-2 border-border dark:bg-card/10'}`}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <Badge variant={isPrimary ? "default" : "secondary"}>
@@ -110,8 +110,8 @@ const Evidence: React.FC<EvidenceProps> = ({ evidence, title = "Evidence", compa
           <span className="capitalize">{item.speaker}</span>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 p-2 rounded border-l-4 border-blue-500">
-          <Quote className="h-4 w-4 text-blue-500 mb-1" />
+        <div className="bg-white dark:bg-surface-3 p-2 rounded border-l-4 border-primary/40">
+          <Quote className="h-4 w-4 text-primary mb-1" />
           <p className="text-sm italic">"{item.evidence_text}"</p>
         </div>
         
@@ -187,7 +187,7 @@ const Evidence: React.FC<EvidenceProps> = ({ evidence, title = "Evidence", compa
           ) : transcriptContent ? (
             <div className="space-y-4">
               {/* Display transcript content - structure may vary */}
-              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+              <div className="bg-surface-2 dark:bg-card p-4 rounded-lg">
                 <pre className="whitespace-pre-wrap text-sm">
                   {JSON.stringify(transcriptContent, null, 2)}
                 </pre>

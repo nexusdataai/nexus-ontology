@@ -82,7 +82,7 @@ export function QueryTab({ targets, onChange, onRunQuery, onPanelTypeChange, onT
             <Button
               variant="ghost"
               size="sm"
-              className="absolute top-2 right-14 h-6 text-[10px] text-destructive"
+              className="absolute top-2 right-14 h-6 text-xs text-destructive"
               onClick={() => removeQuery(i)}
               type="button"
             >

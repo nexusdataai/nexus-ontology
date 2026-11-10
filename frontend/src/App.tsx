@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { ThemeProvider } from "./hooks/use-theme";
 import { EnterpriseAuthProvider, useEnterpriseAuth } from "./context/EnterpriseAuthContext";
 import { ChatProvider } from "./context/ChatContext";
+import { ConfirmHost } from "./components/ds/confirm";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -34,12 +35,16 @@ import ViewListPage from "./pages/views/ViewListPage";
 import ViewBuilderPage from "./pages/views/ViewBuilderPage";
 import ViewRuntimePage from "./pages/views/ViewRuntimePage";
 import AIAnalyticsPage from "./pages/AIAnalyticsPage";
+import DesignSystemPage from "./pages/DesignSystemPage";
+import { AssistantDock } from '@/components/assistant/AssistantDock';
+import HelpPage from './pages/HelpPage';
+import SimulatorPage from './pages/SimulatorPage';
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useEnterpriseAuth();
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
@@ -105,6 +110,12 @@ const AuthRoutes = () => {
         {/* User Management & Settings */}
         <Route path="/user-management" element={<P><UserManagement /></P>} />
         <Route path="/settings" element={<P><Settings /></P>} />
+        <Route path="/help" element={<P><HelpPage /></P>} />
+        <Route path="/simulator" element={<P><SimulatorPage /></P>} />
+        {/* Design system reference (not in the sidebar; open via search) */}
+        <Route path="/design-system" element={<P><DesignSystemPage /></P>} />
+        {/* Sign-in screen preview for design review (no sign-out needed) */}
+        <Route path="/design-system/login" element={<P><Login /></P>} />
         {/* Legacy redirects */}
         <Route path="/analytics/*" element={<Navigate to="/" replace />} />
         <Route path="/backbone/*" element={<Navigate to="/ai-stack/control-plane" replace />} />
@@ -115,6 +126,7 @@ const AuthRoutes = () => {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {user && !loading && !/^\/(login|signup|design-system\/login)/.test(window.location.pathname) && <AssistantDock userName={profile?.full_name} />}
     </ChatProvider>
   );
 };
@@ -135,6 +147,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <ConfirmHost />
           <BrowserRouter>
             <EnterpriseAuthProvider>
               <AuthRoutes />

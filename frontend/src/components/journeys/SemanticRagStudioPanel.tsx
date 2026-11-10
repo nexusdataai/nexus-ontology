@@ -10,7 +10,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 import { JourneyStudioView } from './JourneyStudioView';
 import { Button } from '../ui/button';
-import { Brain } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { EmptyState } from '../ds/primitives';
+import { InlineError } from '../ds/kit';
 
 export interface SemanticRagStudioPanelProps {
   onBackToJourneys?: () => void;
@@ -52,36 +54,31 @@ export function SemanticRagStudioPanel({ onBackToJourneys, hideBackButton, hideS
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Loading Knowledge Processor journey...
+      <div className="space-y-3" aria-busy="true" aria-label="Loading the knowledge processor">
+        <Skeleton className="h-9 w-72 max-w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <p className="text-destructive text-sm">{error}</p>
-        <Button variant="outline" size="sm" onClick={loadSemanticRagJourney}>
-          Retry
-        </Button>
-      </div>
-    );
+    return <InlineError onRetry={loadSemanticRagJourney}>{error}</InlineError>;
   }
 
   if (!journeyId) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Brain className="h-10 w-10 text-muted-foreground" />
-        <p className="text-muted-foreground text-sm">
-          No Knowledge Processor journey found. Create one from the Journeys tab first.
-        </p>
-        {onBackToJourneys && (
+      <EmptyState
+        icon="brain-ai"
+        title="No knowledge processor yet"
+        description="The knowledge pipeline runs as a journey. Create a Knowledge Processor journey from Journeys, then come back here to run it."
+        action={onBackToJourneys && (
           <Button variant="outline" size="sm" onClick={onBackToJourneys}>
             Go to Journeys
           </Button>
         )}
-      </div>
+      />
     );
   }
 

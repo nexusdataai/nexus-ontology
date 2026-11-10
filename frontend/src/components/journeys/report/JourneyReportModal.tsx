@@ -1,12 +1,13 @@
 /**
  * JourneyReportModal -- schema-driven journey report surface.
  *
- * Replaces the legacy ``StageReportModal`` (which hard-coded the call-
- * processing layout for every journey). Fetches the new envelope from
- * ``GET /api/v1/journeys/{id}/aggregate-report`` and renders the
- * sections the backend's report-schema YAML declared. The modal has
- * NO per-solution logic; section ``kind`` -> renderer component is the
- * only dispatch.
+ * Fetches the envelope from ``GET /api/v1/journeys/{id}/aggregate-report``
+ * and renders the sections the backend's report-schema YAML declared. The
+ * modal has NO per-solution logic; section ``kind`` -> renderer is the only
+ * dispatch (see ``ReportSections.tsx``).
+ *
+ * Opens from its own trigger, or is controlled by the parent through
+ * ``open`` / ``onOpenChange`` (then no trigger is rendered).
  *
  * The legacy ``StageReportModal`` is preserved as a thin re-export
  * wrapper for any callers that haven't been migrated.
@@ -14,49 +15,34 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Download, FileText } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { InlineError } from '@/components/ds/kit';
 import { callProcessingJourneyService } from '@/services/callProcessingJourneyService';
-import type { JourneyReport, ReportSection } from '@/types/callProcessingJourney';
-import { SummaryStrip } from './SummaryStrip';
-import { KpiGridSection } from './sections/KpiGridSection';
-import { TableSection } from './sections/TableSection';
-import { DistributionSection } from './sections/DistributionSection';
-import { AlertsListSection } from './sections/AlertsListSection';
-import { TimelineSection } from './sections/TimelineSection';
-import { StepBreakdownSection } from './sections/StepBreakdownSection';
-import { getIcon } from './iconMap';
+import type { JourneyReport } from '@/types/callProcessingJourney';
+import { KpiStrip, renderReportSection } from './ReportSections';
 
 interface JourneyReportModalProps {
   journeyId: string;
   journeyName?: string;
   trigger?: React.ReactNode;
+  /** Controlled mode: the parent owns the open state and no trigger is rendered. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-function renderSection(section: ReportSection): React.ReactNode {
-  switch (section.kind) {
-    case 'kpi_grid':
-      return <KpiGridSection key={section.id} section={section as any} />;
-    case 'table':
-      return <TableSection key={section.id} section={section as any} />;
-    case 'distribution':
-      return <DistributionSection key={section.id} section={section as any} />;
-    case 'alerts_list':
-      return <AlertsListSection key={section.id} section={section as any} />;
-    case 'timeline':
-      return <TimelineSection key={section.id} section={section as any} />;
-    case 'step_breakdown':
-      return <StepBreakdownSection key={section.id} section={section as any} />;
-    default:
-      return null;
-  }
-}
-
-export function JourneyReportModal({ journeyId, journeyName, trigger }: JourneyReportModalProps) {
-  const [open, setOpen] = useState(false);
+export function JourneyReportModal({ journeyId, journeyName, trigger, open: controlledOpen, onOpenChange }: JourneyReportModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? !!controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) onOpenChange?.(next);
+    else setInternalOpen(next);
+  };
   const [report, setReport] = useState<JourneyReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,75 +82,66 @@ export function JourneyReportModal({ journeyId, journeyName, trigger }: JourneyR
     URL.revokeObjectURL(url);
   };
 
-  const TitleIcon = getIcon(report?.icon);
+  const name = journeyName || report?.journey_title;
+  const sections = report?.sections || [];
+  const kpis = report?.summary_kpis || [];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            View Report
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TitleIcon className="h-5 w-5" />
-            {report?.title || 'Journey Report'}
-            {(journeyName || report?.journey_title) && (
-              <span className="text-muted-foreground font-normal">
-                {' - '}{journeyName || report?.journey_title}
-              </span>
-            )}
-          </DialogTitle>
-          {report?.generated_at && (
-            <div className="text-[11px] text-muted-foreground">
-              Generated: {new Date(report.generated_at).toLocaleString()}
-              {' | '}
-              Based on {report.total_jobs} job{report.total_jobs === 1 ? '' : 's'}
-              {report.solution_id && (
-                <Badge variant="outline" className="ml-2 text-[9px]">
-                  {report.solution_id}
-                </Badge>
+      {!controlled && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="outline">
+              <Icon name="document" /> View report
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
+      <DialogContent className="flex max-h-[88dvh] max-w-4xl flex-col gap-0 p-0">
+        <DialogHeader className="border-b border-border px-5 pb-4 pt-5 pr-12 text-left sm:px-7">
+          <DialogTitle className="text-xl font-medium tracking-tight">{report?.title || 'Journey report'}</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            {name ? `${name}. ` : ''}
+            {report?.generated_at
+              ? `Based on ${report.total_jobs} ${report.total_jobs === 1 ? 'run' : 'runs'}, generated ${new Date(report.generated_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
+              : 'Results across the runs of this journey.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7">
+          {loading && (
+            <div className="space-y-6" aria-label="Loading report">
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
+          )}
+
+          {!loading && error && <InlineError onRetry={loadReport}>The report could not be loaded. {error}</InlineError>}
+
+          {!loading && !error && report && (
+            <div className="space-y-7">
+              <KpiStrip kpis={kpis} />
+              {sections.map(renderReportSection)}
+              {sections.length === 0 && kpis.length === 0 && (
+                <EmptyState icon="document" title="Nothing to report yet" description="This journey type has no report sections, or it has not completed a run." />
               )}
             </div>
           )}
-        </DialogHeader>
+        </div>
 
-        {loading && (
-          <div className="py-10 flex items-center justify-center text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading report...
-          </div>
-        )}
-
-        {error && (
-          <div className="py-6 text-center text-sm text-red-500">{error}</div>
-        )}
-
-        {!loading && !error && report && (
-          <div className="space-y-4 p-1">
-            <SummaryStrip kpis={report.summary_kpis || []} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {(report.sections || []).map(renderSection)}
-            </div>
-            {(!report.sections || report.sections.length === 0) && (
-              <div className="text-xs text-muted-foreground italic text-center py-4">
-                No sections defined for this journey type.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2 border-t">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={!report}>
-            <Download className="h-4 w-4 mr-1" />
-            Export JSON
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 sm:px-7">
+          <Button variant="ghost" size="sm" onClick={loadReport} disabled={loading}>
+            <Icon name={loading ? 'spinner' : 'refresh'} className={loading ? 'animate-spin' : undefined} /> Refresh
           </Button>
-          <Button variant="default" size="sm" onClick={() => setOpen(false)}>
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!report}>
+              <Icon name="download" /> Export JSON
+            </Button>
+            <Button size="sm" onClick={() => setOpen(false)}>Close</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

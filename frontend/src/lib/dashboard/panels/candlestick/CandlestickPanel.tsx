@@ -1,6 +1,8 @@
 import { ResponsiveContainer, ComposedChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { gridProps, axisProps, CHART_MARGIN, tooltipStyle } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 interface CandleData {
   label: string;
@@ -16,9 +18,7 @@ interface CandleData {
 export function CandlestickPanel({ data, options, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length < 4) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data (need open, high, low, close fields)'}
-      </div>
+      <PanelState loading={loading} text="No data (need open, high, low, close fields)" />
     );
   }
 
@@ -31,8 +31,8 @@ export function CandlestickPanel({ data, options, height, loading }: PanelProps)
   const highField = (options.highField as string) || fieldNames.find((n) => /high/i.test(n)) || fieldNames[2];
   const lowField = (options.lowField as string) || fieldNames.find((n) => /low/i.test(n)) || fieldNames[3];
   const closeField = (options.closeField as string) || fieldNames.find((n) => /close/i.test(n)) || (fieldNames.length > 4 ? fieldNames[4] : fieldNames[3]);
-  const colorUp = (options.colorUp as string) || '#22c55e';
-  const colorDown = (options.colorDown as string) || '#ef4444';
+  const colorUp = (options.colorUp as string) || 'hsl(var(--success))';
+  const colorDown = (options.colorDown as string) || 'hsl(var(--destructive))';
   const chartHeight = Math.max(height - 40, 100);
 
   const candles: CandleData[] = rows.map((row) => {
@@ -55,12 +55,12 @@ export function CandlestickPanel({ data, options, height, loading }: PanelProps)
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <ComposedChart data={candles} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-        <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-        <YAxis tick={{ fontSize: 10 }} width={50} domain={['auto', 'auto']} />
+      <ComposedChart data={candles} margin={CHART_MARGIN}>
+        <CartesianGrid {...gridProps} />
+        <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
+        <YAxis {...axisProps} width={50} domain={['auto', 'auto']} />
         <Tooltip
-          contentStyle={{ fontSize: 11 }}
+          {...tooltipStyle}
           formatter={(_: unknown, name: string, item: { payload?: CandleData }) => {
             const c = item.payload;
             if (!c) return '';

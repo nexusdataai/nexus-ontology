@@ -91,7 +91,7 @@ export function NewSolutionDialog({
         ) : (
           <>
             <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Linked App
               </div>
               <ScrollArea className="max-h-44 pr-2">
@@ -115,7 +115,7 @@ export function NewSolutionDialog({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-medium truncate">{app.name}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">
+                          <div className="text-xs text-muted-foreground truncate">
                             {app.id}
                           </div>
                         </div>
@@ -127,7 +127,7 @@ export function NewSolutionDialog({
             </div>
 
             <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Name
               </div>
               <Input
@@ -140,7 +140,7 @@ export function NewSolutionDialog({
             </div>
 
             <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Description
               </div>
               <Textarea

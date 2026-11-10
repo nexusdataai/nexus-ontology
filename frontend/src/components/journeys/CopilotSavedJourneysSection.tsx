@@ -2,24 +2,25 @@
  * CopilotSavedJourneysSection
  *
  * Lists journeys saved by the AI Copilot ("Save as Journey") via the
- * Phase 2 /api/v1/control-plane/journeys endpoints. Renders above the
- * legacy JourneyListView so users can run / inspect / delete them
- * without leaving the Journeys tab.
+ * Phase 2 /api/v1/control-plane/journeys endpoints, as a list of rows:
+ * run one in place (the result opens under its row), open it in the
+ * Journey Studio, or delete it.
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import {
-  Sparkles, Play, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronRight, FileText,
-  CheckCircle2, XCircle, MinusCircle, ListTree, Eye, Clock,
-} from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { CodeBlock, InlineError, SearchInput, StatusPill, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
+import { StepRail } from './studio/StepPipeline';
+import { dayAndTime, humanize } from './studio/format';
 import { apiClient } from '@/services/apiClient';
 import { useToast } from '@/hooks/use-toast';
 import { PendingStepCard } from '@/components/journey-builder/PendingStepCard';
 import { JourneyStudioView } from './JourneyStudioView';
+import { confirmDialog } from '@/components/ds/confirm';
 
 interface SavedJourney {
   journey_id: string;
@@ -97,9 +98,12 @@ export function CopilotSavedJourneysSection({
   // transformation-system DDB whenever a saved journey runs.
   const [jobMetrics, setJobMetrics] = useState<Record<string, JobMetricsByJourney>>({});
   const { toast } = useToast();
+  // The last list load failed (shown as an error with a retry).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const data = await apiClient.get(
         `/api/v1/control-plane/journeys${search ? `?search=${encodeURIComponent(search)}` : ''}`,
@@ -149,6 +153,7 @@ export function CopilotSavedJourneysSection({
     } catch (e: any) {
       toast({ title: 'Failed to load journeys', description: e.message, variant: 'destructive' });
       setJourneys([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -241,7 +246,7 @@ export function CopilotSavedJourneysSection({
   };
 
   const handleDelete = async (j: SavedJourney) => {
-    if (!window.confirm(`Delete journey "${j.title || j.journey_id}"?`)) return;
+    if (!(await confirmDialog({ title: `Delete journey "${j.title || j.journey_id}"?`, description: 'This cannot be undone.', destructive: true }))) return;
     try {
       await apiClient.delete(`/api/v1/control-plane/journeys/${j.journey_id}`);
       toast({ title: 'Journey deleted', description: j.title || j.journey_id });
@@ -253,284 +258,236 @@ export function CopilotSavedJourneysSection({
 
   const filtered = journeys;
 
+  // Presentation only below this line.
+  const firstLoad = loading && journeys.length === 0;
+  const ROW_GRID = 'lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_150px_auto] lg:items-center lg:gap-6';
+  const ms = (v?: number) => (typeof v !== 'number' ? '' : v < 1000 ? `${Math.round(v)} ms` : `${(v / 1000).toFixed(1)} s`);
+
   return (
-    <Card className="mb-4">
-      <CardHeader
-        className="pb-2 cursor-pointer select-none"
-        onClick={() => setExpanded(v => !v)}
-      >
-        <CardTitle className="text-sm flex items-center gap-2">
-          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <Sparkles className="h-4 w-4 text-primary" />
-          Copilot Saved Journeys
-          <Badge variant="outline" className="ml-2 text-[10px]">{journeys.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      {expanded && (
-        <CardContent className="pt-0">
-          <div className="flex gap-2 items-center mb-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && load()}
-                placeholder="Search journeys..."
-                className="text-sm pl-8 h-8"
-              />
-            </div>
-            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            </Button>
+    <div data-testid="copilot-saved-journeys">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-md font-medium text-foreground">Saved from Copilot</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Plans you saved as journeys. Run one here, or open it in the studio to schedule it and follow each run.
+        </p>
+      </div>
+
+      <Toolbar className="mt-5">
+        <form onSubmit={(e) => { e.preventDefault(); load(); }} className="w-full sm:w-auto">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search saved journeys" />
+        </form>
+        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          <Icon name="search" /> Search
+        </Button>
+        <ToolbarSpacer />
+        <span className="num text-sm text-muted-foreground">{journeys.length} {journeys.length === 1 ? 'journey' : 'journeys'}</span>
+        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
+        </Button>
+      </Toolbar>
+
+      <div className="mt-4">
+        {loadFailed && !loading ? (
+          <InlineError onRetry={load}>The saved journeys could not be loaded.</InlineError>
+        ) : firstLoad ? (
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-6 border-b border-border px-5 py-4 last:border-b-0">
+                <div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-56 max-w-full" /><Skeleton className="h-3 w-72 max-w-full" /></div>
+                <Skeleton className="hidden h-4 w-32 lg:block" />
+                <Skeleton className="hidden h-8 w-28 lg:block" />
+              </div>
+            ))}
           </div>
-
-          {filtered.length === 0 && !loading && (
-            <div className="text-center py-6 text-muted-foreground text-sm">
-              <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p>No saved journeys yet.</p>
-              <p className="text-xs mt-1 opacity-60">
-                Use the AI Copilot tab to plan a journey, then click "Save as Journey".
-              </p>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon="chat-bot"
+            title={search ? 'No saved journeys match' : 'No saved journeys yet'}
+            description={search ? 'Try another search.' : 'Plan a journey with the AI Copilot, then choose "Save as journey". It will be listed here.'}
+          />
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            <div className={cn('hidden border-b border-border bg-surface-2 px-5 py-2 text-xs font-medium text-muted-foreground', ROW_GRID)} aria-hidden="true">
+              <span>Journey</span>
+              <span>Runs</span>
+              <span>Updated</span>
+              <span className="w-[188px]" />
             </div>
-          )}
+            <div className="divide-y divide-border">
+              {filtered.map((j, index) => {
+                const last = runResults[j.journey_id];
+                const m = jobMetrics[j.journey_id] || {
+                  totalJobs: 0, completedJobs: 0, runningJobs: 0,
+                  failedJobs: 0, averageJobDurationMs: 0,
+                };
+                const isRunning = runningId === j.journey_id;
+                const meta = [
+                  j.solution_id ? humanize(j.solution_id) : '',
+                  typeof j.step_count === 'number' && j.step_count > 0 ? `${j.step_count} ${j.step_count === 1 ? 'step' : 'steps'}` : '',
+                  j.kind && j.kind !== j.solution_id ? humanize(j.kind) : '',
+                  j.createdBy ? `by ${j.createdBy}` : '',
+                ].filter(Boolean).join(' · ');
+                const steps = last && Array.isArray(last.steps) ? last.steps : [];
+                const detailsOpen = !!stepsOpen[j.journey_id];
+                return (
+                  <article key={j.journey_id} className="rise" style={{ ['--i' as any]: index }}>
+                    <div className={cn('group px-4 py-4 transition-colors duration-150 hover:bg-surface-2/60 sm:px-5', ROW_GRID)}>
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => onSelectJourney?.(j.journey_id)}
+                          className="block max-w-full truncate rounded-sm text-left text-md font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {j.title || j.journey_id}
+                        </button>
+                        {meta && <p className="mt-0.5 truncate text-sm text-muted-foreground">{meta}</p>}
+                        <p className="mono-id mt-1 truncate" title={j.journey_id}>{j.journey_id}</p>
+                      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map(j => {
-              const last = runResults[j.journey_id];
-              const m = jobMetrics[j.journey_id] || {
-                totalJobs: 0, completedJobs: 0, runningJobs: 0,
-                failedJobs: 0, averageJobDurationMs: 0,
-              };
-              return (
-                <div
-                  key={j.journey_id}
-                  className="border rounded-lg p-3 bg-card hover:shadow-md transition-shadow flex flex-col gap-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm truncate">{j.title || j.journey_id}</span>
-                        {j.kind && (
-                          <Badge variant="outline" className="text-[9px]">{j.kind}</Badge>
-                        )}
-                        {j.solution_id && (
-                          <Badge variant="outline" className="text-[9px]">{j.solution_id}</Badge>
-                        )}
-                        {typeof j.step_count === 'number' && j.step_count > 0 && (
-                          <Badge variant="outline" className="text-[9px]">{j.step_count} steps</Badge>
+                      <div className="mt-3 min-w-0 text-sm lg:mt-0">
+                        {m.totalJobs === 0 ? (
+                          <span className="text-muted-foreground">No runs yet</span>
+                        ) : (
+                          <>
+                            <p className="text-foreground">
+                              <span className="num font-medium">{successRateOf(m)}%</span>{' '}
+                              <span className="text-muted-foreground">of <span className="num">{m.totalJobs}</span> {m.totalJobs === 1 ? 'run' : 'runs'} succeeded</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {m.runningJobs > 0 && <span className="num text-primary dark:text-brand-hi">{m.runningJobs} running, </span>}
+                              {m.failedJobs > 0 && <span className="num text-destructive">{m.failedJobs} failed, </span>}
+                              <span className="num">about {fmtAvg(m.averageJobDurationMs)} each</span>
+                            </p>
+                          </>
                         )}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">
-                        id: {j.journey_id}
+
+                      <p className="num mt-3 text-xs text-muted-foreground lg:mt-0">
+                        {j.updatedAt ? dayAndTime(j.updatedAt) : 'Not recorded'}
+                      </p>
+
+                      <div className="mt-3 flex items-center justify-end gap-1 lg:mt-0 lg:w-[188px]">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(j)}
+                          aria-label={`Delete ${j.title || j.journey_id}`}
+                          className="h-8 w-8 text-subtle-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                        >
+                          <Icon name="trash" className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRun(j)} disabled={isRunning}>
+                          <Icon name={isRunning ? 'spinner' : 'play'} className={isRunning ? 'animate-spin' : undefined} /> {isRunning ? 'Running' : 'Run'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => onSelectJourney?.(j.journey_id)}>
+                          Open <Icon name="arrow-right" className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Stats Grid (visual parity with JourneyCard).
-                      Numbers come from /api/v1/journeys/{id}/jobs --
-                      same ai-engine framework regular journeys use. */}
-                  <div className="grid grid-cols-4 gap-2 text-center py-2 bg-muted/30 rounded-lg">
-                    <div>
-                      <p className="text-lg font-bold">{m.totalJobs}</p>
-                      <p className="text-[10px] text-muted-foreground">Jobs</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-green-500">{m.completedJobs}</p>
-                      <p className="text-[10px] text-muted-foreground">Done</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-blue-400">{m.runningJobs}</p>
-                      <p className="text-[10px] text-muted-foreground">Running</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-red-500">{m.failedJobs}</p>
-                      <p className="text-[10px] text-muted-foreground">Failed</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-center py-2 bg-muted/30 rounded-lg">
-                    <div>
-                      <p className="text-lg font-bold text-purple-400">{successRateOf(m)}%</p>
-                      <p className="text-[10px] text-muted-foreground">Success Rate</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-indigo-400">{fmtAvg(m.averageJobDurationMs)}</p>
-                      <p className="text-[10px] text-muted-foreground">Avg Duration</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <div className="flex items-center gap-1 truncate">
-                      {j.createdBy && <span className="truncate">by {j.createdBy}</span>}
-                    </div>
-                    {j.updatedAt && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{new Date(j.updatedAt).toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="hidden">{/* legacy spacing wrapper retained */}</div>
-                      {last && (
-                        <div className="mt-2 text-[11px]">
+                    {/* Result of the run started from this row */}
+                    {last && (
+                      <div className="animate-fade-up border-t border-border bg-surface-2/40 px-4 py-3 sm:px-5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
                           {last.error ? (
-                            <Badge className="bg-red-500/15 text-red-500 border-red-500/30">Error: {last.error}</Badge>
+                            <>
+                              <StatusPill status="failed" />
+                              <span className="min-w-0 text-destructive">{last.error}</span>
+                            </>
                           ) : last.status === 'awaiting_step_approval' ? (
-                            <Badge className="bg-amber-500/15 text-amber-500 border-amber-500/30">
-                              Paused at {last.pending_step?.step_name || last.pending_step?.step_id}
-                            </Badge>
+                            <>
+                              <StatusPill status="awaiting_approval">Waiting for approval</StatusPill>
+                              <span className="min-w-0 text-muted-foreground">Paused at {last.pending_step?.step_name || last.pending_step?.step_id}</span>
+                            </>
                           ) : (
-                            <Badge className="bg-green-500/15 text-green-500 border-green-500/30">
-                              {last.summary || `Completed ${(last.steps || []).length} steps`}
-                            </Badge>
+                            <>
+                              <StatusPill status="completed" />
+                              <span className="min-w-0 text-foreground">{last.summary || `Completed ${(last.steps || []).length} steps`}</span>
+                            </>
+                          )}
+                          {steps.length > 0 && (
+                            <button
+                              type="button"
+                              aria-expanded={detailsOpen}
+                              className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                              onClick={() => setStepsOpen((curr) => ({ ...curr, [j.journey_id]: !curr[j.journey_id] }))}
+                            >
+                              {detailsOpen ? 'Hide' : 'Show'} {steps.length} {steps.length === 1 ? 'step' : 'steps'}
+                              <Icon name={detailsOpen ? 'chevron-up' : 'chevron-down'} className="h-3 w-3" />
+                            </button>
                           )}
                         </div>
-                      )}
-                      {last?.status === 'awaiting_step_approval' && last.pending_step && last.session_id && (
-                        <PendingStepCard
-                          runId={last.session_id}
-                          pending={last.pending_step}
-                          onApprove={(stepId) => handleApprove(j.journey_id, last.session_id!, stepId, true)}
-                          onReject={(stepId) => handleApprove(j.journey_id, last.session_id!, stepId, false)}
-                          className="mt-2"
-                        />
-                      )}
-                    {last && Array.isArray(last.steps) && last.steps.length > 0 && (
-                      <div className="mt-2">
-                        <button
-                            type="button"
-                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                            onClick={() =>
-                              setStepsOpen((curr) => ({ ...curr, [j.journey_id]: !curr[j.journey_id] }))
-                            }
-                          >
-                            {stepsOpen[j.journey_id] ? (
-                              <ChevronDown className="h-3 w-3" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3" />
-                            )}
-                            <ListTree className="h-3 w-3" />
-                            Run details ({last.steps.length} step{last.steps.length === 1 ? '' : 's'})
-                            {last.session_id && (
-                              <span className="font-mono text-[10px] opacity-60 ml-1">{last.session_id}</span>
-                            )}
-                          </button>
-                          {stepsOpen[j.journey_id] && (
-                            <div className="mt-2 space-y-1 rounded-md border bg-card/40 p-2">
-                              {last.steps.map((s, idx) => {
+
+                        {last.status === 'awaiting_step_approval' && last.pending_step && last.session_id && (
+                          <PendingStepCard
+                            runId={last.session_id}
+                            pending={last.pending_step}
+                            onApprove={(stepId) => handleApprove(j.journey_id, last.session_id!, stepId, true)}
+                            onReject={(stepId) => handleApprove(j.journey_id, last.session_id!, stepId, false)}
+                            className="mt-3"
+                          />
+                        )}
+
+                        {steps.length > 0 && detailsOpen && (
+                          <div className="mt-4 max-w-3xl">
+                            {last.session_id && <p className="mb-3 text-xs text-muted-foreground">Session <span className="mono-id">{last.session_id}</span></p>}
+                            <StepRail
+                              items={steps.map((s, idx) => {
                                 const key = `${j.journey_id}:${s.step_id}:${idx}`;
-                                const open = stepBodyOpen[key];
+                                const open = !!stepBodyOpen[key];
                                 const isFailed = s.status === 'failed' || !!s.error;
                                 const isRejected = s.status === 'rejected';
-                                const StatusIcon = isFailed
-                                  ? XCircle
-                                  : isRejected
-                                    ? MinusCircle
-                                    : CheckCircle2;
-                                const iconColour = isFailed
-                                  ? 'text-red-400'
-                                  : isRejected
-                                    ? 'text-amber-400'
-                                    : 'text-green-400';
-                                return (
-                                  <div key={key} className="rounded border bg-background/40">
+                                const hasBody = !!s.error || !!s.result_preview || s.result !== undefined;
+                                return {
+                                  id: key,
+                                  status: isFailed ? 'failed' : isRejected ? 'rejected' : 'completed',
+                                  title: <span className="font-mono text-xs">{s.step_id}</span>,
+                                  meta: (
+                                    <>
+                                      {s.tool && <span className="mono-id">{s.tool}</span>}
+                                      {typeof s.duration_ms === 'number' && <span className="num">{ms(s.duration_ms)}</span>}
+                                    </>
+                                  ),
+                                  action: hasBody ? (
                                     <button
                                       type="button"
-                                      className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/30"
-                                      onClick={() =>
-                                        setStepBodyOpen((curr) => ({ ...curr, [key]: !curr[key] }))
-                                      }
+                                      aria-expanded={open}
+                                      className="font-medium text-primary underline-offset-4 hover:underline dark:text-brand-hi"
+                                      onClick={() => setStepBodyOpen((curr) => ({ ...curr, [key]: !curr[key] }))}
                                     >
-                                      {open ? (
-                                        <ChevronDown className="h-3 w-3 shrink-0" />
-                                      ) : (
-                                        <ChevronRight className="h-3 w-3 shrink-0" />
-                                      )}
-                                      <StatusIcon className={`h-3.5 w-3.5 shrink-0 ${iconColour}`} />
-                                      <span className="font-mono text-[11px] truncate">
-                                        {idx + 1}. {s.step_id}
-                                      </span>
-                                      {s.tool && (
-                                        <Badge variant="outline" className="text-[9px] shrink-0">
-                                          {s.tool}
-                                        </Badge>
-                                      )}
-                                      {typeof s.duration_ms === 'number' && (
-                                        <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
-                                          {s.duration_ms} ms
-                                        </span>
-                                      )}
+                                      {open ? 'Hide result' : 'Result'}
                                     </button>
-                                    {open && (
-                                      <div className="px-2 pb-2 space-y-1">
-                                        {s.error && (
-                                          <div className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2 whitespace-pre-wrap">
-                                            {s.error}
-                                          </div>
-                                        )}
-                                        {s.result_preview && !s.error && (
-                                          <div className="text-[11px] text-muted-foreground bg-muted/30 rounded p-2 whitespace-pre-wrap">
-                                            {s.result_preview}
-                                          </div>
-                                        )}
-                                        {s.result !== undefined && (
-                                          <pre className="text-[10px] font-mono bg-muted/30 p-2 max-h-48 overflow-auto whitespace-pre-wrap rounded">
-{typeof s.result === 'string' ? s.result : JSON.stringify(s.result, null, 2)}
-                                          </pre>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
+                                  ) : undefined,
+                                  body: (
+                                    <>
+                                      {isRejected && !s.error && <span className="text-warning">Rejected at the approval gate.</span>}
+                                      {!open && s.error && <span className="line-clamp-1 text-destructive">{s.error}</span>}
+                                      {!open && !s.error && s.result_preview && <span className="line-clamp-1">{s.result_preview}</span>}
+                                      {open && (
+                                        <div className="mt-1 space-y-2">
+                                          {s.error && <span className="block whitespace-pre-wrap text-destructive">{s.error}</span>}
+                                          {s.result_preview && !s.error && <span className="block whitespace-pre-wrap text-foreground">{s.result_preview}</span>}
+                                          {s.result !== undefined && (
+                                            <CodeBlock maxHeight={200} wrap>{typeof s.result === 'string' ? s.result : JSON.stringify(s.result, null, 2)}</CodeBlock>
+                                          )}
+                                        </div>
+                                      )}
+                                    </>
+                                  ),
+                                };
                               })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                  </div>{/* /min-w-0 flex-1 */}
-
-                  {/* Action row (visual parity with JourneyCard).
-                      ``Journey Studio`` deep-links to the per-journey
-                      studio detail view via ?journeyId=. Run + Delete
-                      remain inline for quick actions. */}
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => onSelectJourney?.(j.journey_id)}
-                      className="flex-1"
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Journey Studio
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleRun(j)}
-                      disabled={runningId === j.journey_id}
-                    >
-                      {runningId === j.journey_id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Play className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDelete(j)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
           </div>
-        </CardContent>
-      )}
-    </Card>
+        )}
+      </div>
+    </div>
   );
 }

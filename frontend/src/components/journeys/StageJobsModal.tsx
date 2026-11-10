@@ -1,13 +1,15 @@
 /**
  * StageJobsModal Component
- * 
- * Modal to view all jobs for call processing journey.
+ *
+ * Every run of a journey, in a dialog. Opens from its own trigger, or is
+ * controlled by the parent through `open` / `onOpenChange`.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -21,19 +23,10 @@ import {
   TableRow,
 } from '../ui/table';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { 
-  Eye, 
-  Play, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Loader2,
-  RotateCcw,
-  Calendar,
-  TrendingUp,
-  Phone,
-} from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { Icon } from '../ds/Icon';
+import { EmptyState } from '../ds/primitives';
+import { InlineError, Meter, StatusPill } from '../ds/kit';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 import { JobExecution } from '../../types/callProcessingJourney';
 
@@ -43,16 +36,27 @@ interface StageJobsModalProps {
   trigger?: React.ReactNode;
   onJobAction?: (jobId: string, action: string) => void;
   onViewJob?: (jobId: string) => void;
+  /** Controlled mode: the parent owns the open state and no trigger is rendered. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function StageJobsModal({
   journeyId,
-  journeyName = 'Call Processing',
+  journeyName = 'Journey',
   trigger,
   onJobAction,
   onViewJob,
+  open: controlledOpen,
+  onOpenChange,
 }: StageJobsModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const isOpen = controlled ? !!controlledOpen : internalOpen;
+  const setIsOpen = (next: boolean) => {
+    if (controlled) onOpenChange?.(next);
+    else setInternalOpen(next);
+  };
   const [jobs, setJobs] = useState<JobExecution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -64,9 +68,9 @@ export function StageJobsModal({
     try {
       setIsLoading(true);
       setError('');
-      
+
       const response = await callProcessingJourneyService.getJobHistory(journeyId);
-      
+
       if (response.success && response.data) {
         setJobs(response.data);
       } else {
@@ -83,60 +87,35 @@ export function StageJobsModal({
   }, [journeyId]);
 
   // Calculate duration between start and end time
-  const calculateDuration = (startedAt?: Date, completedAt?: Date): string => {
-    if (!startedAt) return '-';
-    if (!completedAt) return 'Running...';
-    
+  const calculateDuration = (startedAt?: any, completedAt?: any): string => {
+    if (!startedAt) return 'Not started';
+    if (!completedAt) return 'Running';
+
     try {
-      const diffMs = completedAt.getTime() - startedAt.getTime();
+      const diffMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+      if (!Number.isFinite(diffMs)) return 'Not recorded';
       const diffMins = Math.round(diffMs / (1000 * 60));
-      
-      if (diffMins < 1) return '< 1m';
-      if (diffMins < 60) return `${diffMins}m`;
-      
+
+      if (diffMins < 1) return 'Under 1 min';
+      if (diffMins < 60) return `${diffMins} min`;
+
       const hours = Math.floor(diffMins / 60);
       const mins = diffMins % 60;
-      return `${hours}h ${mins}m`;
+      return `${hours} h ${mins} min`;
     } catch {
-      return '-';
+      return 'Not recorded';
     }
   };
 
   // Format timestamp for display
-  const formatTimestamp = (date?: Date): string => {
-    if (!date) return '-';
+  const formatTimestamp = (date?: any): string => {
+    if (!date) return '';
     try {
-      return date.toLocaleString();
+      const d = new Date(date);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     } catch {
-      return '-';
-    }
-  };
-
-  // Get status icon
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'running':
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  // Get status badge color
-  const getStatusBadgeColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'running':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      return '';
     }
   };
 
@@ -164,166 +143,128 @@ export function StageJobsModal({
     completed: jobs.filter(j => j.status === 'completed').length,
     running: jobs.filter(j => j.status === 'running').length,
     failed: jobs.filter(j => j.status === 'failed').length,
-    totalCalls: jobs.reduce((acc, j) => acc + (j.itemsProcessed || 0), 0),
+    totalCalls: jobs.reduce((acc, j) => acc + ((j as any).itemsProcessed || 0), 0),
   };
+
+  const firstLoad = isLoading && jobs.length === 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" size="sm" className="gap-2">
-            <TrendingUp className="h-4 w-4" />
-            View All Jobs
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-w-6xl h-[85vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            All Jobs - {journeyName}
-          </DialogTitle>
+      {!controlled && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="outline" size="sm">
+              <Icon name="history" /> All runs
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
+      <DialogContent className="flex h-[85dvh] max-w-6xl flex-col gap-0 p-0">
+        <DialogHeader className="border-b border-border px-5 pb-4 pt-5 pr-12 text-left">
+          <DialogTitle className="text-lg font-medium">All runs</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            {journeyName}.{' '}
+            {firstLoad ? 'Loading runs.' : (
+              <span className="num">
+                {stats.total} {stats.total === 1 ? 'run' : 'runs'}: {stats.completed} completed, {stats.running} running, {stats.failed} failed. {stats.totalCalls.toLocaleString()} records processed in total.
+              </span>
+            )}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
-          {/* Header Stats */}
-          <div className="flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Total Jobs: <strong>{stats.total}</strong></span>
-              <span className="text-green-600">Completed: {stats.completed}</span>
-              <span className="text-blue-600">Running: {stats.running}</span>
-              <span className="text-red-600">Failed: {stats.failed}</span>
-              <span>Total Calls: <strong>{stats.totalCalls}</strong></span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadJobs}
-              disabled={isLoading}
-              className="gap-2"
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-              Refresh
-            </Button>
-          </div>
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2">
+          <p className="text-xs text-muted-foreground">Refreshes every 10 seconds while open.</p>
+          <Button variant="ghost" size="sm" onClick={loadJobs} disabled={isLoading}>
+            <Icon name={isLoading ? 'spinner' : 'refresh'} className={isLoading ? 'animate-spin' : undefined} /> Refresh
+          </Button>
+        </div>
 
-          {/* Jobs Table */}
-          <div className="flex-1 min-h-0 overflow-auto border rounded-md">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Loading jobs...</span>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-muted-foreground">
-                  <XCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>{error}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadJobs}
-                    className="mt-2"
-                  >
-                    Retry
-                  </Button>
-                </div>
-              </div>
-            ) : jobs.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-muted-foreground">
-                  <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No jobs found</p>
-                  <p className="text-xs mt-1">Start a new job to see it here</p>
-                </div>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Status</TableHead>
-                    <TableHead>Job ID</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead>Start Time</TableHead>
-                    <TableHead>End Time</TableHead>
-                    <TableHead className="w-20">Duration</TableHead>
-                    <TableHead className="text-right">Calls</TableHead>
-                    <TableHead className="text-right">Progress</TableHead>
-                    <TableHead className="w-24">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jobs.map((job, index) => (
-                    <TableRow key={job.id} className="hover:bg-muted/50">
+        <div className="scroll-thin min-h-0 flex-1 overflow-auto">
+          {firstLoad ? (
+            <div className="space-y-3 p-5" aria-label="Loading runs">
+              {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : error ? (
+            <div className="p-5">
+              <InlineError onRetry={loadJobs}>{error === 'No jobs found' ? 'The runs could not be loaded.' : error}</InlineError>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="p-5">
+              <EmptyState icon="history" title="No runs yet" description="Run the journey once and it will be listed here." />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Run</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Finished</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead className="text-right">Records</TableHead>
+                  <TableHead className="w-36">Progress</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-px" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jobs.map((job, index) => {
+                  const j = job as any;
+                  const pct = Math.max(0, Math.min(100, Math.round(Number(j.progress) || 0)));
+                  return (
+                    <TableRow key={job.id} className="group">
+                      <TableCell>
+                        <span className="font-mono text-xs font-medium text-foreground">{job.id}</span>
+                        {index === 0 && <span className="ml-2 text-xs text-primary dark:text-brand-hi">Latest</span>}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{j.stageName || job.stageId}</TableCell>
+                      <TableCell className="num whitespace-nowrap">{formatTimestamp(j.startedAt) || 'Not started'}</TableCell>
+                      <TableCell className="num whitespace-nowrap text-muted-foreground">{formatTimestamp(j.completedAt) || 'Not finished'}</TableCell>
+                      <TableCell className="num whitespace-nowrap">{calculateDuration(j.startedAt, j.completedAt)}</TableCell>
+                      <TableCell className="num text-right">
+                        {(j.itemsProcessed || 0).toLocaleString()} <span className="text-muted-foreground">of {(j.itemsTotal || 0).toLocaleString()}</span>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(job.status)}
-                          <Badge variant="outline" className={`text-xs ${getStatusBadgeColor(job.status)}`}>
-                            {job.status}
-                          </Badge>
+                          <Meter value={pct} tone={job.status === 'failed' ? 'danger' : 'info'} label="Progress" />
+                          <span className="num w-9 shrink-0 text-right text-xs text-muted-foreground">{pct}%</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        <span className="font-medium">{job.id}</span>
-                        {index === 0 && (
-                          <Badge variant="secondary" className="ml-2 text-xs">Latest</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {job.stageName || job.stageId}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {formatTimestamp(job.startedAt)}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {formatTimestamp(job.completedAt)}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {calculateDuration(job.startedAt, job.completedAt)}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {job.itemsProcessed || 0} / {job.itemsTotal || 0}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">
-                          {job.progress}%
-                        </Badge>
-                      </TableCell>
+                      <TableCell><StatusPill status={job.status} /></TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0"
-                            title="View details in studio"
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            title="Show this run in the studio"
                             onClick={() => {
                               setIsOpen(false);
                               onViewJob?.(job.id);
                             }}
                           >
-                            <Eye className="h-3 w-3" />
+                            View
                           </Button>
                           {job.status === 'completed' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0"
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
                               onClick={() => onJobAction?.(job.id, 'repeat')}
-                              title="Repeat this job"
+                              title="Run again"
+                              aria-label="Run again"
                             >
-                              <Play className="h-3 w-3" />
+                              <Icon name="play" className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -331,4 +272,3 @@ export function StageJobsModal({
 }
 
 export default StageJobsModal;
-

@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Activity, CheckCircle2, XCircle, AlertTriangle, Clock,
-  Loader2, RefreshCw, HardDrive, BarChart3,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, KeyValues, Meter, StatusPill, SubHeading, TableShell, type Tone } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import apiClient from '@/services/apiClient';
 
 interface DiagData {
@@ -28,12 +24,19 @@ interface DiagData {
   last_sync_files_processed: number | null;
 }
 
-const HEALTH_CONFIG: Record<string, { color: string; icon: React.ElementType; label: string }> = {
-  healthy: { color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: CheckCircle2, label: 'Healthy' },
-  degraded: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: AlertTriangle, label: 'Degraded' },
-  disconnected: { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: XCircle, label: 'Disconnected' },
-  unknown: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Unknown' },
+const HEALTH_CONFIG: Record<string, { tone: Tone; label: string }> = {
+  healthy: { tone: 'success', label: 'Healthy' },
+  degraded: { tone: 'warning', label: 'Degraded' },
+  disconnected: { tone: 'danger', label: 'Disconnected' },
+  unknown: { tone: 'neutral', label: 'Unknown' },
 };
+
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
+const HEAD = 'whitespace-nowrap border-b border-border bg-surface-2 px-4 py-2.5 text-xs font-medium text-muted-foreground';
 
 export default function GoogleDriveDiagnostics() {
   const [data, setData] = useState<DiagData | null>(null);
@@ -53,139 +56,124 @@ export default function GoogleDriveDiagnostics() {
 
   useEffect(() => { fetchDiagnostics(); }, [fetchDiagnostics]);
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  }
-
-  if (!data) {
+  if (loading && !data) {
     return (
-      <div className="text-center py-10">
-        <p className="text-sm text-muted-foreground">Unable to load diagnostics</p>
-        <Button variant="outline" size="sm" className="mt-2" onClick={fetchDiagnostics}>
-          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry
-        </Button>
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-6 w-72 max-w-full" />
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }
 
+  if (!data) {
+    return <InlineError onRetry={fetchDiagnostics}>The diagnostics could not be loaded.</InlineError>;
+  }
+
   const health = HEALTH_CONFIG[data.connection_health] || HEALTH_CONFIG.unknown;
-  const HealthIcon = health.icon;
   const quotaPct = data.api_quota_daily_limit > 0 ? (data.api_quota_used / data.api_quota_daily_limit) * 100 : 0;
+  const recentSyncs = data.recent_syncs || [];
+  const recentErrors = data.recent_errors || [];
+  const fileTypes = Object.entries(data.files_by_type || {});
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Activity className="h-4 w-4" /> Diagnostics
-        </h3>
-        <Button variant="outline" size="sm" onClick={fetchDiagnostics}>
-          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+    <div className="space-y-8">
+      {/* Verdict */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="text-md font-medium text-foreground">Connection</h3>
+            <StatusPill tone={health.tone} variant="soft">{health.label}</StatusPill>
+          </div>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            <span className="num font-medium text-foreground">{data.total_files_discovered.toLocaleString()}</span> files found in{' '}
+            <span className="num font-medium text-foreground">{data.folders_configured}</span> {data.folders_configured === 1 ? 'folder' : 'folders'}
+            {data.last_sync_at && <>, last synced {formatDateTime(data.last_sync_at)}</>}.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchDiagnostics} disabled={loading}>
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="pt-4 pb-4 text-center">
-            <Badge className={health.color}>
-              <HealthIcon className="h-3 w-3 mr-1" /> {health.label}
-            </Badge>
-            <p className="text-[10px] text-muted-foreground mt-2">Connection Health</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4 text-center">
-            <div className="text-lg font-bold">{data.token_status === 'valid' ? 'Valid' : data.token_status}</div>
-            <p className="text-[10px] text-muted-foreground">Token Status</p>
-            {data.token_expires_at && (
-              <p className="text-[9px] text-muted-foreground mt-1">Expires: {new Date(data.token_expires_at).toLocaleString()}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4 text-center">
-            <div className="text-lg font-bold">{data.folders_configured}</div>
-            <p className="text-[10px] text-muted-foreground">Folders Configured</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4 text-center">
-            <div className="text-lg font-bold">{data.total_files_discovered.toLocaleString()}</div>
-            <p className="text-[10px] text-muted-foreground">Files Discovered</p>
-          </CardContent>
-        </Card>
+      {/* Facts and quota */}
+      <div className="grid gap-x-12 gap-y-8 xl:grid-cols-2">
+        <KeyValues
+          items={[
+            { label: 'Sign-in token', value: data.token_status === 'valid' ? 'Valid' : String(data.token_status || 'Unknown').replace(/_/g, ' ') },
+            { label: 'Token expires', value: data.token_expires_at ? formatDateTime(data.token_expires_at) : 'Not reported' },
+            { label: 'Folders watched', value: <span className="num">{data.folders_configured}</span> },
+            { label: 'Files found', value: <span className="num">{data.total_files_discovered.toLocaleString()}</span> },
+            ...(fileTypes.length > 0
+              ? [{ label: 'By type', value: <span className="num">{fileTypes.map(([type, n]) => `${n.toLocaleString()} ${type.toUpperCase()}`).join(' · ')}</span> }]
+              : []),
+          ]}
+        />
+
+        <div>
+          <SubHeading>Requests to Google today</SubHeading>
+          <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="num text-foreground">
+              <span className="font-medium">{data.api_quota_used.toLocaleString()}</span> of {data.api_quota_daily_limit.toLocaleString()}
+            </span>
+            <span className="num text-muted-foreground">{Math.round(quotaPct)}%</span>
+          </div>
+          <Meter value={data.api_quota_used} max={data.api_quota_daily_limit || 1} className="mt-2 h-1.5" label="Daily request allowance used" />
+          <p className="num mt-2 text-xs text-muted-foreground">{data.api_quota_remaining.toLocaleString()} requests left today</p>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" /> API Quota Usage
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <Progress value={quotaPct} className="flex-1 h-2" />
-            <span className="text-xs font-mono">{data.api_quota_used.toLocaleString()} / {data.api_quota_daily_limit.toLocaleString()}</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1">{data.api_quota_remaining.toLocaleString()} requests remaining today</p>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Recent Syncs</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[200px]">
-              {data.recent_syncs.length > 0 ? (
-                <table className="w-full text-xs">
-                  <thead><tr className="bg-muted/30">
-                    <th className="px-3 py-1.5 text-left font-medium">Time</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Files</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Duration</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Errors</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-border/50">
-                    {data.recent_syncs.map((sync, i) => (
-                      <tr key={i} className="hover:bg-muted/20">
-                        <td className="px-3 py-1.5">{new Date(sync.timestamp).toLocaleString()}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{sync.files_processed}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{(sync.duration_ms / 1000).toFixed(1)}s</td>
-                        <td className="px-3 py-1.5 text-right">
-                          {sync.errors > 0 ? <span className="text-red-400">{sync.errors}</span> : <span className="text-green-400">0</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-8">No sync history yet</p>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Recent Errors</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[200px]">
-              {data.recent_errors.length > 0 ? (
-                <div className="divide-y divide-border/50">
-                  {data.recent_errors.map((err, i) => (
-                    <div key={i} className="px-3 py-2">
-                      <p className="text-[10px] text-muted-foreground">{new Date(err.timestamp).toLocaleString()}</p>
-                      <p className="text-xs text-red-400 mt-0.5">{err.message}</p>
-                    </div>
+      {/* Syncs and errors */}
+      <div className="grid gap-x-12 gap-y-8 xl:grid-cols-2">
+        <div className="min-w-0">
+          <SubHeading>Recent syncs</SubHeading>
+          {recentSyncs.length > 0 ? (
+            <TableShell>
+              <table className="w-full min-w-[420px] border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th scope="col" className={cn(HEAD, 'text-left')}>When</th>
+                    <th scope="col" className={cn(HEAD, 'text-right')}>Files</th>
+                    <th scope="col" className={cn(HEAD, 'text-right')}>Took</th>
+                    <th scope="col" className={cn(HEAD, 'text-left')}>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentSyncs.map((sync, i) => (
+                    <tr key={i} className="rise border-b border-border last:border-b-0" style={{ '--i': i } as React.CSSProperties}>
+                      <td className="num whitespace-nowrap px-4 py-2.5 text-muted-foreground">{formatDateTime(sync.timestamp)}</td>
+                      <td className="num px-4 py-2.5 text-right text-foreground">{sync.files_processed}</td>
+                      <td className="num whitespace-nowrap px-4 py-2.5 text-right text-muted-foreground">{(sync.duration_ms / 1000).toFixed(1)} s</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        {sync.errors > 0
+                          ? <StatusPill tone="danger">{sync.errors} {sync.errors === 1 ? 'error' : 'errors'}</StatusPill>
+                          : <StatusPill tone="success">No errors</StatusPill>}
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-8">No errors recorded</p>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                </tbody>
+              </table>
+            </TableShell>
+          ) : (
+            <p className="border-t border-border py-4 text-sm text-muted-foreground">No syncs have run yet.</p>
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <SubHeading>Recent errors</SubHeading>
+          {recentErrors.length > 0 ? (
+            <ul className="border-t border-border">
+              {recentErrors.map((err, i) => (
+                <li key={i} className="rise border-b border-border py-3" style={{ '--i': i } as React.CSSProperties}>
+                  <p className="text-sm text-foreground">{err.message}</p>
+                  <p className="num mt-0.5 text-xs text-muted-foreground">{formatDateTime(err.timestamp)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="border-t border-border py-4 text-sm text-muted-foreground">No errors recorded.</p>
+          )}
+        </div>
       </div>
     </div>
   );

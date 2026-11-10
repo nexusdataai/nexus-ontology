@@ -1,23 +1,22 @@
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
 import type { StatTile, StatTone } from './types';
 
 interface StatsTilesProps {
   tiles: StatTile[];
 }
 
-const TONE_BG: Record<StatTone, string> = {
-  ok: 'bg-green-500/10 text-green-300 border-green-500/30',
-  warn: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-  err: 'bg-red-500/10 text-red-300 border-red-500/30',
-  muted: 'bg-muted/40 text-muted-foreground border-border/60',
+const TONE_DOT: Record<StatTone, string> = {
+  ok: 'bg-success',
+  warn: 'bg-warning',
+  err: 'bg-destructive',
+  muted: 'bg-border-strong',
 };
 
-const TONE_CHIP: Record<StatTone, string> = {
-  ok: 'bg-green-500/15 text-green-300',
-  warn: 'bg-amber-500/15 text-amber-300',
-  err: 'bg-red-500/15 text-red-300',
-  muted: 'bg-muted/40 text-muted-foreground',
+const TONE_TEXT: Record<StatTone, string> = {
+  ok: 'text-success',
+  warn: 'text-warning',
+  err: 'text-destructive',
+  muted: 'text-muted-foreground',
 };
 
 /**
@@ -31,36 +30,28 @@ const TONE_CHIP: Record<StatTone, string> = {
 export function StatsTiles({ tiles }: StatsTilesProps) {
   if (!tiles.length) return null;
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3 xl:grid-cols-6">
       {tiles.map((t) => {
         const tone = t.tone || 'muted';
         return (
-          <Card key={t.title} className={cn('border', TONE_BG[tone])}>
-            <CardContent className="p-3 space-y-1">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.title}</div>
-              <div className="text-xl font-semibold leading-none">{t.value}</div>
-              {t.hint && (
-                <div className="text-[10px] text-muted-foreground">{t.hint}</div>
-              )}
-              {t.breakdown && t.breakdown.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {t.breakdown.map((b) => (
-                    <span
-                      key={b.label}
-                      className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]',
-                        TONE_CHIP[b.tone || 'muted'],
-                      )}
-                      title={`${b.label}: ${b.value}`}
-                    >
-                      <span className="font-mono font-medium">{b.value}</span>
-                      <span className="opacity-80">{b.label}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div key={t.title} className="min-w-0 bg-card p-3.5">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', TONE_DOT[tone])} aria-hidden="true" />
+              <span className="truncate">{t.title}</span>
+            </div>
+            <div className="num mt-1 text-xl font-medium leading-7 text-foreground">{t.value}</div>
+            {t.hint && <div className="text-xs text-muted-foreground">{t.hint}</div>}
+            {t.breakdown && t.breakdown.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs">
+                {t.breakdown.map((b) => (
+                  <span key={b.label} className="inline-flex items-baseline gap-1" title={`${b.label}: ${b.value}`}>
+                    <span className={cn('num font-medium', TONE_TEXT[b.tone || 'muted'])}>{b.value}</span>
+                    <span className="text-muted-foreground">{b.label}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

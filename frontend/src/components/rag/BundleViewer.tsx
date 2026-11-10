@@ -46,11 +46,11 @@ const BundleViewer: React.FC = () => {
           {stats && (
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md border p-3">
-                <div className="text-2xl font-bold">{stats.total_embeddings}</div>
+                <div className="text-2xl font-semibold">{stats.total_embeddings}</div>
                 <div className="text-muted-foreground">Total Embeddings</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-2xl font-bold">{stats.onto_documents}</div>
+                <div className="text-2xl font-semibold">{stats.onto_documents}</div>
                 <div className="text-muted-foreground">Onto Documents</div>
               </div>
               {Object.entries(stats.by_content_type || {}).map(([type, count]) => (

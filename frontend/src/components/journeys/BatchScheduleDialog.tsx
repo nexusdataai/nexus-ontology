@@ -8,11 +8,10 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Alert, AlertDescription } from '../ui/alert';
-import { Loader2, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Icon } from '../ds/Icon';
+import { Field, InlineError } from '../ds/kit';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
 export interface BatchScheduleDialogProps {
@@ -135,31 +134,29 @@ export function BatchScheduleDialog({
 
   const selectedPreset = INTERVAL_PRESETS.find(p => p.value === intervalMinutes);
   const nextRunPreview = selectedPreset
-    ? new Date(Date.now() + selectedPreset.minutes * 60 * 1000).toLocaleTimeString()
+    ? new Date(Date.now() + selectedPreset.minutes * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
+  // An existing schedule may carry an interval that is not one of the presets.
+  const customInterval = !selectedPreset && intervalMinutes ? intervalMinutes : null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            {isEdit ? 'Edit Batch Schedule' : 'Create Batch Schedule'}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit schedule' : 'Schedule this journey'}</DialogTitle>
           <DialogDescription>
-            {journeyName ? `Schedule periodic execution for "${journeyName}"` : 'Schedule periodic job execution'}
+            {journeyName ? `Run "${journeyName}" automatically at a fixed interval.` : 'Run the journey automatically at a fixed interval.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-4">
-          {/* Interval Preset */}
-          <div className="space-y-2">
-            <Label>Run Interval</Label>
+        <div className="space-y-5 py-2">
+          <Field label="Run interval" htmlFor="schedule-interval">
             <Select value={intervalMinutes} onValueChange={setIntervalMinutes}>
-              <SelectTrigger>
+              <SelectTrigger id="schedule-interval">
                 <SelectValue placeholder="Select interval" />
               </SelectTrigger>
               <SelectContent>
+                {customInterval && <SelectItem value={customInterval}>Every {customInterval} minutes</SelectItem>}
                 {INTERVAL_PRESETS.map((preset) => (
                   <SelectItem key={preset.value} value={preset.value}>
                     {preset.label}
@@ -167,62 +164,49 @@ export function BatchScheduleDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* Timezone */}
-          <div className="space-y-2">
-            <Label>Timezone</Label>
+          <Field label="Time zone" htmlFor="schedule-timezone">
             <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select timezone" />
+              <SelectTrigger id="schedule-timezone">
+                <SelectValue placeholder="Select time zone" />
               </SelectTrigger>
               <SelectContent>
+                {!TIMEZONES.includes(timezone) && <SelectItem value={timezone}>{timezone}</SelectItem>}
                 {TIMEZONES.map((tz) => (
                   <SelectItem key={tz} value={tz}>
-                    {tz}
+                    {tz.replace(/_/g, ' ')}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+            <label htmlFor="schedule-enabled" className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">Schedule is on</span>
+              <span className="block text-xs text-muted-foreground">
+                {enabled && nextRunPreview ? `The first run starts at about ${nextRunPreview}.` : 'Saved, but no runs start until you turn it on.'}
+              </span>
+            </label>
+            <Switch id="schedule-enabled" checked={enabled} onCheckedChange={setEnabled} />
           </div>
 
-          {/* Enable / Disable */}
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enabled</Label>
-              <p className="text-xs text-muted-foreground">Start scheduling immediately</p>
-            </div>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
-          </div>
-
-          {/* Next run preview */}
-          {enabled && nextRunPreview && (
-            <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>First run approximately at {nextRunPreview}</span>
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <InlineError>{error}</InlineError>}
         </div>
 
-        <DialogFooter className="flex gap-2">
+        <DialogFooter className="gap-2 sm:gap-2">
           {isEdit && (
-            <Button variant="destructive" onClick={handleDelete} disabled={saving} className="mr-auto">
-              Delete
+            <Button variant="ghost" onClick={handleDelete} disabled={saving} className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:mr-auto">
+              Delete schedule
             </Button>
           )}
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? 'Update' : 'Create Schedule'}
+            {saving && <Icon name="spinner" className="animate-spin" />}
+            {isEdit ? 'Save schedule' : 'Create schedule'}
           </Button>
         </DialogFooter>
       </DialogContent>

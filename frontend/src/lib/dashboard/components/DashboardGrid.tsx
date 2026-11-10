@@ -77,9 +77,36 @@ export function DashboardGrid({
     );
   }
 
+  // Phones: one column, panels in reading order. Drag and resize need the grid.
+  const stacked = width > 0 && width < 640;
+  const ordered = stacked
+    ? [...panels].sort((a, b) => a.gridPos.y - b.gridPos.y || a.gridPos.x - b.gridPos.x)
+    : panels;
+
   return (
     <div ref={containerRef} style={{ minHeight: 100 }}>
-      {width > 0 && (
+      {stacked && (
+        <div className="space-y-2">
+          {ordered.map((panel) => {
+            const height = Math.max(180, panel.gridPos.h * (ROW_HEIGHT + 8));
+            return (
+              <div key={String(panel.id)} style={{ height }}>
+                <PanelChrome
+                  panel={panel}
+                  width={width}
+                  height={height}
+                  timeRange={timeRange}
+                  isEditing={isEditing}
+                  onEdit={() => onEditPanel(panel.id)}
+                  onDuplicate={() => onDuplicatePanel(panel.id)}
+                  onRemove={() => onRemovePanel(panel.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {width > 0 && !stacked && (
         <ResponsiveGridLayout
           className="layout"
           layouts={layouts}

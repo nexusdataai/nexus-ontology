@@ -29,7 +29,7 @@ export default function DetailedAnalysis() {
   }, []);
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
+  if (error) return <div className="text-destructive p-4">{error}</div>;
 
   return (
     <div className="space-y-6">
@@ -53,14 +53,14 @@ export default function DetailedAnalysis() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">High Confidence (90%+)</span>
-              <span className="text-green-600 dark:text-green-400 font-semibold">4 components</span>
+              <span className="text-success dark:text-success font-semibold">4 components</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Medium Confidence (80%+)</span>
-              <span className="text-yellow-600 dark:text-yellow-400 font-semibold">1 component</span>
+              <span className="text-warning dark:text-warning font-semibold">1 component</span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '80%' }}></div>
+              <div className="bg-success h-2 rounded-full" style={{ width: '80%' }}></div>
             </div>
           </div>
         </DashboardCard>
@@ -69,15 +69,15 @@ export default function DetailedAnalysis() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">TMF632 Party</span>
-              <span className="text-blue-600 dark:text-blue-400 font-semibold">Complete</span>
+              <span className="text-primary dark:text-primary font-semibold">Complete</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">TMF629 Customer</span>
-              <span className="text-blue-600 dark:text-blue-400 font-semibold">Complete</span>
+              <span className="text-primary dark:text-primary font-semibold">Complete</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">TMF670 Bill Mgmt</span>
-              <span className="text-green-600 dark:text-green-400 font-semibold">Mapped</span>
+              <span className="text-success dark:text-success font-semibold">Mapped</span>
             </div>
           </div>
         </DashboardCard>
@@ -86,14 +86,14 @@ export default function DetailedAnalysis() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Ready for Migration</span>
-              <span className="text-green-600 dark:text-green-400 font-semibold">90%</span>
+              <span className="text-success dark:text-success font-semibold">90%</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Manual Review Needed</span>
-              <span className="text-yellow-600 dark:text-yellow-400 font-semibold">10%</span>
+              <span className="text-warning dark:text-warning font-semibold">10%</span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full" style={{ width: '90%' }}></div>
+              <div className="bg-gradient-to-r from-success to-primary h-2 rounded-full" style={{ width: '90%' }}></div>
             </div>
           </div>
         </DashboardCard>

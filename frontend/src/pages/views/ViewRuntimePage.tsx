@@ -58,9 +58,9 @@ export default function ViewRuntimePage() {
             </Button>
             <h1 className="text-sm font-medium truncate">{view.name}</h1>
             {view.version > 0 && (
-              <Badge variant="outline" className="text-[9px]">v{view.version}</Badge>
+              <Badge variant="outline" className="text-xs">v{view.version}</Badge>
             )}
-            <span className="text-[10px] text-muted-foreground">{view.tabs.length} tabs</span>
+            <span className="text-xs text-muted-foreground">{view.tabs.length} tabs</span>
           </div>
 
           <div className="flex items-center gap-2">

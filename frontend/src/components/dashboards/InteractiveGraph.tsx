@@ -183,7 +183,7 @@ export default function InteractiveGraph() {
   }, [data, filter, theme]);
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
+  if (error) return <div className="text-destructive p-4">{error}</div>;
   if (!data) return <div>Error: Invalid or missing graph data.</div>;
 
   // Filtered nodes/links for summary
@@ -204,23 +204,23 @@ export default function InteractiveGraph() {
           <h4 className="text-foreground font-semibold mb-3 text-base">Legend</h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full border border-border"></div>
+              <div className="w-3 h-3 bg-primary rounded-full border border-border"></div>
               <span className="text-muted-foreground">Table</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-amber-500 rounded-full border border-border"></div>
+              <div className="w-3 h-3 bg-warning rounded-full border border-border"></div>
               <span className="text-muted-foreground">Procedure</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full border border-border"></div>
+              <div className="w-3 h-3 bg-success rounded-full border border-border"></div>
               <span className="text-muted-foreground">TMF Component</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-slate-500 rounded-full border border-border"></div>
+              <div className="w-3 h-3 bg-border-strong rounded-full border border-border"></div>
               <span className="text-muted-foreground">ODA Endpoint</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full border border-border"></div>
+              <div className="w-3 h-3 bg-destructive rounded-full border border-border"></div>
               <span className="text-muted-foreground">Relationship</span>
             </div>
             <div className="border-t border-border pt-2 mt-2">
@@ -245,8 +245,8 @@ export default function InteractiveGraph() {
             <div
               className={`fixed z-30 rounded-lg shadow-lg border text-sm max-h-96 overflow-hidden ${
                 theme === 'dark' 
-                  ? 'bg-slate-900 text-white border-slate-700' 
-                  : 'bg-white text-gray-900 border-gray-200'
+                  ? 'bg-card text-white border-border' 
+                  : 'bg-white text-foreground border-border'
               }`}
               style={{ 
                 left: Math.min(tooltip.x + 16, window.innerWidth - 420), 
@@ -257,17 +257,17 @@ export default function InteractiveGraph() {
             >
               {/* Header with close button */}
               <div className={`flex items-center justify-between px-4 py-3 border-b ${
-                theme === 'dark' ? 'border-slate-700' : 'border-gray-200'
+                theme === 'dark' ? 'border-border' : 'border-border'
               }`}>
                 <div className={`font-semibold text-base ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  theme === 'dark' ? 'text-white' : 'text-foreground'
                 }`}>{tooltip.node.label}</div>
                 <button 
                   onClick={() => setTooltip(null)}
                   className={`transition-colors p-1 rounded ${
                     theme === 'dark' 
-                      ? 'text-slate-400 hover:text-white' 
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'text-muted-foreground hover:text-white' 
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   ✕
@@ -277,23 +277,23 @@ export default function InteractiveGraph() {
               {/* Scrollable content */}
               <div className="px-4 py-3 max-h-80 overflow-y-auto">
                 <div className={`mb-3 text-xs ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                 }`}>Type: {tooltip.node.type} | ID: {tooltip.node.id}</div>
                 
                 {/* Node Properties */}
                 <div className="mb-4">
                   <div className={`font-semibold text-xs mb-2 ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    theme === 'dark' ? 'text-primary' : 'text-primary'
                   }`}>Properties:</div>
                   <div className="space-y-1">
                     {Object.entries(tooltip.node).map(([k, v]) => (
                       k !== 'label' && k !== 'id' && k !== 'type' && (
                         <div key={k} className="flex justify-between gap-2 text-xs">
                           <span className={`font-medium ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                            theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                           }`}>{k}:</span> 
                           <span className={`break-words ${
-                            theme === 'dark' ? 'text-slate-200' : 'text-gray-800'
+                            theme === 'dark' ? 'text-foreground' : 'text-foreground'
                           }`}>{String(v)}</span>
                         </div>
                       )
@@ -305,23 +305,23 @@ export default function InteractiveGraph() {
                 {data && (
                   <div className="mt-4">
                     <div className={`font-semibold text-xs mb-2 ${
-                      theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      theme === 'dark' ? 'text-success' : 'text-success'
                     }`}>Mapped TMF Fields:</div>
                     {data.links.filter(l => l.type === 'tmf_mapping' && l.source === tooltip.node.id).length === 0 ? (
                       <div className={`text-xs ${
-                        theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                        theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                       }`}>No TMF mapping</div>
                     ) : (
                       <div className="space-y-2">
                         {data.links.filter(l => l.type === 'tmf_mapping' && l.source === tooltip.node.id).map((l, idx) => (
                           <div key={idx} className={`rounded p-2 ${
-                            theme === 'dark' ? 'bg-slate-800' : 'bg-gray-100'
+                            theme === 'dark' ? 'bg-surface-3' : 'bg-surface-2'
                           }`}>
                             <span className={`font-medium text-xs ${
-                              theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
+                              theme === 'dark' ? 'text-success' : 'text-success'
                             }`}>{l.target}</span>
                             {l.title && <div className={`text-xs mt-1 ${
-                              theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                              theme === 'dark' ? 'text-muted-foreground' : 'text-muted-foreground'
                             }`}>({l.title})</div>}
                           </div>
                         ))}

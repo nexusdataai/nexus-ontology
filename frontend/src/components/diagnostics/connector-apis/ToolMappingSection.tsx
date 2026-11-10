@@ -34,11 +34,11 @@ export default function ToolMappingSection({ report }: Props) {
       />
 
       {report.orphan_tools.length > 0 && (
-        <div className="border-l-2 border-red-500/40 pl-3 py-1 text-xs">
-          <div className="text-red-300 mb-1">Write tools without connector_api binding ({report.orphan_tools.length}):</div>
+        <div className="border-l-2 border-destructive/40 pl-3 py-1 text-xs">
+          <div className="text-destructive mb-1">Write tools without connector_api binding ({report.orphan_tools.length}):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.orphan_tools.map(t => (
-              <span key={t.tool_id} className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 border border-red-500/30 font-mono text-[10px]">
+              <span key={t.tool_id} className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/30 font-mono text-xs">
                 {t.tool_id} ({t.risk_level})
               </span>
             ))}
@@ -47,11 +47,11 @@ export default function ToolMappingSection({ report }: Props) {
       )}
 
       {report.dangling_tools.length > 0 && (
-        <div className="border-l-2 border-red-500/40 pl-3 py-1 text-xs">
-          <div className="text-red-300 mb-1">Tools binding to unregistered connector_api ({report.dangling_tools.length}):</div>
+        <div className="border-l-2 border-destructive/40 pl-3 py-1 text-xs">
+          <div className="text-destructive mb-1">Tools binding to unregistered connector_api ({report.dangling_tools.length}):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.dangling_tools.map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 border border-red-500/30 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/30 font-mono text-xs">{t}</span>
             ))}
           </div>
         </div>
@@ -59,9 +59,9 @@ export default function ToolMappingSection({ report }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">By API ({apiEntries.length})</div>
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">By API ({apiEntries.length})</div>
           <div className="border rounded-md max-h-72 overflow-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/40">
                 <tr className="text-left">
                   <th className="px-2 py-1">api_id</th>
@@ -74,11 +74,11 @@ export default function ToolMappingSection({ report }: Props) {
                     <td className="px-2 py-1 font-mono">{apiId}</td>
                     <td className="px-2 py-1">
                       {callers.length === 0 ? (
-                        <Badge variant="outline" className="text-[9px] text-amber-300 border-amber-500/30">orphan</Badge>
+                        <Badge variant="outline" className="text-xs text-warning border-warning/30">orphan</Badge>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {callers.map(c => (
-                            <span key={c} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{c}</span>
+                            <span key={c} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-xs">{c}</span>
                           ))}
                         </div>
                       )}
@@ -91,9 +91,9 @@ export default function ToolMappingSection({ report }: Props) {
         </div>
 
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">By Tool ({toolRows.length})</div>
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">By Tool ({toolRows.length})</div>
           <div className="border rounded-md max-h-72 overflow-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/40">
                 <tr className="text-left">
                   <th className="px-2 py-1">tool_id</th>
@@ -106,11 +106,11 @@ export default function ToolMappingSection({ report }: Props) {
                   <tr key={r.tool_id} className="border-t border-border/40">
                     <td className="px-2 py-1 font-mono">{r.tool_id}</td>
                     <td className="px-2 py-1 text-muted-foreground">{r.risk_level}</td>
-                    <td className="px-2 py-1 font-mono text-[10px]">
+                    <td className="px-2 py-1 font-mono text-xs">
                       {r.binding_status === 'orphan' ? (
-                        <Badge variant="outline" className="text-[9px] text-red-300 border-red-500/30">no binding</Badge>
+                        <Badge variant="outline" className="text-xs text-destructive border-destructive/30">no binding</Badge>
                       ) : r.binding_status === 'dangling' ? (
-                        <Badge variant="outline" className="text-[9px] text-red-300 border-red-500/30">{r.connector_api} (unknown)</Badge>
+                        <Badge variant="outline" className="text-xs text-destructive border-destructive/30">{r.connector_api} (unknown)</Badge>
                       ) : r.connector_api ? (
                         <span>{r.connector_api}</span>
                       ) : (
@@ -129,9 +129,9 @@ export default function ToolMappingSection({ report }: Props) {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
+  const cls = tone === 'green' ? 'text-success'
+    : tone === 'amber' ? 'text-warning'
+    : tone === 'red' ? 'text-destructive'
     : '';
   return (
     <div>

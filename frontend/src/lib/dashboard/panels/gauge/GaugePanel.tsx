@@ -1,11 +1,10 @@
 import type { PanelProps } from '../types';
+import { PanelState } from '../_shared';
 
 export function GaugePanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 
@@ -18,13 +17,13 @@ export function GaugePanel({ data, options, width, height, loading }: PanelProps
   const unit = (options.unit as string) || '';
 
   const thresholds = (options.thresholds as Array<{ value: number; color: string }>) || [
-    { value: 0, color: '#22c55e' },
-    { value: 70, color: '#f59e0b' },
-    { value: 90, color: '#ef4444' },
+    { value: 0, color: 'hsl(var(--success))' },
+    { value: 70, color: 'hsl(var(--warning))' },
+    { value: 90, color: 'hsl(var(--destructive))' },
   ];
 
   const pct = Math.min(Math.max((rawValue - min) / (max - min), 0), 1);
-  let color = thresholds[0]?.color || '#22c55e';
+  let color = thresholds[0]?.color || 'hsl(var(--success))';
   for (const t of thresholds) {
     if (rawValue >= t.value) color = t.color;
   }
@@ -44,11 +43,11 @@ export function GaugePanel({ data, options, width, height, loading }: PanelProps
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <path d={bgPath} fill="none" stroke="currentColor" strokeWidth={8} opacity={0.1} strokeLinecap="round" />
-        <path d={valPath} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" />
+        <path d={bgPath} fill="none" stroke="hsl(var(--surface-3))" strokeWidth={8} strokeLinecap="round" />
+        <path d={valPath} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" pathLength={100} strokeDasharray={100} style={{ ['--arc-len' as any]: 100, animation: 'draw-arc 900ms cubic-bezier(0.22, 1, 0.36, 1) both' }} />
       </svg>
       <div className="text-center -mt-4">
-        <span className="text-2xl font-bold">{rawValue.toFixed(1)}</span>
+        <span className="num text-2xl font-medium tracking-tight text-foreground">{rawValue.toFixed(1)}</span>
         {unit && <span className="text-sm text-muted-foreground ml-1">{unit}</span>}
       </div>
     </div>

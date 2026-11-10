@@ -25,16 +25,16 @@ export default function SummarySection({ summary }: Props) {
       <div className="flex items-center gap-2 flex-wrap text-xs">
         <span className="text-muted-foreground">Target system:</span>
         {Object.entries(summary.by_target_system).map(([k, v]) => (
-          <Badge key={k} variant="outline" className="text-[10px]">{v} {k}</Badge>
+          <Badge key={k} variant="outline" className="text-xs">{v} {k}</Badge>
         ))}
       </div>
       <div className="flex items-center gap-2 flex-wrap text-xs">
         <span className="text-muted-foreground">Risk level:</span>
         {Object.entries(summary.by_risk_level).map(([k, v]) => (
-          <Badge key={k} variant="outline" className={`text-[10px] ${
-            k === 'high_risk_write' ? 'text-red-300 border-red-500/30'
-            : k === 'low_risk_write' ? 'text-amber-300 border-amber-500/30'
-            : 'text-green-300 border-green-500/30'
+          <Badge key={k} variant="outline" className={`text-xs ${
+            k === 'high_risk_write' ? 'text-destructive border-destructive/30'
+            : k === 'low_risk_write' ? 'text-warning border-warning/30'
+            : 'text-success border-success/30'
           }`}>{v} {k}</Badge>
         ))}
       </div>
@@ -43,9 +43,9 @@ export default function SummarySection({ summary }: Props) {
 }
 
 function Kpi({ label, value, tone }: { label: string; value: number | string; tone?: 'green' | 'amber' | 'red' }) {
-  const cls = tone === 'green' ? 'text-green-300'
-    : tone === 'amber' ? 'text-amber-300'
-    : tone === 'red' ? 'text-red-300'
+  const cls = tone === 'green' ? 'text-success'
+    : tone === 'amber' ? 'text-warning'
+    : tone === 'red' ? 'text-destructive'
     : '';
   return (
     <div>

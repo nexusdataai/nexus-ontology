@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Loader2, Play, XCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { CodeBlock, InlineError, StatusPill, SubHeading } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import { toolBuilderService, type ToolTestResponse } from '@/services/toolBuilderService';
 
 interface Props {
@@ -25,6 +29,12 @@ function defaultPayload(parameters: Record<string, unknown>): string {
   return JSON.stringify(out, null, 2);
 }
 
+const LEVEL_TONE: Record<string, string> = {
+  error: 'text-destructive',
+  warning: 'text-warning',
+};
+
+/** Run the saved version of a tool with a JSON payload and read its result and logs. */
 export default function TestRunner({ toolId, parameters, unsaved }: Props) {
   const initial = useMemo(() => defaultPayload(parameters), [parameters]);
   const [paramsJson, setParamsJson] = useState<string>(initial);
@@ -49,99 +59,93 @@ export default function TestRunner({ toolId, parameters, unsaved }: Props) {
   };
 
   if (!toolId) {
-    return (
-      <div className="text-xs text-muted-foreground italic">
-        Save the tool first; testing dispatches the persisted version.
-      </div>
-    );
+    return <EmptyState icon="flask" title="Save the tool to test it" description="A test runs the saved version of the tool, so it needs to be created first." />;
   }
 
-  return (
-    <div className="space-y-3 text-sm">
-      {unsaved && (
-        <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1.5">
-          You have unsaved changes. The Test endpoint dispatches the LAST SAVED version.
-        </div>
-      )}
+  const logs = result?.logs || [];
 
-      <div>
-        <div className="text-[10px] uppercase text-muted-foreground mb-1">Params (JSON)</div>
-        <textarea
+  return (
+    <div className="grid gap-x-8 gap-y-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <h3 className="text-md font-medium text-foreground">Test run</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">Runs the saved version against live data with the payload below.</p>
+
+        {unsaved && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2.5 text-sm text-foreground">
+            <Icon name="alert-triangle" className="mt-0.5 shrink-0 text-warning" />
+            You have unsaved changes. The test runs the last saved version.
+          </p>
+        )}
+
+        <label htmlFor="tool-test-payload" className="mb-1.5 mt-4 block text-xs font-medium text-muted-foreground">Payload (JSON)</label>
+        <Textarea
+          id="tool-test-payload"
           value={paramsJson}
           onChange={(e) => setParamsJson(e.target.value)}
           spellCheck={false}
-          className="w-full h-32 text-[11px] font-mono bg-background/50 border rounded p-2"
+          className="min-h-[180px] resize-y font-mono text-xs leading-5"
         />
+
+        <Button onClick={handleRun} disabled={running} className="mt-3">
+          <Icon name={running ? 'spinner' : 'play'} className={cn(running && 'animate-spin')} />
+          {running ? 'Running' : 'Run test'}
+        </Button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button onClick={handleRun} disabled={running} size="sm">
-          {running ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1" />}
-          Run
-        </Button>
+      <div className="min-w-0 space-y-5">
+        {error && <InlineError>{error}</InlineError>}
+
+        {running && (
+          <div className="space-y-3" aria-busy="true"><Skeleton className="h-5 w-40" /><Skeleton className="h-36 w-full" /></div>
+        )}
+
+        {!running && !result && !error && (
+          <p className="rounded-xl border border-dashed border-border-strong px-5 py-10 text-center text-sm text-muted-foreground">The result and the log lines the tool writes appear here.</p>
+        )}
+
         {result && (
-          <Badge variant="outline" className={`text-[10px] ${
-            result.status === 'pass'
-              ? 'text-green-300 border-green-500/30 bg-green-500/10'
-              : 'text-red-300 border-red-500/30 bg-red-500/10'
-          }`}>
-            {result.status === 'pass'
-              ? <CheckCircle2 className="h-3 w-3 mr-1 inline" />
-              : <XCircle className="h-3 w-3 mr-1 inline" />}
-            {result.status} | {result.duration_ms}ms
-          </Badge>
+          <div className="animate-fade-up space-y-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusPill status={result.status} variant="soft">{result.status === 'pass' ? 'Passed' : 'Failed'}</StatusPill>
+              <span className="num text-sm text-muted-foreground">{result.duration_ms} ms</span>
+            </div>
+
+            {result.status === 'fail' && result.error && (
+              <InlineError><span className="whitespace-pre-wrap break-words font-mono text-xs">{result.error}</span></InlineError>
+            )}
+
+            <section>
+              <SubHeading>Result</SubHeading>
+              <CodeBlock maxHeight={300}>
+                {result.result === undefined || result.result === null
+                  ? 'No result returned'
+                  : JSON.stringify(result.result, null, 2)}
+              </CodeBlock>
+            </section>
+
+            <section>
+              <SubHeading action={<span className="num text-xs text-muted-foreground">{logs.length}</span>}>Logs</SubHeading>
+              {logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">The tool wrote no log lines.</p>
+              ) : (
+                <ol className="scroll-thin max-h-72 divide-y divide-border overflow-auto rounded-lg border border-border">
+                  {logs.map((l, i) => (
+                    <li key={i} className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 px-3 py-2 text-xs">
+                      <span className={cn('font-medium first-letter:uppercase', LEVEL_TONE[l.level] || 'text-muted-foreground')}>{l.level}</span>
+                      <span className="min-w-0 break-words text-foreground">
+                        {l.msg}
+                        {l.kw && Object.keys(l.kw).length > 0 && (
+                          <span className="mt-0.5 block font-mono text-muted-foreground">{JSON.stringify(l.kw)}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          </div>
         )}
       </div>
-
-      {error && (
-        <div className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1.5">
-          {error}
-        </div>
-      )}
-
-      {result && result.status === 'fail' && result.error && (
-        <div className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1.5 font-mono whitespace-pre-wrap">
-          {result.error}
-        </div>
-      )}
-
-      {result && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div>
-            <div className="text-[10px] uppercase text-muted-foreground mb-1">Result</div>
-            <pre className="text-[10px] font-mono bg-muted/20 border rounded p-2 max-h-72 overflow-auto">
-              {result.result === undefined || result.result === null
-                ? '(none)'
-                : JSON.stringify(result.result, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-muted-foreground mb-1">
-              Logs ({result.logs?.length ?? 0})
-            </div>
-            <div className="text-[10px] font-mono bg-muted/20 border rounded p-2 max-h-72 overflow-auto space-y-0.5">
-              {(result.logs || []).length === 0 && (
-                <div className="text-muted-foreground italic">no log entries</div>
-              )}
-              {(result.logs || []).map((l, i) => (
-                <div key={i} className="leading-tight">
-                  <span className={`mr-2 font-semibold ${
-                    l.level === 'error' ? 'text-red-300'
-                    : l.level === 'warning' ? 'text-amber-300'
-                    : 'text-muted-foreground'
-                  }`}>
-                    {l.level.toUpperCase()}
-                  </span>
-                  <span>{l.msg}</span>
-                  {l.kw && Object.keys(l.kw).length > 0 && (
-                    <span className="text-muted-foreground"> {JSON.stringify(l.kw)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ describe('fdwService', () => {
 
       const result = await fdwService.getHealth();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/health/fdw');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/health/fdw');
       expect(result).toEqual(mockResponse);
     });
   });

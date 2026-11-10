@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  AlertTriangle, BookOpen, CheckCircle2, FileText, Loader2, Play,
-  RefreshCw, Search, ShieldCheck, Wrench,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, InlineError, KeyValues, SearchInput, StatusPill, SubHeading, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
 import {
   reactToolsDiagnosticsService,
   type RegistryReport,
@@ -15,28 +13,29 @@ import {
   type CanaryResult,
 } from '@/services/reactToolsDiagnosticsService';
 import { cn } from '@/lib/utils';
+import { RiskPill, ToolSystem, riskLabel } from '@/components/reasoning/toolMeta';
 import { RegistryTable } from './RegistryTable';
-import { StatsTiles } from './StatsTiles';
 import { FacetFilters } from './FacetFilters';
 import { DetailDrawer } from './DetailDrawer';
 import { ExecuteDrawer, adapterFromTool } from './ExecuteDrawer';
 import type {
-  RegistryColumn, FacetDescriptor, FacetState, StatTile, ExecuteAdapter,
+  RegistryColumn, FacetDescriptor, FacetState, ExecuteAdapter,
 } from './types';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const RISK_PILL: Record<string, string> = {
-  read_only: 'bg-green-500/15 text-green-300',
-  low_risk_write: 'bg-amber-500/15 text-amber-300',
-  high_risk_write: 'bg-red-500/15 text-red-300',
-};
-
 function riskTone(risk: string): 'ok' | 'warn' | 'err' {
   return risk === 'read_only' ? 'ok' : risk === 'high_risk_write' ? 'err' : 'warn';
 }
+
+const sentence = (s: string) => {
+  const t = String(s || '').replace(/[_-]+/g, ' ').trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+};
+
+const CHECK_LABEL: Record<string, string> = { pass: 'Passed', fail: 'Failed', skip: 'Skipped' };
 
 function toolKindOf(row: RegistryToolRow): string {
   // Mirror Tool.effective_tool_kind() server-side heuristic so the UI
@@ -102,6 +101,8 @@ export default function ToolsRegistryBrowser() {
   const [executeAdapter, setExecuteAdapter] = useState<ExecuteAdapter | null>(null);
   const [canaryRunning, setCanaryRunning] = useState(false);
   const [canaryByTool, setCanaryByTool] = useState<Record<string, CanaryResult>>({});
+  // Local view state: the filter sheet on small screens.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -164,175 +165,152 @@ export default function ToolsRegistryBrowser() {
     const byKind = bucketize(rows, (r) => toolKindOf(r));
     return [
       {
-        key: 'group',
-        label: 'Group',
-        options: Object.keys(byGroup).sort()
-          .map((k) => ({ value: k, count: byGroup[k] })),
-      },
-      {
         key: 'risk_level',
         label: 'Risk',
         options: ['read_only', 'low_risk_write', 'high_risk_write']
           .filter((k) => byRisk[k])
-          .map((k) => ({ value: k, label: k.replace(/_/g, ' '), count: byRisk[k] })),
+          .map((k) => ({ value: k, label: riskLabel(k), count: byRisk[k] })),
+      },
+      {
+        key: 'group',
+        label: 'Group',
+        options: Object.keys(byGroup).sort()
+          .map((k) => ({ value: k, label: sentence(k), count: byGroup[k] })),
       },
       {
         key: 'tool_kind',
         label: 'Kind',
         options: ['read', 'analyze', 'decide', 'mutate', 'notify']
           .filter((k) => byKind[k])
-          .map((k) => ({ value: k, count: byKind[k] })),
+          .map((k) => ({ value: k, label: sentence(k), count: byKind[k] })),
       },
       {
         key: 'yaml_present',
-        label: 'YAML doc',
+        label: 'Documentation',
         options: [
-          { value: 'yes', label: 'present', count: rows.filter((r) => r.yaml_present).length },
-          { value: 'no', label: 'missing', count: rows.filter((r) => !r.yaml_present).length },
+          { value: 'yes', label: 'Documented', count: rows.filter((r) => r.yaml_present).length },
+          { value: 'no', label: 'Missing', count: rows.filter((r) => !r.yaml_present).length },
         ],
       },
       {
         key: 'has_canary',
-        label: 'Canary',
+        label: 'Health check',
         options: [
-          { value: 'yes', label: 'has canary', count: rows.filter((r) => r.has_canary).length },
-          { value: 'no', label: 'no canary', count: rows.filter((r) => !r.has_canary).length },
+          { value: 'yes', label: 'Set up', count: rows.filter((r) => r.has_canary).length },
+          { value: 'no', label: 'Not set up', count: rows.filter((r) => !r.has_canary).length },
         ],
       },
       {
         key: 'requires_approval',
         label: 'Approval',
         options: [
-          { value: 'yes', label: 'required', count: rows.filter((r) => r.requires_approval).length },
-          { value: 'no', label: 'auto', count: rows.filter((r) => !r.requires_approval).length },
+          { value: 'yes', label: 'Required', count: rows.filter((r) => r.requires_approval).length },
+          { value: 'no', label: 'Not needed', count: rows.filter((r) => !r.requires_approval).length },
         ],
       },
     ];
   }, [rows]);
 
-  const tiles = useMemo<StatTile[]>(() => {
-    if (!report) return [];
-    const byGroup = report.totals.by_group || {};
-    const byRisk = report.totals.by_risk_level || {};
-    const byKind = bucketize(rows, (r) => toolKindOf(r));
-    const yamlCount = rows.filter((r) => r.yaml_present).length;
-    const canaryCount = rows.filter((r) => r.has_canary).length;
-    return [
-      {
-        title: 'Total tools',
-        value: report.totals.registered_tools,
-        tone: 'ok',
-        breakdown: Object.entries(byGroup).slice(0, 5)
-          .map(([k, v]) => ({ label: k, value: v })),
-      },
-      {
-        title: 'By risk',
-        value: Object.keys(byRisk).length,
-        breakdown: [
-          { label: 'read_only', value: byRisk.read_only || 0, tone: 'ok' as const },
-          { label: 'low_risk', value: byRisk.low_risk_write || 0, tone: 'warn' as const },
-          { label: 'high_risk', value: byRisk.high_risk_write || 0, tone: 'err' as const },
-        ],
-      },
-      {
-        title: 'By kind',
-        value: Object.keys(byKind).length,
-        breakdown: Object.entries(byKind)
-          .map(([k, v]) => ({ label: k, value: v })),
-      },
-      {
-        title: 'YAML coverage',
-        value: `${yamlCount} / ${rows.length}`,
-        tone: yamlCount === rows.length ? 'ok' : 'warn',
-        hint: `${report.totals.yaml_tools} YAML doc(s) total`,
-      },
-      {
-        title: 'Canary coverage',
-        value: `${canaryCount} / ${rows.length}`,
-        tone: canaryCount === rows.length ? 'ok' : 'warn',
-        hint: 'Tools with curated canary params',
-      },
-      {
-        title: 'Orphans',
-        value: report.totals.registry_only_orphans + report.totals.yaml_only_orphans,
-        tone: (report.totals.registry_only_orphans + report.totals.yaml_only_orphans) === 0 ? 'ok' : 'warn',
-        hint: 'Code without YAML / YAML without code',
-      },
-    ];
+  // Headline figures, written as a sentence in the header.
+  const summary = useMemo(() => {
+    if (!report) return null;
+    const orphans = report.totals.registry_only_orphans + report.totals.yaml_only_orphans;
+    return {
+      total: report.totals.registered_tools,
+      documented: rows.filter((r) => r.yaml_present).length,
+      withCheck: rows.filter((r) => r.has_canary).length,
+      orphans,
+    };
   }, [report, rows]);
+
+  const checks = useMemo(() => {
+    const all = Object.values(canaryByTool);
+    return { run: all.length, pass: all.filter(c => c.status === 'pass').length, fail: all.filter(c => c.status === 'fail').length, skip: all.filter(c => c.status === 'skip').length };
+  }, [canaryByTool]);
+
+  const openConnectorApi = (api: string) =>
+    navigate(`/ai-stack/data-plane?tab=connector-registry&focus=${encodeURIComponent(api)}`);
 
   // ----- columns -----
 
   const columns: RegistryColumn<RegistryToolRow>[] = [
     {
       key: 'tool_id', label: 'Tool',
-      className: 'font-mono text-[12px]',
+      className: 'max-w-[380px]',
       sortBy: (r) => r.tool_id,
       render: (r) => (
-        <div className="flex flex-col gap-0.5">
-          <span>{r.tool_id}</span>
-          <span className="text-[10px] text-muted-foreground line-clamp-1">{r.description}</span>
+        <div className="min-w-0">
+          <div className="truncate font-mono text-sm font-medium text-foreground">{r.tool_id}</div>
+          <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{r.description}</div>
         </div>
       ),
     },
     {
+      key: 'connector_api', label: 'Reaches',
+      sortBy: (r) => r.connector_api || '',
+      render: (r) => r.connector_api
+        ? (
+          <div className="min-w-0">
+            <ToolSystem api={r.connector_api} />
+            <button
+              type="button"
+              title="Open this connector API"
+              className="mt-0.5 block max-w-[220px] truncate rounded font-mono text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-hi"
+              onClick={(e) => { e.stopPropagation(); openConnectorApi(r.connector_api!); }}
+            >
+              {r.connector_api}
+            </button>
+          </div>
+        )
+        : <ToolSystem api={null} />,
+    },
+    {
       key: 'group', label: 'Group',
       sortBy: (r) => r.group,
-      render: (r) => <span className="text-[11px]">{r.group}</span>,
+      render: (r) => <span className="whitespace-nowrap text-muted-foreground">{sentence(r.group)}</span>,
+    },
+    {
+      key: 'tool_kind', label: 'Kind',
+      sortBy: (r) => toolKindOf(r),
+      render: (r) => <span className="text-muted-foreground">{sentence(toolKindOf(r))}</span>,
     },
     {
       key: 'risk_level', label: 'Risk',
       sortBy: (r) => r.risk_level,
       render: (r) => (
-        <Badge variant="outline" className={cn('text-[10px]', RISK_PILL[r.risk_level] || RISK_PILL.low_risk_write)}>
-          {r.risk_level.replace(/_/g, ' ')}
-        </Badge>
-      ),
-    },
-    {
-      key: 'tool_kind', label: 'Kind',
-      sortBy: (r) => toolKindOf(r),
-      render: (r) => <span className="text-[11px]">{toolKindOf(r)}</span>,
-    },
-    {
-      key: 'connector_api', label: 'Connector API',
-      className: 'font-mono text-[11px]',
-      sortBy: (r) => r.connector_api || '',
-      render: (r) => r.connector_api
-        ? (
-          <span
-            className="text-blue-300 cursor-pointer hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/ai-stack/data-plane?tab=connector-registry&focus=${encodeURIComponent(r.connector_api!)}`);
-            }}
-          >
-            {r.connector_api}
-          </span>
-        )
-        : <span className="text-muted-foreground">-</span>,
-    },
-    {
-      key: 'flags', label: 'Flags',
-      render: (r) => (
-        <div className="flex items-center gap-1 flex-wrap">
-          {r.yaml_present && (
-            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-300 border-blue-500/30">
-              <FileText className="h-2.5 w-2.5 mr-0.5" /> yaml
-            </Badge>
-          )}
-          {r.has_canary && (
-            <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-300 border-green-500/30">
-              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> canary
-            </Badge>
-          )}
-          {r.requires_approval && (
-            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">
-              <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> approval
-            </Badge>
-          )}
+        <div>
+          <RiskPill risk={r.risk_level} />
+          {r.requires_approval && <div className="mt-0.5 whitespace-nowrap text-xs text-muted-foreground">Needs approval</div>}
         </div>
       ),
+    },
+    {
+      key: 'flags', label: 'Readiness',
+      render: (r) => (
+        r.yaml_present && r.has_canary
+          ? <span className="text-muted-foreground">Complete</span>
+          : (
+            <div className="flex flex-col gap-0.5">
+              {!r.yaml_present && <StatusPill tone="warning">No documentation</StatusPill>}
+              {!r.has_canary && <StatusPill tone="warning">No health check</StatusPill>}
+            </div>
+          )
+      ),
+    },
+    {
+      key: 'last_check', label: 'Last check',
+      sortBy: (r) => canaryByTool[r.tool_id]?.status || '',
+      render: (r) => {
+        const c = canaryByTool[r.tool_id];
+        if (canaryRunning && !c) return <Skeleton className="h-4 w-16" />;
+        if (!c) return <span className="text-subtle-foreground">Not run</span>;
+        return (
+          <div className="whitespace-nowrap">
+            <StatusPill status={c.status} tone={c.status === 'skip' ? 'neutral' : undefined}>{CHECK_LABEL[c.status] || c.status}</StatusPill>
+            {c.status !== 'skip' && c.duration_ms != null && <div className="num mt-0.5 text-xs text-muted-foreground">{c.duration_ms} ms</div>}
+          </div>
+        );
+      },
     },
   ];
 
@@ -347,7 +325,7 @@ export default function ToolsRegistryBrowser() {
       for (const r of rep.results) map[r.tool_id] = r;
       setCanaryByTool((prev) => ({ ...prev, ...map }));
     } catch (e: any) {
-      setError(`canary run failed: ${e?.message || e}`);
+      setError(`The health check run failed: ${e?.message || e}`);
     } finally {
       setCanaryRunning(false);
     }
@@ -367,138 +345,138 @@ export default function ToolsRegistryBrowser() {
 
   // ----- detail drawer tabs -----
 
-  const drawerTabs = [
+  const drawerTabs = useMemo(() => [
     {
       key: 'overview', label: 'Overview',
       render: (t: RegistryToolRow) => (
-        <div className="space-y-2 text-xs">
-          <div><span className="text-muted-foreground">Description:</span> {t.description || '-'}</div>
-          <div className="grid grid-cols-2 gap-y-1">
-            <div><span className="text-muted-foreground">Group:</span> {t.group}</div>
-            <div><span className="text-muted-foreground">Kind:</span> {toolKindOf(t)}</div>
-            <div><span className="text-muted-foreground">Risk:</span> {t.risk_level}</div>
-            <div><span className="text-muted-foreground">Approval:</span> {t.requires_approval ? 'required' : 'no'}</div>
-            <div><span className="text-muted-foreground">Cacheable:</span> {t.cacheable ? 'yes' : 'no'}</div>
-            <div><span className="text-muted-foreground">Use case refs:</span> {t.use_case_refs}</div>
-          </div>
-          {t.connector_api && (
-            <div>
-              <span className="text-muted-foreground">Connector API: </span>
-              <span
-                className="text-blue-300 hover:underline cursor-pointer font-mono"
-                onClick={() => navigate(`/ai-stack/data-plane?tab=connector-registry&focus=${encodeURIComponent(t.connector_api!)}`)}
-              >
+        <KeyValues items={[
+          { label: 'Reaches', value: <ToolSystem api={t.connector_api} className="justify-end" /> },
+          ...(t.connector_api ? [{
+            label: 'Connector API',
+            value: (
+              <button type="button" className="rounded font-mono text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-hi" onClick={() => openConnectorApi(t.connector_api!)}>
                 {t.connector_api}
-              </span>
-            </div>
-          )}
-          {t.tags && t.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {t.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
-              ))}
-            </div>
-          )}
-        </div>
+              </button>
+            ),
+          }] : []),
+          { label: 'Risk', value: <RiskPill risk={t.risk_level} /> },
+          { label: 'Approval', value: t.requires_approval ? 'Required before it runs' : 'Not needed' },
+          { label: 'Group', value: sentence(t.group) },
+          { label: 'Kind', value: sentence(toolKindOf(t)) },
+          { label: 'Results cached', value: t.cacheable ? 'Yes' : 'No' },
+          { label: 'Used by playbooks', value: <span className="num">{t.use_case_refs}</span> },
+          ...(t.tags && t.tags.length > 0 ? [{ label: 'Tags', value: t.tags.join(', ') }] : []),
+        ]} />
       ),
     },
     {
       key: 'parameters', label: 'Parameters',
-      render: (t: RegistryToolRow) => (
-        <pre className="text-[11px] font-mono bg-muted/30 border rounded p-2 max-h-80 overflow-auto whitespace-pre-wrap">
-{JSON.stringify(t.parameters || {}, null, 2)}
-        </pre>
-      ),
-    },
-    {
-      key: 'yaml', label: 'YAML',
-      render: (t: RegistryToolRow) => (
-        <div className="text-xs space-y-2">
-          {t.yaml_present
-            ? (
-              <>
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30">
-                  <FileText className="h-3 w-3 mr-1" /> YAML present
-                </Badge>
-                <div className="text-muted-foreground">
-                  Tool YAML at <code className="bg-muted/40 px-1 rounded">enterprise-knowledge/tools/{t.group}/{t.tool_id}.yaml</code>.
-                  Raw body fetch is a follow-up; this v1 surfaces presence + parameters above.
-                </div>
-              </>
-            )
-            : (
-              <div className="text-amber-300 flex items-start gap-1">
-                <AlertTriangle className="h-3 w-3 mt-0.5" />
-                <span>No YAML doc registered for this tool. Treated as a registry-only orphan in Diagnostics.</span>
-              </div>
+      render: (t: RegistryToolRow) => {
+        const props = Object.entries((t.parameters?.properties || {}) as Record<string, { type?: string; description?: string }>);
+        const required = new Set<string>(t.parameters?.required || []);
+        return (
+          <div className="space-y-6">
+            {props.length === 0 ? (
+              <p className="text-sm text-muted-foreground">This tool takes no parameters.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {props.map(([name, p]) => (
+                  <li key={name} className="py-2.5">
+                    <div className="flex flex-wrap items-baseline gap-x-2.5">
+                      <span className="font-mono text-sm text-foreground">{name}</span>
+                      <span className="text-xs text-muted-foreground">{p?.type || 'any'}{required.has(name) ? ', required' : ''}</span>
+                    </div>
+                    {p?.description && <p className="mt-0.5 text-sm text-muted-foreground">{p.description}</p>}
+                  </li>
+                ))}
+              </ul>
             )}
-        </div>
-      ),
-    },
-    {
-      key: 'usecases', label: 'Code refs',
-      render: (t: RegistryToolRow) => (
-        <div className="text-xs space-y-1">
-          {t.use_case_refs > 0 ? (
-            <div className="text-muted-foreground">
-              Referenced by <span className="text-foreground font-medium">{t.use_case_refs}</span> automation playbook(s).
-            </div>
-          ) : (
-            <div className="text-muted-foreground">No automation playbook references this tool yet.</div>
-          )}
-          <div className="text-muted-foreground">
-            See the Automation page for the per-playbook step list.
+            <section>
+              <SubHeading>Schema</SubHeading>
+              <CodeBlock maxHeight={320}>{JSON.stringify(t.parameters || {}, null, 2)}</CodeBlock>
+            </section>
           </div>
+        );
+      },
+    },
+    {
+      key: 'yaml', label: 'Documentation',
+      render: (t: RegistryToolRow) => (
+        t.yaml_present ? (
+          <div className="space-y-3">
+            <StatusPill tone="success">Documented</StatusPill>
+            <p className="text-sm text-muted-foreground">This tool has a definition file in the knowledge repository. The agent reads it to decide when to call the tool.</p>
+            <CodeBlock>{`enterprise-knowledge/tools/${t.group}/${t.tool_id}.yaml`}</CodeBlock>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <StatusPill tone="warning">No documentation</StatusPill>
+            <p className="text-sm text-muted-foreground">No definition file is registered for this tool, so diagnostics list it as an orphan. Add one so the agent knows when to use it.</p>
+          </div>
+        )
+      ),
+    },
+    {
+      key: 'usecases', label: 'Usage',
+      render: (t: RegistryToolRow) => (
+        <div className="space-y-1.5 text-sm text-muted-foreground">
+          {t.use_case_refs > 0
+            ? <p><span className="num font-medium text-foreground">{t.use_case_refs}</span> automation {t.use_case_refs === 1 ? 'playbook uses' : 'playbooks use'} this tool.</p>
+            : <p>No automation playbook uses this tool yet.</p>}
+          <p>The Automation page lists the steps of each playbook.</p>
         </div>
       ),
     },
     {
-      key: 'canary', label: 'Canary',
+      key: 'canary', label: 'Health check',
       render: (t: RegistryToolRow) => {
         const c = canaryByTool[t.tool_id];
         return (
-          <div className="text-xs space-y-2">
+          <div className="space-y-5">
             {!t.has_canary && (
-              <div className="text-amber-300">No CANARY_PARAMS entry for this tool.</div>
+              <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Icon name="alert-triangle" className="mt-0.5 shrink-0 text-warning" />
+                No sample inputs are set up for this tool, so the bulk check skips it.
+              </p>
             )}
             {c ? (
               <>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Last canary:</span>
-                  <Badge variant="outline" className={cn(
-                    'text-[10px]',
-                    c.status === 'pass' && 'bg-green-500/15 text-green-300 border-green-500/30',
-                    c.status === 'fail' && 'bg-red-500/15 text-red-300 border-red-500/30',
-                    c.status === 'skip' && 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                  )}>{c.status}</Badge>
-                  {c.duration_ms != null && <span className="text-muted-foreground">{c.duration_ms} ms</span>}
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">Last check</span>
+                  <StatusPill status={c.status} tone={c.status === 'skip' ? 'neutral' : undefined}>{CHECK_LABEL[c.status] || c.status}</StatusPill>
+                  {c.duration_ms != null && c.status !== 'skip' && <span className="num text-xs text-muted-foreground">{c.duration_ms} ms</span>}
                 </div>
+                {c.reason && <p className="text-sm text-muted-foreground">{c.reason}</p>}
+                {c.error && <InlineError>{c.error}</InlineError>}
                 {c.result_preview && (
-                  <pre className="font-mono text-[11px] bg-muted/30 border rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{c.result_preview}</pre>
-                )}
-                {c.error && (
-                  <pre className="font-mono text-[11px] text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{c.error}</pre>
+                  <section>
+                    <SubHeading>Result preview</SubHeading>
+                    <CodeBlock maxHeight={160} wrap>{c.result_preview}</CodeBlock>
+                  </section>
                 )}
                 {c.params && (
-                  <div>
-                    <div className="text-[10px] text-muted-foreground mb-0.5">Canary params:</div>
-                    <pre className="font-mono text-[11px] bg-muted/30 border rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{JSON.stringify(c.params, null, 2)}</pre>
-                  </div>
+                  <section>
+                    <SubHeading>Inputs used</SubHeading>
+                    <CodeBlock maxHeight={160}>{JSON.stringify(c.params, null, 2)}</CodeBlock>
+                  </section>
                 )}
               </>
             ) : (
-              <div className="text-muted-foreground">No canary cached. Run "Run canary slice" to populate.</div>
+              <p className="text-sm text-muted-foreground">Not checked in this session. Use "Run health checks" above the table to test the tools in the list.</p>
             )}
           </div>
         );
       },
     },
-  ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [canaryByTool]);
 
   // ----- render -----
 
+  const activeFilters = Object.values(facets).reduce((n, s) => n + s.size, 0);
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0 flex-col">
       <ExecuteDrawer adapter={executeAdapter} onClose={() => setExecuteAdapter(null)} />
       <DetailDrawer
         open={!!selectedTool}
@@ -506,101 +484,127 @@ export default function ToolsRegistryBrowser() {
         title={(t) => t.tool_id}
         subtitle={(t) => t.description}
         badges={(t) => [
-          { label: t.group, tone: 'info' },
-          { label: t.risk_level.replace(/_/g, ' '), tone: riskTone(t.risk_level) },
-          { label: toolKindOf(t), tone: 'muted' },
-          ...(t.requires_approval ? [{ label: 'approval', tone: 'warn' as const }] : []),
-          ...(t.yaml_present ? [{ label: 'yaml', tone: 'info' as const }] : []),
-          ...(t.has_canary ? [{ label: 'canary', tone: 'ok' as const }] : []),
+          { label: riskLabel(t.risk_level), tone: riskTone(t.risk_level) },
+          ...(t.requires_approval ? [{ label: 'Needs approval', tone: 'warn' as const }] : []),
+          ...(!t.yaml_present ? [{ label: 'No documentation', tone: 'warn' as const }] : []),
+          ...(!t.has_canary ? [{ label: 'No health check', tone: 'warn' as const }] : []),
         ]}
         tabs={drawerTabs}
         footer={(t) => (
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground">
-              {t.connector_api ? `binds -> ${t.connector_api}` : 'No connector binding'}
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              {t.connector_api ? <>Calls <span className="font-mono">{t.connector_api}</span></> : 'Does not call a connector API'}
             </span>
-            <Button size="sm" onClick={() => openRun(t)}>
-              <Play className="h-3.5 w-3.5 mr-1" /> Run
+            <Button onClick={() => openRun(t)}>
+              <Icon name="play" /> Run tool
             </Button>
           </div>
         )}
         onClose={closeDrawer}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-4 pb-3 border-b bg-card/40 space-y-3">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">ReAct Tools Registry</h2>
-              {report && (
-                <span className="text-[11px] bg-muted/60 px-2 py-0.5 rounded">
-                  {filtered.length} / {rows.length}
-                </span>
+      {/* Header */}
+      <div className="shrink-0 border-b border-border px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-xl font-medium tracking-tight text-foreground">Tools registry</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              {summary ? (
+                <>
+                  <span className="num text-foreground">{summary.total}</span> tools registered.{' '}
+                  <span className="num text-foreground">{summary.documented}</span> are documented and <span className="num text-foreground">{summary.withCheck}</span> have a health check.
+                  {summary.orphans > 0 && <> <span className="num text-foreground">{summary.orphans}</span> {summary.orphans === 1 ? 'entry exists' : 'entries exist'} in code or in documentation only.</>}
+                  {checks.run > 0 && (
+                    <> Last check: <span className="num text-foreground">{checks.pass}</span> passed, <span className={cn('num', checks.fail > 0 ? 'text-destructive' : 'text-foreground')}>{checks.fail}</span> failed, <span className="num text-foreground">{checks.skip}</span> skipped.</>
+                  )}
+                </>
+              ) : loading ? 'Loading the registry.' : 'Every tool the agent can call, with its documentation and health.'}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <Icon name={loading ? 'spinner' : 'refresh'} className={cn(loading && 'animate-spin')} />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={runCanarySlice} disabled={canaryRunning || filtered.length === 0}>
+              <Icon name={canaryRunning ? 'spinner' : 'play'} className={cn(canaryRunning && 'animate-spin')} />
+              {canaryRunning ? `Checking ${filtered.length} tools` : 'Run health checks'}
+            </Button>
+          </div>
+        </div>
+
+        <Toolbar className="mt-4">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search tools, groups or tags" className="sm:w-80" />
+          <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
+            <Icon name="filter" /> Filters{activeFilters > 0 && <span className="num text-muted-foreground">{activeFilters}</span>}
+          </Button>
+          <ToolbarSpacer />
+          {report && (
+            <span className="text-xs text-muted-foreground">
+              <span className="num text-foreground">{filtered.length}</span> of <span className="num">{rows.length}</span> shown
+            </span>
+          )}
+        </Toolbar>
+      </div>
+
+      {/* Body */}
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[232px_minmax(0,1fr)]">
+        <aside className="scroll-thin hidden min-h-0 overflow-y-auto border-r border-border bg-sidebar/40 px-4 py-4 lg:block">
+          <FacetFilters facets={facetDescriptors} state={facets} onChange={setFacets} />
+        </aside>
+
+        <main className="flex min-h-0 min-w-0 flex-col gap-3 p-4 sm:px-6">
+          {error && <InlineError onRetry={load}>{error}</InlineError>}
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute inset-0">
+              {loading && !report ? (
+                <div className="h-full overflow-hidden rounded-xl border border-border bg-card" aria-busy="true">
+                  <div className="divide-y divide-border">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-6 px-4 py-3">
+                        <div className="flex-1 space-y-2"><Skeleton className="h-4 w-52" /><Skeleton className="h-3 w-3/4" /></div>
+                        <Skeleton className="hidden h-4 w-24 md:block" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <RegistryTable<RegistryToolRow>
+                  rows={filtered}
+                  columns={columns}
+                  rowKey={(r) => r.tool_id}
+                  onSelect={(r) => setSelectedToolId(r.tool_id)}
+                  selectedKey={selectedToolId || undefined}
+                  emptyMessage={
+                    rows.length === 0
+                      ? 'No tools are registered yet.'
+                      : (
+                        <span className="flex flex-col items-center gap-3">
+                          No tools match the search and filters.
+                          <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFacets({}); }}>Clear filters</Button>
+                        </span>
+                      )
+                  }
+                  height="100%"
+                />
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-                {loading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-                Refresh
-              </Button>
-              <Button size="sm" onClick={runCanarySlice} disabled={canaryRunning || filtered.length === 0}>
-                {canaryRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1" />}
-                Run canary slice
-              </Button>
-            </div>
           </div>
-
-          <StatsTiles tiles={tiles} />
-
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-md">
-              <Search className="h-3.5 w-3.5 absolute left-2 top-2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tool_id, description, group, connector_api, tags..."
-                className="pl-7 h-8 text-xs"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 flex overflow-hidden">
-          <aside className="w-56 shrink-0 border-r p-3 overflow-auto">
-            <FacetFilters facets={facetDescriptors} state={facets} onChange={setFacets} />
-          </aside>
-
-          <main className="flex-1 p-3 overflow-hidden flex flex-col">
-            {error && (
-              <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2 mb-2">
-                {error}
-              </div>
-            )}
-            {loading && !report ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm py-12 justify-center">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading registry...
-              </div>
-            ) : (
-              <RegistryTable<RegistryToolRow>
-                rows={filtered}
-                columns={columns}
-                rowKey={(r) => r.tool_id}
-                onSelect={(r) => setSelectedToolId(r.tool_id)}
-                selectedKey={selectedToolId || undefined}
-                emptyMessage={
-                  <span className="flex items-center justify-center gap-2">
-                    <BookOpen className="h-3.5 w-3.5" /> No tools match the current filters.
-                  </span>
-                }
-                height="calc(100vh - 360px)"
-              />
-            )}
-          </main>
-        </div>
+        </main>
       </div>
+
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="left" className="flex w-full flex-col gap-0 p-0 sm:max-w-xs">
+          <div className="border-b border-border px-4 py-3.5 pr-12">
+            <SheetTitle className="text-md font-medium">Filter tools</SheetTitle>
+            <SheetDescription className="sr-only">Narrow the list of tools</SheetDescription>
+          </div>
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <FacetFilters facets={facetDescriptors} state={facets} onChange={setFacets} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

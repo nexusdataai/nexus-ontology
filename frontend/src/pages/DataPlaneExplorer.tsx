@@ -42,11 +42,11 @@ export default function DataPlaneExplorer() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-lg font-semibold">{name} - Runtime Explorer</h1>
-        <Badge className={`text-[10px] ${mode === 'simulator' ? 'bg-amber-500/20 text-amber-300' : 'bg-green-500/20 text-green-300'}`}>
+        <Badge className={`text-xs ${mode === 'simulator' ? 'bg-warning/20 text-warning' : 'bg-success/20 text-success'}`}>
           {mode === 'simulator' ? 'Simulator' : 'Real FDW'}
         </Badge>
         {source && source !== 'real' && source !== 'simulator' && (
-          <Badge className="text-[10px] bg-blue-500/20 text-blue-300">{source}</Badge>
+          <Badge className="text-xs bg-primary/20 text-primary">{source}</Badge>
         )}
       </div>
       {CustomPanel ? <CustomPanel /> : <OntosWorkspace fdwSource={source} />}

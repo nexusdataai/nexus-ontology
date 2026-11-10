@@ -92,11 +92,11 @@ export function NLQueryInput({ onQueryGenerated, currentEntity }: Props) {
           </div>
 
           {error && (
-            <p className="text-[10px] text-destructive">{error}</p>
+            <p className="text-xs text-destructive">{error}</p>
           )}
 
           {lastExplanation && !error && (
-            <p className="text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1">
+            <p className="text-xs text-muted-foreground bg-muted/30 rounded px-2 py-1">
               {lastExplanation}
             </p>
           )}

@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  HardDrive, ArrowLeft, Save, RotateCcw, Play, Loader2,
-  CheckCircle2, XCircle, AlertCircle, RefreshCw, FolderOpen,
-  FileText, Activity,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { Icon } from '@/components/ds/Icon';
+import { Field, InlineError, StatusPill } from '@/components/ds/kit';
+import { SystemLogo } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
 import apiClient from '@/services/apiClient';
 import GoogleDriveDiagnostics from './GoogleDriveDiagnostics';
 
@@ -57,6 +53,28 @@ const DEFAULT_SETTINGS: GDriveSettings = {
 };
 
 type Tab = 'settings' | 'diagnostics';
+
+/** One settings block: what it is on the left, the controls on the right. */
+const Block: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
+  <section className="grid gap-x-10 gap-y-4 border-b border-border py-7 first:pt-2 xl:grid-cols-[240px_minmax(0,1fr)]">
+    <div>
+      <h3 className="text-md font-medium text-foreground">{title}</h3>
+      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    </div>
+    <div className="min-w-0 max-w-2xl">{children}</div>
+  </section>
+);
+
+/** A switch with its label and one line of explanation. */
+const SwitchRow: React.FC<{ id: string; label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }> = ({ id, label, hint, checked, onChange }) => (
+  <div className="flex items-start justify-between gap-6 border-b border-border py-3.5 first:pt-0 last:border-b-0 last:pb-0">
+    <div className="min-w-0">
+      <label htmlFor={id} className="text-sm font-medium text-foreground">{label}</label>
+      <p className="mt-0.5 text-sm text-muted-foreground">{hint}</p>
+    </div>
+    <Switch id={id} checked={checked} onCheckedChange={onChange} className="mt-0.5 shrink-0" />
+  </div>
+);
 
 export default function GoogleDriveConnectorSettings({ onBack }: Props) {
   const [tab, setTab] = useState<Tab>('settings');
@@ -124,7 +142,7 @@ export default function GoogleDriveConnectorSettings({ onBack }: Props) {
       });
       if (data.authorization_url) {
         window.open(data.authorization_url, '_blank', 'width=600,height=700');
-        toast.success('OAuth window opened. Complete authorization in the new tab.');
+        toast.success('Google sign-in opened. Finish the approval in the new window.');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to start OAuth');
@@ -150,170 +168,177 @@ export default function GoogleDriveConnectorSettings({ onBack }: Props) {
     setHasChanges(true);
   };
 
+  const backLink = (
+    <button
+      type="button"
+      onClick={onBack}
+      className="inline-flex items-center gap-1 rounded text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Icon name="chevron-left" className="h-3.5 w-3.5" /> Back
+    </button>
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6 p-4 sm:p-6" aria-busy="true">
+        {backLink}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <div className="space-y-2"><Skeleton className="h-5 w-48" /><Skeleton className="h-4 w-72 max-w-full" /></div>
+        </div>
+        <Skeleton className="h-10 w-full" />
+        {[0, 1, 2].map(i => <Skeleton key={i} className="h-24 w-full" />)}
       </div>
     );
   }
 
+  const folders = settings.scan_config.folder_ids;
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-yellow-500">
-            <HardDrive className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">Google Drive Connector</h2>
-            <p className="text-xs text-muted-foreground">Configure OAuth2, folders, and extraction settings</p>
+    <div className="space-y-5 p-4 sm:p-6">
+      {backLink}
+
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <SystemLogo system="google_drive" tile size="md" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="text-xl font-medium tracking-tight text-foreground">Google Drive connector</h2>
+              {testResult && (
+                <StatusPill tone={testResult.success ? 'success' : 'danger'} variant="soft">
+                  {testResult.success ? `Connected, ${testResult.files_found.toLocaleString()} files` : 'Test failed'}
+                </StatusPill>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign-in with Google, the folders to read and how documents are processed.
+              {settings.last_updated && <> Last saved {new Date(settings.last_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.</>}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {testResult && (
-            <Badge variant={testResult.success ? 'default' : 'destructive'}>
-              {testResult.success ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-              {testResult.success ? `Connected (${testResult.files_found} files)` : 'Failed'}
-            </Badge>
-          )}
-          <Button variant="outline" size="sm" onClick={testConnection} disabled={testing}>
-            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Play className="h-3.5 w-3.5 mr-1" />}
-            Test
-          </Button>
-        </div>
-      </div>
+        <Button variant="outline" onClick={testConnection} disabled={testing}>
+          <Icon name={testing ? 'spinner' : 'play'} className={cn('h-3.5 w-3.5', testing && 'animate-spin')} />
+          {testing ? 'Testing' : 'Test connection'}
+        </Button>
+      </header>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      {error && <InlineError>{error}</InlineError>}
 
-      <div className="flex gap-1 border-b">
-        <button onClick={() => setTab('settings')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'settings' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-          <HardDrive className="h-3.5 w-3.5" /> Settings
-        </button>
-        <button onClick={() => setTab('diagnostics')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'diagnostics' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-          <Activity className="h-3.5 w-3.5" /> Diagnostics
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList variant="line">
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
+        </TabsList>
 
-      {tab === 'diagnostics' ? (
-        <GoogleDriveDiagnostics />
-      ) : (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2"><HardDrive className="h-4 w-4" /> OAuth2 Authentication</CardTitle>
-              <CardDescription>Configure Google Cloud OAuth2 credentials for Drive API access</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Client ID</Label>
-                  <Input value={settings.oauth2_config?.client_id || ''} onChange={e => updateOAuth('client_id', e.target.value)} placeholder="xxxxx.apps.googleusercontent.com" />
-                </div>
-                <div>
-                  <Label>Client Secret</Label>
-                  <Input type="password" value={settings.oauth2_config?.client_secret || ''} onChange={e => updateOAuth('client_secret', e.target.value)} placeholder="********" />
-                </div>
-                <div>
-                  <Label>Redirect URI</Label>
-                  <Input value={settings.oauth2_config?.redirect_uri || ''} onChange={e => updateOAuth('redirect_uri', e.target.value)} placeholder="http://localhost:3000/gdrive/callback" />
-                </div>
-                <div className="flex items-end">
-                  <Button variant="outline" onClick={startOAuth} disabled={!settings.oauth2_config?.client_id}>
-                    <HardDrive className="h-3.5 w-3.5 mr-1" /> Authorize with Google
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="diagnostics" className="mt-6">
+          {tab === 'diagnostics' && <GoogleDriveDiagnostics />}
+        </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2"><FolderOpen className="h-4 w-4" /> Folder Configuration</CardTitle>
-              <CardDescription>Specify Google Drive folder IDs to scan for documents</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input value={folderInput} onChange={e => setFolderInput(e.target.value)} placeholder="Enter Google Drive folder ID" onKeyDown={e => e.key === 'Enter' && addFolder()} />
-                <Button variant="outline" size="sm" onClick={addFolder}>Add</Button>
-              </div>
-              {settings.scan_config.folder_ids.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {settings.scan_config.folder_ids.map((fid, i) => (
-                    <Badge key={i} variant="outline" className="text-xs gap-1">
-                      <FolderOpen className="h-3 w-3" /> {fid}
-                      <button onClick={() => removeFolder(i)} className="ml-1 text-muted-foreground hover:text-foreground">&times;</button>
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No folders configured. Add folder IDs to scan.</p>
-              )}
-              <div className="flex items-center gap-3 pt-2">
-                <Switch checked={settings.scan_config.include_subfolders} onCheckedChange={v => { setSettings(s => ({ ...s, scan_config: { ...s.scan_config, include_subfolders: v } })); setHasChanges(true); }} />
-                <Label className="text-xs">Include subfolders</Label>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="settings" className="mt-4">
+          <Block title="Sign-in with Google" description="The Google Cloud app this connector uses to read Drive on your behalf.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Client ID" htmlFor="gdrive-client-id">
+                <Input id="gdrive-client-id" value={settings.oauth2_config?.client_id || ''} onChange={e => updateOAuth('client_id', e.target.value)} placeholder="xxxxx.apps.googleusercontent.com" className="font-mono" />
+              </Field>
+              <Field label="Client secret" htmlFor="gdrive-client-secret" hint="A stored secret is not shown here.">
+                <Input id="gdrive-client-secret" type="password" autoComplete="off" value={settings.oauth2_config?.client_secret || ''} onChange={e => updateOAuth('client_secret', e.target.value)} placeholder="Enter a new secret" className="font-mono" />
+              </Field>
+              <Field label="Redirect address" htmlFor="gdrive-redirect" className="sm:col-span-2">
+                <Input id="gdrive-redirect" value={settings.oauth2_config?.redirect_uri || ''} onChange={e => updateOAuth('redirect_uri', e.target.value)} placeholder="http://localhost:3000/gdrive/callback" className="font-mono" />
+              </Field>
+            </div>
+            <Button variant="outline" className="mt-4" onClick={startOAuth} disabled={!settings.oauth2_config?.client_id}>
+              <SystemLogo system="google" size="sm" /> Authorize with Google
+            </Button>
+          </Block>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Processing Options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>OCR + LLM Extraction</Label>
-                  <p className="text-xs text-muted-foreground">Run document extraction on downloaded files</p>
-                </div>
-                <Switch checked={settings.enable_ocr_extraction} onCheckedChange={v => { setSettings(s => ({ ...s, enable_ocr_extraction: v })); setHasChanges(true); }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Auto-Scan</Label>
-                  <p className="text-xs text-muted-foreground">Periodically scan configured folders for new files</p>
-                </div>
-                <Switch checked={settings.enable_auto_scan} onCheckedChange={v => { setSettings(s => ({ ...s, enable_auto_scan: v })); setHasChanges(true); }} />
-              </div>
-              {settings.enable_auto_scan && (
-                <div>
-                  <Label>Scan Schedule (cron)</Label>
-                  <Input value={settings.scan_schedule} onChange={e => { setSettings(s => ({ ...s, scan_schedule: e.target.value })); setHasChanges(true); }} placeholder="0 */6 * * *" />
-                </div>
-              )}
-              <div>
-                <Label>Max Files Per Scan</Label>
-                <Input type="number" value={settings.scan_config.max_files_per_scan} onChange={e => { setSettings(s => ({ ...s, scan_config: { ...s.scan_config, max_files_per_scan: parseInt(e.target.value) || 100 } })); setHasChanges(true); }} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex items-center justify-between">
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => { setSettings(DEFAULT_SETTINGS); setHasChanges(true); }}>
-                <RotateCcw className="h-4 w-4 mr-1" /> Reset
-              </Button>
-              <Button variant="ghost" onClick={fetchSettings} disabled={loading || saving}>
-                <RefreshCw className="h-4 w-4 mr-1" /> Reload
+          <Block title="Folders" description="Drive folders the connector reads documents from.">
+            <div className="flex gap-2">
+              <Input
+                value={folderInput}
+                onChange={e => setFolderInput(e.target.value)}
+                placeholder="Paste a Drive folder ID"
+                aria-label="Drive folder ID"
+                className="font-mono"
+                onKeyDown={e => e.key === 'Enter' && addFolder()}
+              />
+              <Button variant="outline" className="shrink-0" onClick={addFolder}>
+                <Icon name="plus" className="h-3.5 w-3.5" /> Add
               </Button>
             </div>
+            {folders.length > 0 ? (
+              <ul className="mt-3 border-t border-border">
+                {folders.map((fid, i) => (
+                  <li key={i} className="flex items-center gap-3 border-b border-border py-2">
+                    <Icon name="folder" className="h-4 w-4 shrink-0 text-subtle-foreground" />
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground" title={fid}>{fid}</span>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 shrink-0 p-0 text-muted-foreground" aria-label={`Remove folder ${fid}`} onClick={() => removeFolder(i)}>
+                      <Icon name="close" className="h-3.5 w-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">No folders yet. Add a folder ID to start reading documents.</p>
+            )}
+            <div className="mt-4 flex items-center gap-2.5">
+              <Switch
+                id="gdrive-subfolders"
+                checked={settings.scan_config.include_subfolders}
+                onCheckedChange={v => { setSettings(s => ({ ...s, scan_config: { ...s.scan_config, include_subfolders: v } })); setHasChanges(true); }}
+              />
+              <label htmlFor="gdrive-subfolders" className="text-sm text-foreground">Include subfolders</label>
+            </div>
+          </Block>
+
+          <Block title="Processing" description="What happens to the files that are found.">
+            <SwitchRow
+              id="gdrive-ocr"
+              label="Read text from documents"
+              hint="Extract the content of downloaded files with OCR and the language model."
+              checked={settings.enable_ocr_extraction}
+              onChange={v => { setSettings(s => ({ ...s, enable_ocr_extraction: v })); setHasChanges(true); }}
+            />
+            <SwitchRow
+              id="gdrive-autoscan"
+              label="Scan on a schedule"
+              hint="Look for new files in the folders at regular times."
+              checked={settings.enable_auto_scan}
+              onChange={v => { setSettings(s => ({ ...s, enable_auto_scan: v })); setHasChanges(true); }}
+            />
+            <div className="grid gap-4 pt-4 sm:grid-cols-2">
+              {settings.enable_auto_scan && (
+                <Field label="Schedule (cron)" htmlFor="gdrive-schedule" hint="For example 0 */6 * * * runs every 6 hours.">
+                  <Input id="gdrive-schedule" value={settings.scan_schedule} onChange={e => { setSettings(s => ({ ...s, scan_schedule: e.target.value })); setHasChanges(true); }} placeholder="0 */6 * * *" className="font-mono" />
+                </Field>
+              )}
+              <Field label="Most files per scan" htmlFor="gdrive-max-files">
+                <Input
+                  id="gdrive-max-files"
+                  type="number"
+                  className="num"
+                  value={settings.scan_config.max_files_per_scan}
+                  onChange={e => { setSettings(s => ({ ...s, scan_config: { ...s.scan_config, max_files_per_scan: parseInt(e.target.value) || 100 } })); setHasChanges(true); }}
+                />
+              </Field>
+            </div>
+          </Block>
+
+          <div className="flex flex-wrap items-center gap-2 pt-5">
             <Button onClick={saveSettings} disabled={!hasChanges || saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-              Save Settings
+              {saving && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {saving ? 'Saving' : 'Save settings'}
             </Button>
+            <Button variant="ghost" onClick={fetchSettings} disabled={loading || saving}>
+              <Icon name="refresh" className="h-3.5 w-3.5" /> Reload
+            </Button>
+            <Button variant="ghost" onClick={() => { setSettings(DEFAULT_SETTINGS); setHasChanges(true); }}>
+              Reset to defaults
+            </Button>
+            {hasChanges && <span className="text-sm text-muted-foreground">Unsaved changes</span>}
           </div>
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

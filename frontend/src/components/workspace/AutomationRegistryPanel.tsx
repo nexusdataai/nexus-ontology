@@ -1,26 +1,27 @@
 /**
- * Automation Registry panel (Workspace, Phase 5.3).
+ * Automation registry (Workspace).
  *
- * Renders AUTOMATION# rows from `/api/v1/automation/registry` in a
- * searchable table with a YAML preview drawer. Provides basic upsert +
- * delete controls so playbooks can be authored without a filesystem
- * hop.
+ * The playbooks the Copilot plans from, read from `/api/v1/automation/registry`.
+ * A collection: search and solution chips above a table; a row opens the
+ * playbook in a sheet with its facts and its YAML definition, where it can be
+ * edited, saved or deleted. "New playbook" opens the same sheet empty.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { confirmDialog } from '@/components/ds/confirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
 import {
-  Loader2,
-  RefreshCw,
-  Search,
-  X,
-  Save,
-  Trash2,
-  Plus,
-} from 'lucide-react';
+  Chips, CodeBlock, DetailSheet, Field, InlineError, KeyValues, SearchInput, SubHeading, TableShell, Toolbar, ToolbarSpacer,
+} from '@/components/ds/kit';
+import { SystemLogo, systemName } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
+import { humanize, systemsIn } from '@/components/journeys/studio/format';
 import {
   automationRegistryService,
   AutomationRow,
@@ -37,6 +38,27 @@ function matches(row: AutomationRow, q: string): boolean {
   );
 }
 
+/* --------------------------------------------- what a definition says (view only) */
+
+const yamlValue = (yaml: string, key: string): string => {
+  const m = yaml.match(new RegExp(`^\\s*${key}\\s*:\\s*(.+)$`, 'm'));
+  return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+};
+const stepCount = (yaml: string): number => (yaml.match(/^\s*-?\s*tool\s*:/gm) || []).length;
+const approvalCount = (yaml: string): number => (yaml.match(/requires_approval\s*:\s*true/g) || []).length;
+const kb = (bytes?: number) => (bytes ? `${(bytes / 1024).toFixed(1)} KB` : '');
+
+function describe(row: AutomationRow) {
+  const yaml = row.yamlText || '';
+  return {
+    title: yamlValue(yaml, 'title') || yamlValue(yaml, 'display_name') || humanize(row.useCaseId),
+    description: yamlValue(yaml, 'description'),
+    steps: stepCount(yaml),
+    approvals: approvalCount(yaml),
+    systems: systemsIn(yaml),
+  };
+}
+
 export function AutomationRegistryPanel() {
   const [rows, setRows] = useState<AutomationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +68,9 @@ export function AutomationRegistryPanel() {
   const [editorText, setEditorText] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // View-only: solution chip and whether the definition is being edited.
+  const [solution, setSolution] = useState<string>('all');
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +90,7 @@ export function AutomationRegistryPanel() {
   const filtered = useMemo(() => rows.filter((r) => matches(r, search)), [rows, search]);
 
   const openRow = async (row: AutomationRow) => {
+    setEditing(false);
     setSelected(row);
     if (row.yamlText) {
       setEditorText(row.yamlText);
@@ -82,10 +108,12 @@ export function AutomationRegistryPanel() {
     setSelected(null);
     setEditorText('');
     setCreating(false);
+    setEditing(false);
   };
 
   const openCreate = () => {
     setCreating(true);
+    setEditing(true);
     setSelected({ useCaseId: '', solution: 'misc', sourceFile: '', yamlText: '' });
     setEditorText('');
   };
@@ -116,7 +144,7 @@ export function AutomationRegistryPanel() {
 
   const deleteSelected = async () => {
     if (!selected || !selected.useCaseId) return;
-    if (!confirm(`Delete playbook '${selected.useCaseId}'?`)) return;
+    if (!(await confirmDialog({ title: `Delete playbook '${selected.useCaseId}'?`, description: 'This cannot be undone.', destructive: true }))) return;
     setSavingId(selected.useCaseId);
     try {
       await automationRegistryService.remove(selected.useCaseId);
@@ -129,137 +157,225 @@ export function AutomationRegistryPanel() {
     }
   };
 
+  /* ------------------------------------------------------------ presentation */
+
+  const solutions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of filtered) counts.set(r.solution || 'misc', (counts.get(r.solution || 'misc') || 0) + 1);
+    return Array.from(counts.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+  const shown = solution === 'all' ? filtered : filtered.filter(r => (r.solution || 'misc') === solution);
+  const chipOptions = [
+    { value: 'all', label: 'All', count: filtered.length },
+    ...solutions.map(([s, c]) => ({ value: s, label: humanize(s), count: c })),
+  ];
+
+  const busy = !!selected && savingId === selected.useCaseId;
+  const requiredMissing = error === 'useCaseId and solution are required';
+  const sheetError = selected ? (requiredMissing ? 'Give the playbook an ID and a solution before saving.' : error) : null;
+  const info = selected ? describe({ ...selected, yamlText: editorText }) : null;
+  const firstLoad = loading && rows.length === 0;
+
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Automation Registry</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Playbook YAML definitions stored in DynamoDB (AUTOMATION#). Consumed by the automation indexer.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              className="pl-7 h-8 w-64 text-xs"
-              placeholder="Search useCase / solution / yaml..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-            Refresh
-          </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-3 w-3 mr-1" /> New
-          </Button>
-        </div>
+    <div className="page">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-md font-medium text-foreground">Playbooks</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Reusable automation definitions. The Copilot matches a goal to a playbook and builds its plan from it.
+        </p>
       </div>
 
-      {error && (
-        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded p-2">
-          {error}
-        </div>
-      )}
+      <Toolbar className="mt-5">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search playbooks" />
+        <Chips label="Solution" options={chipOptions} value={chipOptions.some(o => o.value === solution) ? solution : 'all'} onChange={setSolution} />
+        <ToolbarSpacer />
+        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
+        </Button>
+        <Button size="sm" onClick={openCreate}>
+          <Icon name="plus" /> New playbook
+        </Button>
+      </Toolbar>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">
-            Playbooks <Badge variant="outline" className="ml-2 text-[10px]">{filtered.length} / {rows.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-sm text-muted-foreground italic py-6 text-center">
-              {rows.length === 0 ? 'No AUTOMATION# rows in DDB yet.' : `No matches for "${search}".`}
-            </div>
-          ) : (
-            <div className="divide-y">
-              {filtered.map((row) => (
-                <button
-                  key={row.useCaseId}
-                  onClick={() => openRow(row)}
-                  className="w-full grid grid-cols-12 gap-2 py-2 px-1 items-center text-left hover:bg-muted/40 transition-colors"
-                >
-                  <div className="col-span-4 font-mono text-xs truncate">{row.useCaseId}</div>
-                  <div className="col-span-3 text-xs">
-                    <Badge variant="outline" className="text-[10px]">{row.solution}</Badge>
-                  </div>
-                  <div className="col-span-3 text-[10px] text-muted-foreground font-mono truncate">{row.sourceFile}</div>
-                  <div className="col-span-2 text-[10px] text-muted-foreground text-right">
-                    {row.sizeBytes ? `${(row.sizeBytes / 1024).toFixed(1)} KB` : ''}
-                  </div>
-                </button>
+      <div className="mt-4">
+        {error && !selected && <InlineError onRetry={load} className="mb-4">The registry could not be loaded. {error}</InlineError>}
+
+        {firstLoad ? (
+          <TableShell>
+            <div className="divide-y divide-border">
+              {[0, 1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="flex items-center gap-6 px-4 py-3.5">
+                  <div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-52 max-w-full" /><Skeleton className="h-3 w-36" /></div>
+                  <Skeleton className="hidden h-4 w-24 md:block" />
+                  <Skeleton className="hidden h-4 w-16 md:block" />
+                </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </TableShell>
+        ) : shown.length === 0 ? (
+          (!error || rows.length > 0) && (
+            <EmptyState
+              icon="list"
+              title={rows.length === 0 ? 'No playbooks yet' : 'No playbooks match'}
+              description={rows.length === 0 ? 'Add a playbook so the Copilot has something to plan from.' : `Nothing matches "${search}"${solution !== 'all' ? ` in ${humanize(solution)}` : ''}.`}
+              action={rows.length === 0
+                ? <Button size="sm" onClick={openCreate}><Icon name="plus" /> New playbook</Button>
+                : <Button size="sm" variant="outline" onClick={() => { setSearch(''); setSolution('all'); }}>Clear filters</Button>}
+            />
+          )
+        ) : (
+          <TableShell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Playbook</TableHead>
+                  <TableHead>Solution</TableHead>
+                  <TableHead>Systems</TableHead>
+                  <TableHead className="text-right">Steps</TableHead>
+                  <TableHead className="text-right">Size</TableHead>
+                  <TableHead className="w-px" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((row, i) => {
+                  const d = describe(row);
+                  return (
+                    <TableRow
+                      key={row.useCaseId}
+                      onClick={() => openRow(row)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(row); } }}
+                      tabIndex={0}
+                      className="rise group cursor-pointer focus-visible:bg-accent/60 focus-visible:outline-none"
+                      style={{ ['--i' as any]: Math.min(i, 12) }}
+                    >
+                      <TableCell className="max-w-[360px]">
+                        <div className="truncate font-medium text-foreground">{d.title}</div>
+                        <div className="mono-id truncate">{row.useCaseId}</div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{humanize(row.solution)}</TableCell>
+                      <TableCell>
+                        {d.systems.length === 0 ? <span className="text-subtle-foreground">None named</span> : (
+                          <span className="flex items-center gap-2">
+                            {d.systems.slice(0, 4).map(s => <SystemLogo key={s} system={s} size="sm" />)}
+                            {d.systems.length === 1 && <span className="text-muted-foreground">{systemName(d.systems[0])}</span>}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="num text-right">{row.yamlText ? d.steps : ''}</TableCell>
+                      <TableCell className="num whitespace-nowrap text-right text-muted-foreground">{kb(row.sizeBytes)}</TableCell>
+                      <TableCell className="text-right">
+                        <Icon name="chevron-right" className="h-3.5 w-3.5 text-subtle-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableShell>
+        )}
 
-      {selected && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4"
-          onClick={closeDrawer}
-        >
-          <div
-            className="bg-card border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div className="flex flex-col gap-1 min-w-0 mr-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    className="w-56 h-7 text-xs font-mono"
-                    placeholder="useCaseId"
-                    value={selected.useCaseId}
-                    onChange={(e) => setSelected({ ...selected, useCaseId: e.target.value })}
-                    disabled={!creating && !!selected.useCaseId}
-                  />
-                  <Input
-                    className="w-40 h-7 text-xs"
-                    placeholder="solution"
-                    value={selected.solution}
-                    onChange={(e) => setSelected({ ...selected, solution: e.target.value })}
-                  />
-                </div>
-                <div className="text-[10px] text-muted-foreground">{selected.sourceFile}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {!creating && selected.useCaseId && (
-                  <Button size="sm" variant="ghost" onClick={deleteSelected} disabled={savingId === selected.useCaseId}>
-                    <Trash2 className="h-3 w-3 mr-1" /> Delete
-                  </Button>
-                )}
-                <Button size="sm" onClick={saveSelected} disabled={savingId === selected.useCaseId}>
-                  {savingId === selected.useCaseId ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                    <Save className="h-3 w-3 mr-1" />
-                  )}
-                  Save
-                </Button>
-                <Button size="sm" variant="ghost" onClick={closeDrawer}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+        {!firstLoad && rows.length > 0 && (
+          <p className="num mt-3 text-xs text-muted-foreground">Showing {shown.length} of {rows.length} playbooks</p>
+        )}
+      </div>
+
+      <DetailSheet
+        open={!!selected}
+        onOpenChange={(open) => { if (!open) closeDrawer(); }}
+        wide
+        title={creating ? 'New playbook' : info?.title || selected?.useCaseId || 'Playbook'}
+        description={creating ? 'Give it an ID and a solution, then paste or write its definition.' : info?.description || 'Playbook definition and facts.'}
+        footer={selected ? (
+          <>
+            {!creating && selected.useCaseId && (
+              <Button variant="ghost" onClick={deleteSelected} disabled={busy} className="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Icon name="trash" /> Delete
+              </Button>
+            )}
+            <Button variant="outline" onClick={closeDrawer}>Close</Button>
+            <Button onClick={saveSelected} disabled={busy}>
+              {busy && <Icon name="spinner" className="animate-spin" />} Save
+            </Button>
+          </>
+        ) : undefined}
+      >
+        {selected && (
+          <div className="space-y-6">
+            {sheetError && <InlineError>{sheetError}</InlineError>}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Playbook ID" htmlFor="ar-id" hint={creating ? 'Lower case, with underscores. It cannot be changed later.' : undefined}>
+                <Input
+                  id="ar-id"
+                  className="font-mono text-xs"
+                  placeholder="o2c_health_check"
+                  value={selected.useCaseId}
+                  onChange={(e) => setSelected({ ...selected, useCaseId: e.target.value })}
+                  disabled={!creating && !!selected.useCaseId}
+                />
+              </Field>
+              <Field label="Solution" htmlFor="ar-solution">
+                <Input
+                  id="ar-solution"
+                  placeholder="order-to-cash"
+                  value={selected.solution}
+                  onChange={(e) => setSelected({ ...selected, solution: e.target.value })}
+                />
+              </Field>
             </div>
-            <div className="flex-1 min-h-0 overflow-auto p-4">
-              <textarea
-                className="w-full min-h-[400px] text-[11px] font-mono bg-muted/30 border rounded p-3"
-                value={editorText}
-                onChange={(e) => setEditorText(e.target.value)}
-                placeholder="# use_case_id: ...\n# solution: ...\n# stages: [...]\n"
-              />
+
+            {!creating && info && (
+              <div>
+                <SubHeading>Facts</SubHeading>
+                <KeyValues
+                  columns={2}
+                  items={[
+                    { label: 'Steps', value: <span className="num">{info.steps}</span> },
+                    { label: 'Approval gates', value: <span className="num">{info.approvals}</span> },
+                    { label: 'Systems', value: info.systems.length ? (
+                      <span className="inline-flex items-center gap-2">{info.systems.map(s => <SystemLogo key={s} system={s} size="xs" />)}<span>{info.systems.map(s => systemName(s)).join(', ')}</span></span>
+                    ) : 'None named' },
+                    { label: 'Size', value: kb(selected.sizeBytes) || 'Not recorded' },
+                    { label: 'Source file', value: selected.sourceFile || 'Not recorded', mono: true },
+                  ]}
+                />
+              </div>
+            )}
+
+            <div>
+              <SubHeading
+                action={!creating ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(v => !v)}
+                    className="text-xs font-medium text-primary underline-offset-4 hover:underline dark:text-brand-hi"
+                  >
+                    {editing ? 'Preview' : 'Edit'}
+                  </button>
+                ) : undefined}
+              >
+                Definition <span className="font-normal text-muted-foreground">(YAML)</span>
+              </SubHeading>
+              {editing ? (
+                <Textarea
+                  aria-label="Playbook definition"
+                  className={cn('scroll-thin min-h-[380px] font-mono text-xs leading-5')}
+                  value={editorText}
+                  onChange={(e) => setEditorText(e.target.value)}
+                  placeholder={'use_case_id: ...\nsolution: ...\nstages:\n  - ...'}
+                  spellCheck={false}
+                />
+              ) : editorText ? (
+                <CodeBlock maxHeight={460}>{editorText}</CodeBlock>
+              ) : (
+                <p className="rounded-lg border border-dashed border-border-strong px-4 py-6 text-center text-sm text-muted-foreground">
+                  This playbook has no definition yet. Select Edit to add one.
+                </p>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </DetailSheet>
     </div>
   );
 }

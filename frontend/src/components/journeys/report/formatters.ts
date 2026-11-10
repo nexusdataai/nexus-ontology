@@ -78,8 +78,8 @@ function formatCurrency(value: number | string): string {
 
 // Status -> tailwind text colour class. Reused by KpiCard.
 export function statusColorClass(status?: string | null): string {
-  if (status === 'critical') return 'text-red-500';
-  if (status === 'warn') return 'text-amber-500';
-  if (status === 'ok') return 'text-green-500';
+  if (status === 'critical') return 'text-destructive';
+  if (status === 'warn') return 'text-warning';
+  if (status === 'ok') return 'text-success';
   return '';
 }

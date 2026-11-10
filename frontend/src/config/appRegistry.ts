@@ -41,7 +41,7 @@ const COMMON_SECTIONS: AppSection[] = [
 export const APP_REGISTRY: AppConfig[] = [
   {
     id: 'order-to-cash', name: 'Order-to-Cash Monitor', shortName: 'O2C',
-    icon: ShoppingCart, color: 'from-blue-500 to-cyan-500',
+    icon: ShoppingCart, color: 'from-primary to-primary',
     description: 'End-to-end visibility and anomaly detection across the order-to-cash lifecycle',
     sections: [
       { id: 'insights', name: 'Business Insights', icon: BarChart3 },
@@ -56,7 +56,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'demand-forecasting', name: 'Demand Forecasting Engine', shortName: 'Forecast',
-    icon: TrendingUp, color: 'from-purple-500 to-pink-500',
+    icon: TrendingUp, color: 'from-primary to-primary',
     description: 'AI-driven demand prediction across SKUs, regions, and channels',
     sections: [
       { id: 'insights', name: 'Forecast Insights', icon: BarChart3 },
@@ -71,7 +71,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'inventory-optimization', name: 'Inventory Optimization', shortName: 'Inventory',
-    icon: Package, color: 'from-green-500 to-emerald-500',
+    icon: Package, color: 'from-success to-success',
     description: 'Multi-echelon inventory optimization and distribution intelligence',
     sections: COMMON_SECTIONS, journeyStageId: 'inventory_optimization', useCase: 'inventory-optimization',
     entities: ['Inventory_Position', 'Batch_Master', 'Plant_Master', 'Storage_Location', 'Material_Master', 'Warehouse_Transfer'],
@@ -80,7 +80,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'procurement-analytics', name: 'Procurement & Spend Analytics', shortName: 'Procurement',
-    icon: FileText, color: 'from-amber-500 to-orange-500',
+    icon: FileText, color: 'from-warning to-warning',
     description: 'Spend visibility, maverick detection, and intelligent invoice processing',
     sections: COMMON_SECTIONS, journeyStageId: 'procurement_analytics', useCase: 'procurement-analytics',
     entities: ['Purchase_Order', 'Goods_Receipt', 'AP_Invoice', 'AP_Payment', 'Vendor_Master', 'Contract_Document', 'Invoice_Upload'],
@@ -89,7 +89,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'production-quality', name: 'Production & Quality Copilot', shortName: 'Production',
-    icon: Factory, color: 'from-red-500 to-rose-500',
+    icon: Factory, color: 'from-destructive to-destructive',
     description: 'AI-assisted production scheduling, yield optimization, and quality detection',
     sections: COMMON_SECTIONS, journeyStageId: 'production_quality', useCase: 'production-quality',
     entities: ['Production_Order', 'Production_Line', 'Bill_of_Materials', 'Quality_Inspection_Lot', 'Quality_Test_Result', 'Batch_Master'],
@@ -98,7 +98,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'supply-chain-risk', name: 'Supply Chain Risk Radar', shortName: 'Risk',
-    icon: Shield, color: 'from-violet-500 to-indigo-500',
+    icon: Shield, color: 'from-primary to-primary',
     description: 'Real-time supplier risk scoring and early warning for disruptions',
     sections: COMMON_SECTIONS, journeyStageId: 'supply_chain_risk', useCase: 'supply-chain-risk',
     entities: ['Vendor_Master', 'Purchase_Order', 'Source_List', 'Market_Signal', 'Contract_Document', 'Goods_Receipt'],
@@ -107,7 +107,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'customer-360', name: 'Customer 360 & Revenue Growth', shortName: 'Customer',
-    icon: Users, color: 'from-sky-500 to-blue-500',
+    icon: Users, color: 'from-primary to-primary',
     description: 'Unified customer profiles with churn prediction and cross-sell recommendations',
     sections: COMMON_SECTIONS, journeyStageId: 'customer_360', useCase: 'customer-360',
     entities: ['Account', 'Contact', 'Opportunity', 'AR_Customer', 'AR_Invoice', 'Brand_Sentiment'],
@@ -116,7 +116,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'esg-sustainability', name: 'ESG & Sustainability Tracker', shortName: 'ESG',
-    icon: Leaf, color: 'from-teal-500 to-green-500',
+    icon: Leaf, color: 'from-primary to-success',
     description: 'Carbon footprint tracking, water monitoring, and ESG compliance reporting',
     sections: COMMON_SECTIONS, journeyStageId: 'esg_sustainability', useCase: 'esg-sustainability',
     entities: ['Sustainability_Report', 'Material_Master', 'Plant_Master', 'Brand_Sentiment'],
@@ -125,7 +125,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'trade-cpq', name: 'Trade CPQ', shortName: 'Trade CPQ',
-    icon: Receipt, color: 'from-fuchsia-500 to-pink-500',
+    icon: Receipt, color: 'from-primary to-primary',
     description: 'AI-first sell-side CPQ for trade quotes — configure offerings, price with channel/tier waterfalls, and convert to orders',
     sections: [
       { id: 'insights', name: 'Quote Pipeline', icon: BarChart3 },
@@ -150,7 +150,7 @@ export const APP_REGISTRY: AppConfig[] = [
   },
   {
     id: 'sourcing-cpq', name: 'Sourcing CPQ', shortName: 'Sourcing CPQ',
-    icon: ClipboardList, color: 'from-indigo-500 to-blue-500',
+    icon: ClipboardList, color: 'from-primary to-primary',
     description: 'AI-first buy-side CPQ for sourcing — launch RFx, score bids vs should-cost, run award scenarios, and draft contracts',
     sections: [
       { id: 'insights', name: 'RFx Pipeline', icon: BarChart3 },

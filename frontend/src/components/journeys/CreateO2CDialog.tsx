@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { CreateJourneyShell } from './studio/CreateJourneyShell';
 import { CallProcessingJourney } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
@@ -63,37 +59,24 @@ export function CreateO2CDialog({ open, onClose, onCreated }: CreateO2CDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>New Order-to-Cash Journey</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Journey Name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Order-to-Cash Monitor" />
-          </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>This journey will run 6 automated steps:</p>
-            <ol className="list-decimal list-inside space-y-0.5 ml-2">
-              <li>Entity Resolution (match orders across systems)</li>
-              <li>Three-Way Match (PO vs delivery vs invoice)</li>
-              <li>Anomaly Scoring (detect discrepancies)</li>
-              <li>Risk Prioritization (rank by composite risk)</li>
-              <li>Cash Flow Projection (forecast from open AR)</li>
-              <li>Store Results (S3 + Glue for dashboards)</li>
-            </ol>
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Journey
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <CreateJourneyShell
+      open={open}
+      onClose={handleClose}
+      title="New Order-to-Cash Journey"
+      name={name}
+      onNameChange={setName}
+      namePlaceholder="Order-to-Cash Monitor"
+      steps={[
+        "Entity Resolution (match orders across systems)",
+        "Three-Way Match (PO vs delivery vs invoice)",
+        "Anomaly Scoring (detect discrepancies)",
+        "Risk Prioritization (rank by composite risk)",
+        "Cash Flow Projection (forecast from open AR)",
+        "Store Results (S3 + Glue for dashboards)",
+      ]}
+      error={error}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit}
+    />
   );
 }

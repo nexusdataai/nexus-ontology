@@ -125,6 +125,24 @@ const mockTmfData: TmfConsolidatedData = {
 };
 
 const mockApiResponse = [{ consolidated_tmf629: mockTmfData }];
+const mockRelationshipsResponse = [
+  { consolidated_tmf629: { relationships: mockTmfData.relationships } },
+];
+const ALL_TABLE_CATEGORIES = new Set(mockTmfData.tables.map((t) => t.category));
+
+function mockTmfFetchSuccess(times = 1) {
+  for (let i = 0; i < times; i += 1) {
+    (fetch as vi.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockApiResponse),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockRelationshipsResponse),
+      });
+  }
+}
 
 describe('TmfOdaService', () => {
   beforeEach(() => {
@@ -137,16 +155,15 @@ describe('TmfOdaService', () => {
 
   describe('Data Loading', () => {
     it('should load data successfully', async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
 
       const data = await tmfOdaService.loadData();
 
-      expect(data).toEqual(mockTmfData);
+      expect(data.tables).toEqual(mockTmfData.tables);
+      expect(data.relationships).toHaveLength(2);
       expect(tmfOdaService.isDataLoaded()).toBe(true);
       expect(fetch).toHaveBeenCalledWith('/TMF629_entities.json');
+      expect(fetch).toHaveBeenCalledWith('/TMF629_relationships.json');
     });
 
     it('should handle fetch errors', async () => {
@@ -157,104 +174,97 @@ describe('TmfOdaService', () => {
     });
 
     it('should handle invalid response structure', async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ invalid: 'structure' })
-      });
+      (fetch as vi.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ invalid: 'structure' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockRelationshipsResponse),
+        });
 
       await expect(tmfOdaService.loadData()).rejects.toThrow('Invalid data structure');
     });
 
     it('should return cached data on subsequent calls', async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
 
       const data1 = await tmfOdaService.loadData();
       const data2 = await tmfOdaService.loadData();
 
       expect(data1).toBe(data2);
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Entity Filtering', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
     it('should filter by table category', () => {
       const filterOptions: FilterOptions = {
-        tableCategoryFilter: 'Core Entities',
-        relationshipCategoryFilter: 'all',
-        searchFilter: ''
+        includedCategories: new Set(['Core Entities']),
+        searchFilter: '',
       };
 
       const result = tmfOdaService.getFilteredDataset(filterOptions);
 
-      expect(result.tables).toHaveLength(3); // 2 core + 1 connected (ContactMedium)
+      expect(result.tables).toHaveLength(2);
       expect(result.tables.some(t => t.name === 'Customer')).toBe(true);
       expect(result.tables.some(t => t.name === 'BusinessPartner')).toBe(true);
-      expect(result.tables.some(t => t.name === 'ContactMedium')).toBe(true);
     });
 
-    it('should filter by relationship category', () => {
+    it('should only keep relationships between visible tables', () => {
       const filterOptions: FilterOptions = {
-        tableCategoryFilter: 'all',
-        relationshipCategoryFilter: 'Foreign Key',
-        searchFilter: ''
+        includedCategories: new Set(['Core Entities']),
+        searchFilter: '',
       };
 
       const result = tmfOdaService.getFilteredDataset(filterOptions);
 
-      expect(result.relationships.every(r => r.relationship === 'Foreign Key')).toBe(true);
+      expect(result.relationships.every((r) => {
+        const names = new Set(result.tables.map((t) => t.name));
+        return names.has(r.source) && names.has(r.target);
+      })).toBe(true);
     });
 
     it('should filter by search term', () => {
       const filterOptions: FilterOptions = {
-        tableCategoryFilter: 'all',
-        relationshipCategoryFilter: 'all',
-        searchFilter: 'customer'
+        includedCategories: ALL_TABLE_CATEGORIES,
+        searchFilter: 'customer',
       };
 
       const result = tmfOdaService.getFilteredDataset(filterOptions);
 
       expect(result.tables.some(t => t.name === 'Customer')).toBe(true);
-      expect(result.tables.some(t => t.name === 'ContactMedium')).toBe(true); // Connected to Customer
     });
 
-    it('should return all data when no filters applied', () => {
+    it('should return all data when all categories are included', () => {
       const filterOptions: FilterOptions = {
-        tableCategoryFilter: 'all',
-        relationshipCategoryFilter: 'all',
-        searchFilter: ''
+        includedCategories: ALL_TABLE_CATEGORIES,
+        searchFilter: '',
       };
 
       const result = tmfOdaService.getFilteredDataset(filterOptions);
 
       expect(result.tables).toHaveLength(4);
-      expect(result.relationships).toHaveLength(3);
+      expect(result.relationships).toHaveLength(2);
     });
   });
 
   describe('Entity Relationships', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
     it('should get relationships for an entity', () => {
       const relationships = tmfOdaService.getEntityRelationships('Customer');
 
-      expect(relationships).toHaveLength(3); // Customer appears in 3 relationships
+      expect(relationships).toHaveLength(2);
       expect(relationships.some(r => r.source === 'Customer' || r.target === 'Customer')).toBe(true);
     });
 
@@ -284,10 +294,7 @@ describe('TmfOdaService', () => {
 
   describe('Entity Statistics', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
@@ -310,10 +317,7 @@ describe('TmfOdaService', () => {
 
   describe('Search and Lookup', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
@@ -366,10 +370,7 @@ describe('TmfOdaService', () => {
 
   describe('Metadata and Categories', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
@@ -406,10 +407,7 @@ describe('TmfOdaService', () => {
 
   describe('Entity Mapping Validation', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
@@ -432,10 +430,7 @@ describe('TmfOdaService', () => {
 
   describe('Endpoint Filtering', () => {
     beforeEach(async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
       await tmfOdaService.loadData();
     });
 
@@ -462,10 +457,7 @@ describe('TmfOdaService', () => {
 
   describe('Cache Management', () => {
     it('should clear cache', async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockApiResponse)
-      });
+      mockTmfFetchSuccess();
 
       await tmfOdaService.loadData();
       expect(tmfOdaService.isDataLoaded()).toBe(true);
@@ -475,21 +467,13 @@ describe('TmfOdaService', () => {
     });
 
     it('should reload data after cache clear', async () => {
-      (fetch as vi.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(mockApiResponse)
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(mockApiResponse)
-        });
+      mockTmfFetchSuccess(2);
 
       await tmfOdaService.loadData();
       tmfOdaService.clearCache();
       await tmfOdaService.loadData();
 
-      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(fetch).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -497,18 +481,22 @@ describe('TmfOdaService', () => {
     it('should throw error when accessing data before loading', () => {
       expect(() => {
         tmfOdaService.getFilteredDataset({
-          tableCategoryFilter: 'all',
-          relationshipCategoryFilter: 'all',
-          searchFilter: ''
+          includedCategories: ALL_TABLE_CATEGORIES,
+          searchFilter: '',
         });
       }).toThrow('Data not loaded. Call loadData() first.');
     });
 
     it('should handle malformed JSON gracefully', async () => {
-      (fetch as vi.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.reject(new Error('Invalid JSON'))
-      });
+      (fetch as vi.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.reject(new Error('Invalid JSON')),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockRelationshipsResponse),
+        });
 
       await expect(tmfOdaService.loadData()).rejects.toThrow('Invalid JSON');
     });
@@ -516,10 +504,12 @@ describe('TmfOdaService', () => {
     it('should handle HTTP errors', async () => {
       (fetch as vi.Mock).mockResolvedValueOnce({
         ok: false,
-        status: 404
+        status: 404,
       });
 
-      await expect(tmfOdaService.loadData()).rejects.toThrow('HTTP error! status: 404');
+      await expect(tmfOdaService.loadData()).rejects.toThrow(
+        'HTTP error loading TMF629_entities.json! status: 404',
+      );
     });
   });
 }); 

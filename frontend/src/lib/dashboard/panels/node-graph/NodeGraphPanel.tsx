@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { CHART_COLORS } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 interface NodeData {
   id: string;
@@ -19,14 +21,12 @@ interface EdgeData {
   label?: string;
 }
 
-const NODE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
+const NODE_COLORS = CHART_COLORS;
 
 export function NodeGraphPanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 

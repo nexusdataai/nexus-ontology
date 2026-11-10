@@ -18,7 +18,7 @@ const BackendDebugPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Backend Debug</h1>
+          <h1 className="text-2xl font-semibold">Backend Debug</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Debug API endpoints and MCP tool execution
           </p>

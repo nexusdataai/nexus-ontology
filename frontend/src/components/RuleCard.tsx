@@ -22,19 +22,19 @@ interface RuleCardProps {
 }
 
 const priorityColors = {
-  low: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
-  medium: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
-  high: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100',
-  critical: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
+  low: 'bg-surface-2 text-foreground dark:bg-surface-3 dark:text-foreground',
+  medium: 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary',
+  high: 'bg-warning/10 text-warning dark:bg-warning/15 dark:text-warning',
+  critical: 'bg-destructive/10 text-destructive dark:bg-destructive/15 dark:text-destructive'
 };
 
 const stageColors = {
-  'raw-analysis': 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100',
-  'schema-mapping': 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
-  'tmf-mapping': 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
-  'validation': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100',
-  'output-generation': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100',
-  'quality-check': 'bg-pink-100 text-pink-800 dark:bg-pink-800 dark:text-pink-100'
+  'raw-analysis': 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary',
+  'schema-mapping': 'bg-success/10 text-success dark:bg-success/15 dark:text-success',
+  'tmf-mapping': 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary',
+  'validation': 'bg-warning/10 text-warning dark:bg-warning/15 dark:text-warning',
+  'output-generation': 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary',
+  'quality-check': 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary'
 };
 
 export const RuleCard: React.FC<RuleCardProps> = ({
@@ -69,9 +69,9 @@ export const RuleCard: React.FC<RuleCardProps> = ({
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600 dark:text-green-400';
-    if (confidence >= 0.6) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (confidence >= 0.8) return 'text-success dark:text-success';
+    if (confidence >= 0.6) return 'text-warning dark:text-warning';
+    return 'text-destructive dark:text-destructive';
   };
 
   return (
@@ -107,7 +107,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({
                 onClick={handleDelete}
                 size="sm"
                 variant="ghost"
-                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                 title="Delete Rule"
               >
                 <Trash2 className="h-3 w-3" />

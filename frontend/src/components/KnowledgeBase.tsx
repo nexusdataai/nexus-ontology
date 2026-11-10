@@ -194,7 +194,7 @@ const KnowledgeBase: React.FC = () => {
             <Brain className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">KnowledgeBase</h1>
+            <h1 className="text-3xl font-semibold text-foreground">KnowledgeBase</h1>
             <p className="text-muted-foreground">
               Upload documents, create vector indexes, and test AI-powered knowledge queries
             </p>
@@ -479,19 +479,19 @@ const KnowledgeBase: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-2xl font-semibold text-primary">
                       {uploadedDocs.filter(doc => doc.indexed).length}
                     </p>
                     <p className="text-xs text-muted-foreground">Indexed Documents</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-2xl font-semibold text-primary">
                       {uploadedDocs.reduce((sum, doc) => sum + doc.vectorCount, 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-muted-foreground">Vector Embeddings</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-primary">{queryHistory.length}</p>
+                    <p className="text-2xl font-semibold text-primary">{queryHistory.length}</p>
                     <p className="text-xs text-muted-foreground">Queries Processed</p>
                   </div>
                 </div>

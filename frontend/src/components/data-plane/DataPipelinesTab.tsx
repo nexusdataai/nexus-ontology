@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Plus, Play, Clock, CheckCircle, XCircle, Loader2, RefreshCw,
-  Database, ArrowRight, Radio, FileText, Globe, Zap, Settings,
-  BarChart3, AlertTriangle, Eye, X, Activity, Layers, Timer,
-} from 'lucide-react';
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import {
+  Field, InlineError, KeyValues, MetricStrip, Panel, StatusPill, SubHeading, Timeline,
+} from '@/components/ds/kit';
+import { SystemLogo } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
 import {
   etlPipelineService,
   getStepsForSourceType,
@@ -21,41 +29,24 @@ import {
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
 import { ETL_PIPELINE_TEMPLATES, type ETLPipelineTemplate } from '@/config/etlPipelineTemplates';
 
-const STATUS_STYLES: Record<string, { class: string; icon: React.ElementType }> = {
-  running:   { class: 'bg-blue-500/20 text-blue-300',   icon: Loader2 },
-  completed: { class: 'bg-green-500/20 text-green-300', icon: CheckCircle },
-  failed:    { class: 'bg-red-500/20 text-red-300',     icon: XCircle },
-  scheduled: { class: 'bg-amber-500/20 text-amber-300', icon: Clock },
-  pending:   { class: 'bg-muted text-muted-foreground', icon: Clock },
-};
-
-const SOURCE_ICONS: Record<ETLSourceType, React.ElementType> = {
-  social_listening: Radio,
-  file_uploads: FileText,
-  google_drive: Globe,
-  generic: Database,
-};
-
-const SOURCE_COLORS: Record<ETLSourceType, string> = {
-  social_listening: 'from-pink-500 to-pink-600',
-  file_uploads: 'from-purple-500 to-purple-600',
-  google_drive: 'from-cyan-500 to-cyan-600',
-  generic: 'from-slate-500 to-slate-600',
-};
-
-const SOURCE_TEXT_COLORS: Record<ETLSourceType, string> = {
-  social_listening: 'text-pink-400',
-  file_uploads: 'text-purple-400',
-  google_drive: 'text-cyan-400',
-  generic: 'text-muted-foreground',
-};
-
 const SOURCE_DESCRIPTIONS: Record<ETLSourceType, string> = {
   social_listening: 'Market signals, social mentions, competitor alerts',
   file_uploads: 'Invoices, lab reports, CSV files',
   google_drive: 'Contracts, sustainability reports',
   generic: 'Custom data pipeline',
 };
+
+const SOURCE_LABEL: Record<ETLSourceType, string> = {
+  social_listening: 'Social listening',
+  file_uploads: 'File uploads',
+  google_drive: 'Google Drive',
+  generic: 'Generic',
+};
+
+const SOURCE_TYPES: ETLSourceType[] = ['social_listening', 'file_uploads', 'google_drive', 'generic'];
+
+/** Radix Select cannot hold an empty value; this stands for "auto-detect". */
+const AUTO_RULE = '__auto__';
 
 interface CreateForm {
   name: string;
@@ -75,54 +66,70 @@ const DEFAULT_FORM: CreateForm = {
   schedule: '',
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_STYLES[status] ?? STATUS_STYLES.pending;
-  const Icon = cfg.icon;
-  return (
-    <Badge className={cfg.class}>
-      <Icon className={`h-3 w-3 mr-1 ${status === 'running' ? 'animate-spin' : ''}`} />
-      {status}
-    </Badge>
-  );
+type StepState = 'done' | 'active' | 'pending' | 'failed';
+
+function stepStates(steps: ETLStepDef[], currentStep: string | undefined, status: string): StepState[] {
+  const currentIdx = currentStep ? steps.findIndex(s => s.id === currentStep) : -1;
+  return steps.map((_, i) => {
+    if (status === 'completed') return 'done';
+    if (status === 'failed' && i === currentIdx) return 'failed';
+    if (status === 'failed' && i < currentIdx) return 'done';
+    if (i < currentIdx) return 'done';
+    if (i === currentIdx && status === 'running') return 'active';
+    return 'pending';
+  });
 }
 
-function StepProgress({ steps, currentStep, status }: {
-  steps: ETLStepDef[];
-  currentStep?: string;
-  status: string;
-}) {
-  const currentIdx = currentStep ? steps.findIndex(s => s.id === currentStep) : -1;
+const STEP_STATE_LABEL: Record<StepState, string> = { done: 'done', active: 'running', pending: 'waiting', failed: 'failed' };
+
+/** Five small segments in one hue: where the pipeline is in its run. */
+function StepSegments({ steps, states }: { steps: ETLStepDef[]; states: StepState[] }) {
+  const doneCount = states.filter(s => s === 'done').length;
   return (
-    <div className="flex items-center gap-0.5">
-      {steps.map((step, i) => {
-        let stepStatus: 'done' | 'active' | 'pending' | 'failed' = 'pending';
-        if (status === 'completed') stepStatus = 'done';
-        else if (status === 'failed' && i === currentIdx) stepStatus = 'failed';
-        else if (status === 'failed' && i < currentIdx) stepStatus = 'done';
-        else if (i < currentIdx) stepStatus = 'done';
-        else if (i === currentIdx && status === 'running') stepStatus = 'active';
-        const colors = { done: 'bg-green-500', active: 'bg-blue-500 animate-pulse', pending: 'bg-muted-foreground/30', failed: 'bg-red-500' };
-        return (
-          <div key={step.id} className="flex-1 min-w-0" title={step.name}>
-            <div className={`h-1 rounded-full ${colors[stepStatus]}`} />
-          </div>
-        );
-      })}
+    <div
+      role="img"
+      aria-label={`${doneCount} of ${steps.length} steps done`}
+      title={steps.map((s, i) => `${i + 1}. ${s.name}: ${STEP_STATE_LABEL[states[i]]}`).join('\n')}
+      className="flex items-center gap-1"
+    >
+      {steps.map((step, i) => (
+        <span
+          key={step.id}
+          className={cn(
+            'h-1.5 w-5 rounded-full',
+            states[i] === 'done' && 'bg-primary',
+            states[i] === 'active' && 'animate-pulse bg-primary',
+            states[i] === 'pending' && 'bg-surface-3',
+            states[i] === 'failed' && 'bg-destructive',
+          )}
+        />
+      ))}
     </div>
   );
 }
 
-function PipelineCard({ pipeline, mappingRules, onRun, onStudio }: {
+const formatWhen = (value?: string | number | null): string => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+};
+
+function PipelineRow({ pipeline, mappingRules, index, onRun, onStudio }: {
   pipeline: any;
   mappingRules: MappingRule[];
+  index: number;
   onRun: (id: string) => void;
   onStudio: (id: string) => void;
 }) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setJobsLoading(true);
+    setJobsError(null);
     etlPipelineService.getPipelineJobs(pipeline.id)
       .then((res: any) => {
         const list = Array.isArray(res) ? res : res?.jobs ?? res?.data ?? [];
@@ -135,13 +142,17 @@ function PipelineCard({ pipeline, mappingRules, onRun, onStudio }: {
           durationMs: j.durationMs || j.duration,
         })));
       })
-      .catch(() => setJobs([]))
+      .catch((e: any) => {
+        setJobs([]);
+        setJobsError(e?.message || 'Runs could not be loaded.');
+      })
       .finally(() => setJobsLoading(false));
   }, [pipeline.id, pipeline.status]);
 
   const sourceType: ETLSourceType = pipeline.config?.sourceType || 'generic';
-  const SrcIcon = SOURCE_ICONS[sourceType];
+  const status: string = pipeline.status ?? 'pending';
   const steps = getStepsForSourceType(sourceType);
+  const states = stepStates(steps, pipeline.currentStep, status);
   const rule = mappingRules.find(r => r.id === (pipeline.config?.mappingRuleId ?? pipeline.mappingRuleId));
   const tpl = ETL_PIPELINE_TEMPLATES.find(t => t.sourceType === sourceType);
 
@@ -150,121 +161,143 @@ function PipelineCard({ pipeline, mappingRules, onRun, onStudio }: {
   const lastRun = jobs[0];
   const totalRows = jobs.reduce((sum, j) => sum + (j.rowsProcessed || 0), 0);
 
+  const activeIdx = states.findIndex(s => s === 'active' || s === 'failed');
+  const stepCaption = status === 'completed'
+    ? 'All steps done'
+    : activeIdx >= 0
+      ? `${steps[activeIdx].name} · ${activeIdx + 1} of ${steps.length}`
+      : 'Not started';
+  const lastRunLabel = formatWhen(lastRun?.startedAt || pipeline.lastRunAt);
+  const panelId = `pipeline-${pipeline.id}-details`;
+
   return (
-    <Card className="overflow-hidden">
-      <div className={`h-1 bg-gradient-to-r ${SOURCE_COLORS[sourceType]}`} />
-      <CardContent className="pt-4 pb-3 space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${SOURCE_COLORS[sourceType]} flex items-center justify-center text-white shrink-0`}>
-              <SrcIcon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium truncate">{pipeline.name}</p>
-                <StatusBadge status={pipeline.status ?? 'pending'} />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {SOURCE_DESCRIPTIONS[sourceType]}
+    <li className="rise border-b border-border last:border-b-0" style={{ '--i': Math.min(index, 8) } as React.CSSProperties}>
+      <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 transition-colors sm:px-5', open ? 'bg-surface-2/50' : 'hover:bg-surface-2/40')}>
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="flex min-w-0 flex-1 basis-64 items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Icon name="chevron-right" className={cn('h-3.5 w-3.5 shrink-0 text-subtle-foreground transition-transform duration-200 ease-brand', open && 'rotate-90')} />
+          <SystemLogo system={sourceType} tile size="sm" />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-foreground">{pipeline.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{SOURCE_DESCRIPTIONS[sourceType]}</span>
+          </span>
+        </button>
+
+        <div className="w-[172px] shrink-0">
+          <StepSegments steps={steps} states={states} />
+          <p className="mt-1.5 truncate text-xs text-muted-foreground">{stepCaption}</p>
+        </div>
+
+        <div className="w-[150px] shrink-0 text-xs text-muted-foreground">
+          {jobsLoading ? (
+            <Skeleton className="h-8 w-28" />
+          ) : (
+            <>
+              <p className="truncate">
+                <span className="num text-foreground">{jobs.length}</span> {jobs.length === 1 ? 'run' : 'runs'}
+                {jobs.length > 0 && <> · <span className="num">{completedJobs.length}</span> succeeded</>}
               </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onRun(pipeline.id)}>
-              <Play className="h-3 w-3 mr-1" />Run
-            </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onStudio(pipeline.id)}>
-              <Eye className="h-3 w-3 mr-1" />Studio
-            </Button>
-          </div>
-        </div>
-
-        {/* Step progress */}
-        <StepProgress steps={steps} currentStep={pipeline.currentStep} status={pipeline.status ?? 'pending'} />
-        <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-          {steps.map((s, i) => (
-            <React.Fragment key={s.id}>
-              {i > 0 && <ArrowRight className="h-2 w-2 shrink-0 opacity-40" />}
-              <span className="truncate">{s.name}</span>
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* KPI row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-muted/30 rounded-md px-2.5 py-2 text-center">
-            <p className="text-lg font-semibold">{jobs.length}</p>
-            <p className="text-[9px] text-muted-foreground">Total Runs</p>
-          </div>
-          <div className="bg-muted/30 rounded-md px-2.5 py-2 text-center">
-            <p className="text-lg font-semibold text-green-400">{completedJobs.length}</p>
-            <p className="text-[9px] text-muted-foreground">Completed</p>
-          </div>
-          <div className="bg-muted/30 rounded-md px-2.5 py-2 text-center">
-            <p className="text-lg font-semibold text-red-400">{failedJobs.length}</p>
-            <p className="text-[9px] text-muted-foreground">Failed</p>
-          </div>
-          <div className="bg-muted/30 rounded-md px-2.5 py-2 text-center">
-            <p className="text-lg font-semibold">{totalRows > 0 ? totalRows.toLocaleString() : '—'}</p>
-            <p className="text-[9px] text-muted-foreground">Rows Processed</p>
-          </div>
-        </div>
-
-        {/* Pipeline info */}
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1"><Layers className="h-3 w-3" />{rule?.name || 'Auto-detect'}</span>
-          <span className="flex items-center gap-1"><Settings className="h-3 w-3" />{pipeline.config?.mode || 'full'}</span>
-          {pipeline.config?.schedule && <span className="flex items-center gap-1 font-mono"><Clock className="h-3 w-3" />{pipeline.config.schedule}</span>}
-          {tpl && (
-            <span className="flex items-center gap-1">
-              <Database className="h-3 w-3" />
-              {tpl.targetEntities.join(', ')}
-            </span>
+              <p className="mt-0.5 truncate">{lastRunLabel ? `Last run ${lastRunLabel}` : 'Never run'}</p>
+            </>
           )}
         </div>
 
-        {/* Recent jobs */}
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Recent Runs</p>
-          {jobsLoading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-              <Loader2 className="h-3 w-3 animate-spin" /> Loading...
-            </div>
-          ) : jobs.length === 0 ? (
-            <p className="text-[10px] text-muted-foreground py-1">No runs recorded yet</p>
-          ) : (
-            <div className="space-y-1">
-              {jobs.slice(0, 3).map((job: any, i: number) => (
-                <div key={job.id || i} className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-muted/20 border border-border/50 text-[10px]">
-                  <StatusBadge status={job.status || 'pending'} />
-                  <span className="font-mono text-muted-foreground">{job.id || `Run ${i + 1}`}</span>
-                  {job.startedAt && (
-                    <span className="text-muted-foreground ml-auto">
-                      {new Date(job.startedAt).toLocaleDateString()} {new Date(job.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                  {job.rowsProcessed != null && job.rowsProcessed > 0 && (
-                    <span className="text-muted-foreground">{job.rowsProcessed.toLocaleString()} rows</span>
-                  )}
-                  {job.durationMs != null && job.durationMs > 0 && (
-                    <span className="text-muted-foreground">{(job.durationMs / 1000).toFixed(1)}s</span>
-                  )}
-                  {job.error && (
-                    <span className="text-red-400 truncate max-w-[160px]" title={job.error}>
-                      <AlertTriangle className="h-2.5 w-2.5 inline mr-0.5" />{job.error}
-                    </span>
-                  )}
+        <StatusPill status={status} className="w-[88px]" />
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onRun(pipeline.id)}>
+            <Icon name="play" className="h-3.5 w-3.5" /> Run
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onStudio(pipeline.id)} title="Open in AI Automation">
+            Studio <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {open && (
+        <div id={panelId} className="grid gap-x-10 gap-y-7 border-t border-border bg-surface-2/30 px-4 py-5 sm:px-5 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <SubHeading>Steps</SubHeading>
+            <Timeline
+              className="mt-3"
+              items={steps.map((s, i) => ({
+                id: s.id,
+                title: s.name,
+                description: s.description,
+                status: states[i] === 'done' ? 'completed' : states[i] === 'active' ? 'running' : states[i] === 'failed' ? 'failed' : undefined,
+              }))}
+            />
+          </div>
+
+          <div className="min-w-0 space-y-6">
+            <div>
+              <SubHeading
+                action={jobs.length > 5 ? <span className="text-xs text-muted-foreground">Latest 5 of <span className="num">{jobs.length}</span></span> : undefined}
+              >
+                Recent runs
+              </SubHeading>
+              {jobsLoading ? (
+                <div className="space-y-2" aria-busy="true">
+                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
                 </div>
-              ))}
-              {jobs.length > 3 && (
-                <p className="text-[9px] text-muted-foreground text-center pt-0.5">+ {jobs.length - 3} more runs</p>
+              ) : jobsError ? (
+                <InlineError>{jobsError}</InlineError>
+              ) : jobs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No runs recorded yet. Use Run to start the first one.</p>
+              ) : (
+                <div className="scroll-thin overflow-x-auto rounded-lg border border-border bg-card">
+                  <Table className="min-w-[520px]">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="h-9">Status</TableHead>
+                        <TableHead className="h-9">Run</TableHead>
+                        <TableHead className="h-9">Started</TableHead>
+                        <TableHead className="h-9 text-right">Rows</TableHead>
+                        <TableHead className="h-9 text-right">Duration</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {jobs.slice(0, 5).map((job: any, i: number) => (
+                        <TableRow key={job.id || i}>
+                          <TableCell className="py-2">
+                            <StatusPill status={job.status || 'pending'} />
+                            {job.error && <span className="mt-0.5 block max-w-[220px] truncate text-xs text-destructive" title={job.error}>{job.error}</span>}
+                          </TableCell>
+                          <TableCell className="py-2 font-mono text-xs text-muted-foreground">{job.id || `Run ${i + 1}`}</TableCell>
+                          <TableCell className="whitespace-nowrap py-2 text-xs text-muted-foreground">{formatWhen(job.startedAt) || '—'}</TableCell>
+                          <TableCell className="num py-2 text-right text-xs text-foreground">{job.rowsProcessed > 0 ? job.rowsProcessed.toLocaleString() : '—'}</TableCell>
+                          <TableCell className="num py-2 text-right text-xs text-muted-foreground">{job.durationMs > 0 ? `${(job.durationMs / 1000).toFixed(1)} s` : '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
-          )}
+
+            <div>
+              <SubHeading>Configuration</SubHeading>
+              <KeyValues
+                columns={2}
+                items={[
+                  { label: 'Mapping rule', value: rule?.name || 'Auto-detect' },
+                  { label: 'Load mode', value: (pipeline.config?.mode || 'full') === 'incremental' ? 'Incremental' : 'Full' },
+                  { label: 'Schedule', value: pipeline.config?.schedule || 'Manual', mono: !!pipeline.config?.schedule },
+                  { label: 'Loads into', value: tpl ? tpl.targetEntities.join(', ') : 'Entity of the mapping rule' },
+                  { label: 'Failed runs', value: <span className="num">{failedJobs.length}</span> },
+                  { label: 'Rows processed', value: <span className="num">{totalRows > 0 ? totalRows.toLocaleString() : '—'}</span> },
+                ]}
+              />
+            </div>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </li>
   );
 }
 
@@ -278,6 +311,9 @@ export default function DataPipelinesTab() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Presentation only: surfaces a failed list request and the first paint.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedOnce, setLoadedOnce] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -288,14 +324,17 @@ export default function DataPipelinesTab() {
     if (pipelinesRes.status === 'fulfilled') {
       const d = pipelinesRes.value;
       setPipelines(Array.isArray(d) ? d : d?.data ?? []);
+      setLoadError(null);
     } else {
       setPipelines([]);
+      setLoadError(pipelinesRes.reason?.message || 'Pipelines could not be loaded.');
     }
     if (rulesRes.status === 'fulfilled') {
       const d = rulesRes.value;
       setMappingRules(Array.isArray(d) ? d : (d as any)?.data ?? []);
     }
     setLoading(false);
+    setLoadedOnce(true);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -332,6 +371,7 @@ export default function DataPipelinesTab() {
       setShowCreate(false);
       setCreateForm({ ...DEFAULT_FORM });
       setCreateError(null);
+      toast.success('Pipeline created');
       fetchData();
     } catch (err: any) {
       setCreateError(err?.message || err?.data?.message || 'Failed to create pipeline.');
@@ -356,11 +396,19 @@ export default function DataPipelinesTab() {
     try {
       await etlPipelineService.runPipeline(pipelineId);
       nav(`/workspace/automation?journeyId=${pipelineId}`);
-    } catch { /* noop */ }
+    } catch (e: any) {
+      toast.error('The pipeline did not start', { description: e?.message || 'The run request failed.' });
+    }
   };
 
   const handleViewStudio = (pipelineId: string) => {
     nav(`/workspace/automation?journeyId=${pipelineId}`);
+  };
+
+  const closeCreate = () => {
+    setShowCreate(false);
+    setCreateForm({ ...DEFAULT_FORM });
+    setCreateError(null);
   };
 
   const currentTemplate = ETL_PIPELINE_TEMPLATES.find(t => t.sourceType === createForm.sourceType);
@@ -372,6 +420,7 @@ export default function DataPipelinesTab() {
       r.sourceTable?.toLowerCase().includes(e.toLowerCase())
     )
   );
+  const otherRules = mappingRules.filter(r => !matchedRules.includes(r));
   const stepsPreview = getStepsForSourceType(createForm.sourceType);
 
   const existingSourceTypes = new Set(pipelines.map((p: any) => p.config?.sourceType).filter(Boolean));
@@ -379,220 +428,205 @@ export default function DataPipelinesTab() {
 
   const totalJobs = pipelines.reduce((n, p) => n + (p.jobCount || 0), 0);
   const runningCount = pipelines.filter(p => p.status === 'running').length;
+  const completedCount = pipelines.filter(p => p.status === 'completed').length;
+  const firstLoad = !loadedOnce || (loading && pipelines.length === 0 && !loadError);
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Data Pipelines</h2>
-          <p className="text-sm text-muted-foreground">ETL batch pipelines for hydrating the virtual data layer</p>
+    <div className="page">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">Data pipelines</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Batch jobs that extract, check and load source data into the virtual data layer.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />Refresh
+            <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
           </Button>
           <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Create Pipeline
+            <Icon name="plus" /> New pipeline
           </Button>
         </div>
       </div>
 
-      {/* Summary KPIs */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center"><Activity className="h-5 w-5 text-blue-400" /></div>
-            <div>
-              <p className="text-2xl font-bold">{pipelines.length}</p>
-              <p className="text-xs text-muted-foreground">Active Pipelines</p>
-            </div>
+      <MetricStrip
+        className="mt-6"
+        items={[
+          { label: 'Active pipelines', value: firstLoad ? '—' : pipelines.length },
+          { label: 'Completed', value: firstLoad ? '—' : completedCount, hint: 'Last run finished' },
+          { label: 'Running now', value: firstLoad ? '—' : runningCount, hint: runningCount > 0 ? 'Updating every 3 s' : 'Idle', tone: runningCount > 0 ? 'info' : 'neutral' },
+          { label: 'Runs recorded', value: firstLoad ? '—' : totalJobs.toLocaleString(), hint: 'Across all pipelines' },
+        ]}
+      />
+
+      {loadError && <InlineError className="mt-6" onRetry={fetchData}>{loadError}</InlineError>}
+
+      <Panel
+        className="mt-6"
+        flush
+        title="Pipelines"
+        actions={!firstLoad && pipelines.length > 0 ? <span className="num text-sm text-muted-foreground">{pipelines.length}</span> : undefined}
+      >
+        {firstLoad ? (
+          <div className="divide-y divide-border" aria-busy="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-48 max-w-full" />
+                  <Skeleton className="h-3 w-72 max-w-full" />
+                </div>
+                <Skeleton className="hidden h-4 w-28 sm:block" />
+              </div>
+            ))}
           </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center"><CheckCircle className="h-5 w-5 text-green-400" /></div>
-            <div>
-              <p className="text-2xl font-bold">{pipelines.filter(p => p.status === 'completed').length}</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
-            </div>
+        ) : pipelines.length === 0 ? (
+          <div className="p-4 sm:p-5">
+            <EmptyState
+              icon="route"
+              className="border-0 py-8"
+              title="No pipelines yet"
+              description={suggestedTemplates.length > 0
+                ? 'Create one from scratch, or start from a suggested pipeline below.'
+                : 'Create a pipeline to start loading source data into the virtual data layer.'}
+              action={<Button size="sm" onClick={() => setShowCreate(true)}><Icon name="plus" /> New pipeline</Button>}
+            />
           </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center"><Timer className="h-5 w-5 text-amber-400" /></div>
-            <div>
-              <p className="text-2xl font-bold">{runningCount}</p>
-              <p className="text-xs text-muted-foreground">Running Now</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+        ) : (
+          <ul>
+            {pipelines.map((p: any, i: number) => (
+              <PipelineRow
+                key={p.id}
+                pipeline={p}
+                index={i}
+                mappingRules={mappingRules}
+                onRun={handleRun}
+                onStudio={handleViewStudio}
+              />
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      {!firstLoad && suggestedTemplates.length > 0 && (
+        <section className="mt-10">
+          <h3 className="text-md font-medium text-foreground">Suggested pipelines</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">Sources that have no pipeline yet. Each one opens the form with sensible defaults.</p>
+          <ul className="mt-3 border-t border-border">
+            {suggestedTemplates.map(tpl => (
+              <li key={tpl.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border py-3">
+                <SystemLogo system={tpl.sourceType} size="md" />
+                <div className="min-w-0 flex-1 basis-64">
+                  <p className="text-sm font-medium text-foreground">{tpl.name}</p>
+                  <p className="text-sm text-muted-foreground">{tpl.description}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Loads {tpl.targetEntities.map(e => e.replace(/_/g, ' ')).join(', ')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCreateFromTemplate(tpl)}
+                  className="group inline-flex shrink-0 items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-hi"
+                >
+                  Create <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Create form */}
-      {showCreate && (
-        <Card className="border-dashed border-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">New ETL Pipeline</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setShowCreate(false); setCreateForm({ ...DEFAULT_FORM }); setCreateError(null); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Source Type</label>
-                <select className="w-full h-9 rounded-md border bg-background px-3 text-sm" value={createForm.sourceType}
-                  onChange={e => { const st = e.target.value as ETLSourceType; setCreateForm(f => ({ ...f, sourceType: st, name: f.name || SOURCE_TYPE_LABELS[st] + ' ETL' })); }}>
-                  <option value="social_listening">Social Listening</option>
-                  <option value="file_uploads">File Uploads</option>
-                  <option value="google_drive">Google Drive</option>
-                  <option value="generic">Generic</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Name</label>
-                <Input placeholder="Pipeline name" value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Mapping Rule <span className="text-muted-foreground/60">(optional)</span></label>
-                <select className="w-full h-9 rounded-md border bg-background px-3 text-sm" value={createForm.mappingRuleId}
-                  onChange={e => setCreateForm(f => ({ ...f, mappingRuleId: e.target.value }))}>
-                  <option value="">Auto-detect from source</option>
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) closeCreate(); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-medium">New pipeline</DialogTitle>
+            <DialogDescription>Choose a source and how often it should load into the virtual data layer.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Source type">
+              <Select
+                value={createForm.sourceType}
+                onValueChange={(v) => { const st = v as ETLSourceType; setCreateForm(f => ({ ...f, sourceType: st, name: f.name || SOURCE_TYPE_LABELS[st] + ' ETL' })); }}
+              >
+                <SelectTrigger aria-label="Source type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SOURCE_TYPES.map(st => (
+                    <SelectItem key={st} value={st}>{SOURCE_LABEL[st]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Name" htmlFor="pipeline-name">
+              <Input id="pipeline-name" placeholder="Pipeline name" value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} />
+            </Field>
+            <Field
+              label="Mapping rule (optional)"
+              className="sm:col-span-2"
+              hint={targetEntities.length > 0 ? `Loads into ${targetEntities.map(e => e.replace(/_/g, ' ')).join(', ')}.` : undefined}
+            >
+              <Select
+                value={createForm.mappingRuleId || AUTO_RULE}
+                onValueChange={(v) => setCreateForm(f => ({ ...f, mappingRuleId: v === AUTO_RULE ? '' : v }))}
+              >
+                <SelectTrigger aria-label="Mapping rule"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={AUTO_RULE}>Auto-detect from source</SelectItem>
                   {matchedRules.length > 0 && (
-                    <optgroup label={`Matched for ${SOURCE_TYPE_LABELS[createForm.sourceType]}`}>
-                      {matchedRules.map(r => <option key={r.id} value={r.id}>{r.name} ({r.virtualEntity})</option>)}
-                    </optgroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-xs font-medium text-muted-foreground">Matched for {SOURCE_LABEL[createForm.sourceType]}</SelectLabel>
+                      {matchedRules.map(r => <SelectItem key={r.id} value={r.id}>{r.name} ({r.virtualEntity})</SelectItem>)}
+                    </SelectGroup>
                   )}
-                  {mappingRules.filter(r => !matchedRules.includes(r)).length > 0 && (
-                    <optgroup label="All rules">
-                      {mappingRules.filter(r => !matchedRules.includes(r)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </optgroup>
+                  {otherRules.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel className="text-xs font-medium text-muted-foreground">All rules</SelectLabel>
+                      {otherRules.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                    </SelectGroup>
                   )}
-                </select>
-                {targetEntities.length > 0 && (
-                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                    <span className="text-[9px] text-muted-foreground">Target entities:</span>
-                    {targetEntities.map(e => <Badge key={e} variant="outline" className="text-[8px]">{e}</Badge>)}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Mode</label>
-                <select className="w-full h-9 rounded-md border bg-background px-3 text-sm" value={createForm.mode}
-                  onChange={e => setCreateForm(f => ({ ...f, mode: e.target.value as 'full' | 'incremental' }))}>
-                  <option value="full">Full</option>
-                  <option value="incremental">Incremental</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Batch Size</label>
-                <Input type="number" value={createForm.batchSize} onChange={e => setCreateForm(f => ({ ...f, batchSize: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Schedule (cron, optional)</label>
-                <Input placeholder="e.g. 0 */6 * * *" value={createForm.schedule} onChange={e => setCreateForm(f => ({ ...f, schedule: e.target.value }))} />
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Pipeline Steps</label>
-              <div className="flex items-center gap-1">
-                {stepsPreview.map((step, i) => (
-                  <React.Fragment key={step.id}>
-                    {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
-                    <Badge variant="outline" className="text-[9px] shrink-0">{step.name}</Badge>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-            {createError && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-400">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{createError}
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setCreateForm({ ...DEFAULT_FORM }); setCreateError(null); }}>Cancel</Button>
-              <Button size="sm" onClick={handleCreate} disabled={!createForm.name || creating}>
-                {creating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                {creating ? 'Creating...' : 'Create'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Load mode">
+              <Select value={createForm.mode} onValueChange={(v) => setCreateForm(f => ({ ...f, mode: v as 'full' | 'incremental' }))}>
+                <SelectTrigger aria-label="Load mode"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Full</SelectItem>
+                  <SelectItem value="incremental">Incremental</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Batch size" htmlFor="pipeline-batch">
+              <Input id="pipeline-batch" type="number" value={createForm.batchSize} onChange={e => setCreateForm(f => ({ ...f, batchSize: Number(e.target.value) }))} />
+            </Field>
+            <Field label="Schedule (optional)" htmlFor="pipeline-schedule" className="sm:col-span-2" hint="A cron expression. Leave empty to run the pipeline by hand.">
+              <Input id="pipeline-schedule" className="font-mono" placeholder="0 */6 * * *" value={createForm.schedule} onChange={e => setCreateForm(f => ({ ...f, schedule: e.target.value }))} />
+            </Field>
+          </div>
 
-      {/* Loading */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading pipelines...
-        </div>
-      ) : (
-        <>
-          {/* Pipeline cards */}
-          {pipelines.length > 0 && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {pipelines.map((p: any) => (
-                <PipelineCard
-                  key={p.id}
-                  pipeline={p}
-                  mappingRules={mappingRules}
-                  onRun={handleRun}
-                  onStudio={handleViewStudio}
-                />
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Steps this pipeline runs</p>
+            <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+              {stepsPreview.map((step, i) => (
+                <React.Fragment key={step.id}>
+                  {i > 0 && <li aria-hidden="true"><Icon name="arrow-right" className="h-3 w-3 text-subtle-foreground" /></li>}
+                  <li title={step.description}>{step.name}</li>
+                </React.Fragment>
               ))}
-            </div>
-          )}
+            </ol>
+          </div>
 
-          {pipelines.length === 0 && suggestedTemplates.length === 0 && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Database className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-sm font-medium">No ETL pipelines configured</p>
-                  <p className="text-xs text-muted-foreground mt-1">Create one to start hydrating virtual data.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {createError && <InlineError>{createError}</InlineError>}
 
-          {/* Suggested templates */}
-          {suggestedTemplates.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium mb-3 flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-amber-400" />Suggested Pipelines
-              </h3>
-              <div className="grid gap-3 md:grid-cols-3">
-                {suggestedTemplates.map(tpl => {
-                  const SrcIcon = SOURCE_ICONS[tpl.sourceType];
-                  return (
-                    <Card key={tpl.id} className="border-dashed hover:border-primary/30 transition-colors">
-                      <CardContent className="pt-5 pb-4">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${SOURCE_COLORS[tpl.sourceType]} flex items-center justify-center text-white shrink-0`}>
-                            <SrcIcon className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{tpl.name}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{tpl.description}</p>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {tpl.targetEntities.map(e => <Badge key={e} variant="outline" className="text-[8px]">{e}</Badge>)}
-                            </div>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => handleCreateFromTemplate(tpl)}>
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Set Up
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+          <DialogFooter className="gap-2 sm:space-x-0">
+            <Button variant="ghost" onClick={closeCreate}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!createForm.name || creating}>
+              <Icon name={creating ? 'spinner' : 'plus'} className={creating ? 'animate-spin' : undefined} />
+              {creating ? 'Creating…' : 'Create pipeline'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

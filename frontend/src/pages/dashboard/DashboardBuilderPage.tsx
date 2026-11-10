@@ -154,7 +154,7 @@ export default function DashboardBuilderPage() {
               placeholder="Dashboard title"
             />
             {dashboard.version > 0 && (
-              <Badge variant="outline" className="text-[9px]">v{dashboard.version}</Badge>
+              <Badge variant="outline" className="text-xs">v{dashboard.version}</Badge>
             )}
           </div>
 

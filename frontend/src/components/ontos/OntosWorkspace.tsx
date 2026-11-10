@@ -81,7 +81,7 @@ export function OntosWorkspace({ prefillStandard, prefillResource, fdwSource }: 
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300 gap-1.5 text-xs px-3 py-1.5 rounded-t-md rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-400"
+                className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1.5 text-xs px-3 py-1.5 rounded-t-md rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary/40"
                 data-testid={`ontos-tab-${tab.id}`}
               >
                 {tab.icon}

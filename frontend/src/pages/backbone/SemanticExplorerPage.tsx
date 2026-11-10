@@ -9,7 +9,7 @@ const SemanticExplorerPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Semantic Explorer</h1>
+          <h1 className="text-2xl font-semibold">Semantic Explorer</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Search and explore your enterprise knowledge using natural language
           </p>

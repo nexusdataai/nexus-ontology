@@ -7,10 +7,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { RefreshCw, Loader2, ChevronRight, X } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, DetailSheet, InlineError, KeyValues, StatusPill, SubHeading } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { cn } from '@/lib/utils';
 import {
   diagnosticsHistoryService,
   DiagnosticRun,
@@ -34,6 +37,24 @@ const KNOWN_SCOPES = [
   'connector-apis',
   'connector-apis-smoke',
 ];
+
+const SCOPE_LABEL: Record<string, string> = {
+  o2c: 'Order-to-Cash', df: 'Demand forecasting', io: 'Inventory', pa: 'Procurement', pq: 'Production', scr: 'Supply chain risk',
+  c360: 'Customer 360', esg: 'ESG', cpq: 'Trade CPQ', simulators: 'Simulators', 'react-tools': 'Agent tools', automation: 'Automation',
+  'virtual-data': 'Virtual data', dashboard: 'Dashboards', 'connector-apis': 'Connector APIs', 'connector-apis-smoke': 'Connector API tests',
+};
+const scopeLabel = (s: string) => SCOPE_LABEL[s] || s.replace(/[-_]/g, ' ').replace(/^\w/, c => c.toUpperCase());
+const when = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+const pretty = (k: string) => k.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+const STATUS_KEYS = ['overall_status', 'overall', 'status', 'verdict'];
+
+function runStatus(r: DiagnosticRun): string | null {
+  const s = (r.summary || {}) as Record<string, unknown>;
+  for (const k of STATUS_KEYS) if (typeof s[k] === 'string') return s[k] as string;
+  const res = (r.result || {}) as Record<string, unknown>;
+  for (const k of STATUS_KEYS) if (typeof res[k] === 'string') return res[k] as string;
+  return null;
+}
 
 export function DiagnosticsAuditPanel() {
   const [scopes, setScopes] = useState<string[]>(KNOWN_SCOPES);
@@ -76,120 +97,82 @@ export function DiagnosticsAuditPanel() {
     load(scope);
   }, [scope]);
 
+  const facts = (r: DiagnosticRun) => Object.entries(r.summary || {}).filter(([k, v]) => !STATUS_KEYS.includes(k) && v !== null && typeof v !== 'object');
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Diagnostics Audit</h2>
-          <p className="text-xs text-muted-foreground">
-            Every diagnostic route call is captured. Pick a scope to browse recent runs.
-          </p>
+    <div className="mx-auto w-full max-w-[1400px] space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Audit log</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Every diagnostics run is recorded with its full result. Choose an area to see its recent runs.</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            value={scope}
-            onChange={(e) => setScope(e.target.value)}
-            className="text-xs px-2 py-1 rounded-md border bg-background"
-          >
-            {scopes.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <Button size="sm" variant="outline" onClick={() => load(scope)} disabled={loading}>
-            {loading ? (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            ) : (
-              <RefreshCw className="h-3 w-3 mr-1" />
-            )}
-            Refresh
+          <Select value={scope} onValueChange={setScope}>
+            <SelectTrigger className="h-9 w-[220px]" aria-label="Area"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-80">
+              {scopes.map((s) => <SelectItem key={s} value={s}>{scopeLabel(s)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => load(scope)} disabled={loading}>
+            <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
           </Button>
         </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded p-2">
-          {error}
+      {error && <InlineError onRetry={() => load(scope)}>{error}</InlineError>}
+
+      {loading && runs.length === 0 ? (
+        <div className="space-y-px overflow-hidden rounded-xl border border-border" aria-busy="true">
+          {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 w-full rounded-none" />)}
         </div>
-      )}
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">
-            Runs for <span className="font-mono">{scope}</span>{' '}
-            <Badge variant="outline" className="ml-2 text-[10px]">{runs.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
-            </div>
-          ) : runs.length === 0 ? (
-            <div className="text-sm text-muted-foreground italic py-6 text-center">
-              No runs recorded for scope <span className="font-mono">{scope}</span> yet.
-            </div>
-          ) : (
-            <div className="divide-y">
-              {runs.map((r) => (
-                <button
-                  key={r.run_id}
-                  onClick={() => setSelected(r)}
-                  className="w-full flex items-center justify-between py-2 px-1 text-left hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Badge variant="outline" className="text-[10px]">
-                      {new Date(r.recordedAt).toLocaleString()}
-                    </Badge>
-                    <span className="font-mono text-[10px] text-muted-foreground truncate">
-                      {r.run_id}
+      ) : runs.length === 0 && !error ? (
+        <EmptyState icon="history" title={`No runs recorded for ${scopeLabel(scope)}`} description="Run its diagnostics and the result will be kept here." />
+      ) : runs.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground"><span className="num font-medium text-foreground">{runs.length}</span> most recent runs for {scopeLabel(scope)}</p>
+          <ul className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            {runs.map((r, i) => {
+              const status = runStatus(r);
+              return (
+                <li key={r.run_id} className="rise border-b border-border last:border-b-0" style={{ ['--i' as any]: Math.min(i, 12) }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="group flex w-full items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-surface-2/70 focus-visible:bg-surface-2 focus-visible:outline-none"
+                  >
+                    <span className="w-44 shrink-0 text-sm text-foreground">{when(r.recordedAt)}</span>
+                    <span className="w-28 shrink-0">{status ? <StatusPill status={status} /> : <span className="text-xs text-muted-foreground">Recorded</span>}</span>
+                    <span className="hidden min-w-0 flex-1 truncate text-sm text-muted-foreground md:block">
+                      {facts(r).slice(0, 3).map(([k, v]) => `${pretty(k)} ${String(v)}`).join(' · ')}
                     </span>
-                    {r.summary && Object.keys(r.summary).length > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {Object.entries(r.summary)
-                          .slice(0, 2)
-                          .map(([k, v]) => `${k}=${String(v)}`)
-                          .join(' · ')}
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <span className="ml-auto hidden max-w-[180px] truncate font-mono text-xs text-subtle-foreground lg:block">{r.run_id}</span>
+                    <Icon name="chevron-right" className="h-3.5 w-3.5 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ) : null}
 
-      {selected && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="bg-card border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div>
-                <h3 className="text-sm font-semibold">
-                  {selected.scope} · {new Date(selected.recordedAt).toLocaleString()}
-                </h3>
-                <p className="text-[10px] text-muted-foreground font-mono">{selected.run_id}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-auto p-4">
-              <pre className="text-[11px] font-mono whitespace-pre-wrap break-words bg-muted/40 rounded p-3">
-                {JSON.stringify(selected.result ?? selected, null, 2)}
-              </pre>
+      <DetailSheet
+        open={!!selected}
+        onOpenChange={(o) => { if (!o) setSelected(null); }}
+        title={selected ? `${scopeLabel(selected.scope)} run` : ''}
+        description={selected ? when(selected.recordedAt) : undefined}
+        meta={selected && runStatus(selected) ? <StatusPill status={runStatus(selected)!} variant="soft" /> : undefined}
+        wide
+      >
+        {selected && (
+          <div className="space-y-6">
+            <KeyValues items={[{ label: 'Run ID', value: selected.run_id, mono: true }, ...facts(selected).map(([k, v]) => ({ label: pretty(k), value: String(v) }))]} />
+            <div>
+              <SubHeading>Full recorded result</SubHeading>
+              <CodeBlock maxHeight={520}>{JSON.stringify(selected.result ?? selected, null, 2)}</CodeBlock>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </DetailSheet>
     </div>
   );
 }

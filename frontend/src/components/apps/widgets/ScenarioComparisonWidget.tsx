@@ -49,34 +49,34 @@ export function ScenarioComparisonWidget({ widget, data, loading }: Props) {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-mono text-muted-foreground">{s.Scenario_ID}</span>
                     {violates ? (
-                      <Badge className="text-[9px] bg-red-500/10 text-red-600">
+                      <Badge className="text-xs bg-destructive/10 text-destructive">
                         <ShieldAlert className="h-3 w-3 mr-1" />Concentration breach
                       </Badge>
                     ) : (
-                      <Badge className="text-[9px] bg-green-500/10 text-green-600">
+                      <Badge className="text-xs bg-success/10 text-success">
                         <ShieldCheck className="h-3 w-3 mr-1" />Within ceiling
                       </Badge>
                     )}
                   </div>
                   <div className="text-sm font-medium mb-2">{s.Name || 'Unnamed scenario'}</div>
-                  <div className="space-y-2 text-[11px]">
+                  <div className="space-y-2 text-xs">
                     <Metric
                       label="Savings"
                       value={`${savings.toFixed(1)}%`}
                       bar={Math.max(0, Math.min(100, savings + 20))}
-                      tint="bg-emerald-500"
+                      tint="bg-success"
                     />
                     <Metric
                       label="Risk"
                       value={`${risk.toFixed(1)}/100`}
                       bar={Math.max(0, Math.min(100, risk))}
-                      tint="bg-amber-500"
+                      tint="bg-warning"
                     />
                     <Metric
                       label="Concentration"
                       value={`${conc.toFixed(0)}%`}
                       bar={Math.max(0, Math.min(100, conc))}
-                      tint={violates ? 'bg-red-500' : 'bg-indigo-500'}
+                      tint={violates ? 'bg-destructive' : 'bg-primary'}
                     />
                   </div>
                 </div>
@@ -92,7 +92,7 @@ export function ScenarioComparisonWidget({ widget, data, loading }: Props) {
 function Metric({ label, value, bar, tint }: { label: string; value: string; bar: number; tint: string }) {
   return (
     <div>
-      <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+      <div className="flex justify-between text-xs text-muted-foreground mb-1">
         <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />{label}</span>
         <span>{value}</span>
       </div>

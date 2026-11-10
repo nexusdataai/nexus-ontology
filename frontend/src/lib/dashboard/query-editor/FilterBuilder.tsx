@@ -40,30 +40,30 @@ export function FilterBuilder({ value, onChange, availableFields }: Props) {
     <div>
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">Filters</Label>
-        <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={addFilter} type="button">
+        <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={addFilter} type="button">
           <Plus className="h-3 w-3 mr-1" /> Add Filter
         </Button>
       </div>
       {value.length === 0 && (
-        <p className="text-[10px] text-muted-foreground mt-1">No filters applied</p>
+        <p className="text-xs text-muted-foreground mt-1">No filters applied</p>
       )}
       <div className="space-y-1.5 mt-1">
         {value.map((filter, i) => (
           <div key={i} className="flex items-center gap-1.5">
             {availableFields?.length ? (
               <Select value={filter.field || undefined} onValueChange={(v) => updateFilter(i, { field: v })}>
-                <SelectTrigger className="h-7 text-[10px] w-[120px]">
+                <SelectTrigger className="h-7 text-xs w-[120px]">
                   <SelectValue placeholder="Field" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableFields.map((f) => (
-                    <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
+                    <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
               <Input
-                className="h-7 text-[10px] w-[120px]"
+                className="h-7 text-xs w-[120px]"
                 value={filter.field}
                 onChange={(e) => updateFilter(i, { field: e.target.value })}
                 placeholder="Field"
@@ -73,17 +73,17 @@ export function FilterBuilder({ value, onChange, availableFields }: Props) {
               value={filter.operator}
               onValueChange={(v) => updateFilter(i, { operator: v as QueryFilter['operator'] })}
             >
-              <SelectTrigger className="h-7 text-[10px] w-[80px]">
+              <SelectTrigger className="h-7 text-xs w-[80px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {OPERATORS.map((op) => (
-                  <SelectItem key={op.value} value={op.value} className="text-[10px]">{op.label}</SelectItem>
+                  <SelectItem key={op.value} value={op.value} className="text-xs">{op.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Input
-              className="h-7 text-[10px] flex-1"
+              className="h-7 text-xs flex-1"
               value={String(filter.value)}
               onChange={(e) => updateFilter(i, { value: e.target.value })}
               placeholder="Value"

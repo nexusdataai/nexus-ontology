@@ -285,20 +285,20 @@ const Office365Connector: React.FC = () => {
   const getStatusIcon = (status: ConnectionStatus['status']) => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-success" />;
       case 'connecting':
-        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
+        return <RefreshCw className="h-5 w-5 text-primary animate-spin" />;
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-destructive" />;
       default:
-        return <WifiOff className="h-5 w-5 text-gray-400" />;
+        return <WifiOff className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
   const getMeetingStatusBadge = (status: MockTeamsMeeting['status']) => {
     switch (status) {
       case 'In Progress':
-        return <Badge variant="default" className="bg-green-500 text-white">Live</Badge>;
+        return <Badge variant="default" className="bg-success text-white">Live</Badge>;
       case 'Completed':
         return <Badge variant="secondary">Completed</Badge>;
       case 'Scheduled':
@@ -322,11 +322,11 @@ const Office365Connector: React.FC = () => {
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <Code2 className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">Office 365 Connector</h1>
+            <h1 className="text-3xl font-semibold text-foreground">Office 365 Connector</h1>
             <p className="text-muted-foreground">
               Integrate with Microsoft Office 365 and Teams for communication analytics
             </p>
@@ -427,10 +427,10 @@ const Office365Connector: React.FC = () => {
               </div>
 
               {connectionStatus.error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="p-3 bg-destructive/10 border border-destructive/25 rounded-md">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-red-700">{connectionStatus.error}</span>
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <span className="text-sm text-destructive">{connectionStatus.error}</span>
                   </div>
                 </div>
               )}
@@ -490,28 +490,28 @@ const Office365Connector: React.FC = () => {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold">App Registration Status</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Application ID</span>
                       {oauthConfig.applicationId ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Client Secret</span>
                       {oauthConfig.clientSecret ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Tenant ID</span>
                       {oauthConfig.tenantId ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
                   </div>
@@ -520,27 +520,27 @@ const Office365Connector: React.FC = () => {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold">Microsoft Graph API</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Graph Endpoint</span>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>SSL Certificate</span>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Azure AD Status</span>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     </div>
                   </div>
                 </div>
               </div>
 
               {connectionStatus.lastConnected && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="p-3 bg-success/10 border border-success/25 rounded-md">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4 text-success" />
+                    <span className="text-sm text-success">
                       Last successful connection: {connectionStatus.lastConnected.toLocaleString()}
                     </span>
                   </div>
@@ -623,7 +623,7 @@ const Office365Connector: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold">{event.subject}</h3>
                       {event.isOnlineMeeting && (
-                        <Badge variant="outline" className="text-blue-600">Online</Badge>
+                        <Badge variant="outline" className="text-primary">Online</Badge>
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
@@ -679,16 +679,16 @@ const Office365Connector: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-muted dark:bg-gray-900 text-foreground p-4 rounded-lg font-mono text-sm space-y-1">
-                <div className="text-green-400">[{new Date().toISOString()}] INFO: Office 365 Connector initialized</div>
-                <div className="text-blue-400">[{new Date().toISOString()}] DEBUG: Azure AD app registration loaded</div>
-                <div className="text-blue-400">[{new Date().toISOString()}] DEBUG: Microsoft Graph API endpoint configured</div>
-                <div className="text-yellow-400">[{new Date().toISOString()}] WARN: Using mock data for demonstration</div>
+              <div className="bg-muted dark:bg-card text-foreground p-4 rounded-lg font-mono text-sm space-y-1">
+                <div className="text-success">[{new Date().toISOString()}] INFO: Office 365 Connector initialized</div>
+                <div className="text-primary">[{new Date().toISOString()}] DEBUG: Azure AD app registration loaded</div>
+                <div className="text-primary">[{new Date().toISOString()}] DEBUG: Microsoft Graph API endpoint configured</div>
+                <div className="text-warning">[{new Date().toISOString()}] WARN: Using mock data for demonstration</div>
                 {connectionStatus.isConnected && (
-                  <div className="text-green-400">[{new Date().toISOString()}] INFO: Successfully connected to Microsoft Graph API</div>
+                  <div className="text-success">[{new Date().toISOString()}] INFO: Successfully connected to Microsoft Graph API</div>
                 )}
                 {connectionStatus.error && (
-                  <div className="text-red-400">[{new Date().toISOString()}] ERROR: {connectionStatus.error}</div>
+                  <div className="text-destructive">[{new Date().toISOString()}] ERROR: {connectionStatus.error}</div>
                 )}
               </div>
             </CardContent>

@@ -1,12 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { PanelProps } from '../types';
+import { gridProps, axisProps, CHART_MARGIN, tooltipStyle } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 export function HistogramPanel({ data, options, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 
@@ -24,7 +24,7 @@ export function HistogramPanel({ data, options, height, loading }: PanelProps) {
   }
 
   const bucketCount = (options.bucketCount as number) || 0;
-  const color = (options.color as string) || '#3b82f6';
+  const color = (options.color as string) || 'hsl(var(--chart-1))';
   const fillOpacity = (options.fillOpacity as number) ?? 0.8;
   const chartHeight = Math.max(height - 40, 100);
 
@@ -59,12 +59,12 @@ export function HistogramPanel({ data, options, height, loading }: PanelProps) {
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <BarChart data={buckets} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-        <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-        <YAxis tick={{ fontSize: 10 }} width={35} allowDecimals={false} />
+      <BarChart data={buckets} margin={CHART_MARGIN}>
+        <CartesianGrid {...gridProps} />
+        <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
+        <YAxis {...axisProps} width={35} allowDecimals={false} />
         <Tooltip
-          contentStyle={{ fontSize: 11 }}
+          {...tooltipStyle}
           formatter={(value: number) => [value, 'Count']}
           labelFormatter={(label: string, payload: Array<{ payload?: { from?: number; to?: number } }>) => {
             const item = payload?.[0]?.payload;

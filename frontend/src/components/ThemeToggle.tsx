@@ -18,7 +18,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className }) => {
         "p-2 rounded-full transition-colors",
         theme === 'dark' 
           ? 'bg-secondary/80 text-foreground hover:bg-secondary' 
-          : 'bg-white shadow-sm border border-gray-200 text-gray-700 hover:bg-gray-50',
+          : 'bg-white shadow-sm border border-border text-foreground hover:bg-surface-2',
         className
       )}
       aria-label="Toggle theme"

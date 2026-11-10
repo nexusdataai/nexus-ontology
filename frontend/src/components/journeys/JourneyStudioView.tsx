@@ -1,56 +1,24 @@
 /**
  * JourneyStudioView Component
- * 
- * Call Processing Journey Studio - Monitors and manages call processing jobs.
- * Styled to match alert-engine-ui Journey Studio.
- * 
- * Layout: Left sidebar (stages) + Right panel (stage steps)
+ *
+ * Journey Studio: the page of one journey (object page).
+ *
+ * Layout: back link and header (name, status, schedule in words, Run / Stop,
+ * a "More" menu), the headline figures, then the pipeline as one stepper with
+ * the selected step's detail and console below it, the results of the latest
+ * run as a short report, recent runs and the schedules.
+ *
+ * The state, effects, polling and handlers are the logic of the original
+ * studio. Presentational pieces live in ./studio.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Progress } from '../ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Label } from '../ui/label';
-import {
-  ArrowLeft,
-  Play,
-  RotateCcw,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  FileText,
-  Database,
-  RefreshCw,
-  Phone,
-  Mic,
-  FileSearch,
-  Brain,
-  Upload,
-  Eye,
-  TrendingUp,
-  Activity,
-  Users,
-  Timer,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  StopCircle,
-  Calendar,
-  Network,
-  FileCode,
-  Sparkles,
-  GitBranch,
-  Link2,
-  Layers,
-  Shield,
-  Map,
-  GitMerge,
-  Workflow,
-} from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Icon } from '../ds/Icon';
+import { EmptyState } from '../ds/primitives';
+import { InlineError, Meter, MetricStrip, StatusPill } from '../ds/kit';
 import {
   CallProcessingJourney,
   JourneyStage,
@@ -59,7 +27,7 @@ import {
   LogEntry,
 } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
-import { getKpiDefinition, getKpiIcon } from '../../config/journeyKpiCatalog';
+import { getKpiDefinition } from '../../config/journeyKpiCatalog';
 import { 
   jobStreamService, 
   StepStatusEvent, 
@@ -71,10 +39,15 @@ import {
 import { LogsModal } from './LogsModal';
 import { StageJobsModal } from './StageJobsModal';
 import { StageReportModal } from './StageReportModal';
-import { StepConsole, InlineStepConsole } from './StepConsole';
+import { StepConsole } from './StepConsole';
 import { BatchScheduleDialog } from './BatchScheduleDialog';
 import { BatchSchedulesPanel } from './BatchSchedulesPanel';
 import { PendingStepCard } from '@/components/journey-builder/PendingStepCard';
+import { StepPipeline, useIsWide, type PipelineStep, type StepStatus } from './studio/StepPipeline';
+import { StepDetail } from './studio/StepDetail';
+import { RunsTable } from './studio/RunsTable';
+import { RunResults } from './studio/RunResults';
+import { dayAndTime, humanize, scheduleInWords, sentenceCase, timeOfDay } from './studio/format';
 
 export interface JourneyStudioViewProps {
   journeyId: string;
@@ -92,55 +65,49 @@ const CALL_PROCESSING_STEPS = [
     id: 'fetch_tasks',
     name: 'Fetch Tasks',
     description: 'Fetch pending call tasks from Webex CC API',
-    icon: Phone,
   },
   {
     id: 'deduplication',
     name: 'Deduplication Check',
     description: 'Check for already-processed tasks to avoid duplicates',
-    icon: FileSearch,
   },
   {
     id: 'process_recordings',
     name: 'Process Recordings',
     description: 'Download and transcribe call recordings',
-    icon: Mic,
   },
   {
     id: 'register_metadata',
     name: 'Register Metadata',
     description: 'Create metadata and register in AWS Glue catalog',
-    icon: Database,
   },
   {
     id: 'ai_analysis',
     name: 'AI Analysis',
     description: 'Run GPT analysis on transcripts for insights',
-    icon: Brain,
   },
   {
     id: 'crm_actions',
     name: 'CRM Actions',
     description: 'Create/update Salesforce leads and opportunities',
-    icon: Users,
   },
 ];
 
 // Semantic RAG Steps Definition (matches backend SemanticRagStage.steps)
 const SEMANTIC_RAG_STEPS = [
-  { id: 'extract_unified_schema', name: 'Extract Unified Schema', description: 'Read canonical-entities.yaml into virtual entity docs', icon: Map },
-  { id: 'resolve_fdw_mapping', name: 'Resolve FDW Mapping', description: 'Match schema entities to live FDW + simulator tables', icon: GitMerge },
-  { id: 'extract_mapping_rules', name: 'Extract Mapping Rules', description: 'Read active mapping rules and enrich schema docs', icon: Link2 },
-  { id: 'extract_policies', name: 'Extract Policies', description: 'Parse business policy documents', icon: FileText },
-  { id: 'extract_workflows', name: 'Extract Workflows', description: 'Parse workflow definitions', icon: GitBranch },
-  { id: 'extract_integrations', name: 'Extract Integrations', description: 'Parse integration mappings', icon: Link2 },
-  { id: 'normalize', name: 'Normalize (.onto)', description: 'Merge, deduplicate, produce .onto bundle', icon: Layers },
-  { id: 'enrich', name: 'LLM Enrichment', description: 'Generate semantic descriptions with LLM', icon: Sparkles },
-  { id: 'chunk_embed', name: 'Chunk & Embed', description: 'Semantic chunking + embedding generation', icon: FileCode },
-  { id: 'load_vector', name: 'Load Vector DB', description: 'Upsert embeddings into pgvector', icon: Database },
-  { id: 'index_nlq_exemplars', name: 'Index NLQ Exemplars', description: 'Generate NLP query exemplars from curated YAML + canonical schema templates and index for AI Query Builder', icon: Sparkles },
-  { id: 'load_graph', name: 'Load Graph DB', description: 'Load relationships into graph DB', icon: Network },
-  { id: 'validate', name: 'Validate Quality', description: 'Run black-box test scenarios', icon: Shield },
+  { id: 'extract_unified_schema', name: 'Extract Unified Schema', description: 'Read canonical-entities.yaml into virtual entity docs' },
+  { id: 'resolve_fdw_mapping', name: 'Resolve FDW Mapping', description: 'Match schema entities to live FDW + simulator tables' },
+  { id: 'extract_mapping_rules', name: 'Extract Mapping Rules', description: 'Read active mapping rules and enrich schema docs' },
+  { id: 'extract_policies', name: 'Extract Policies', description: 'Parse business policy documents' },
+  { id: 'extract_workflows', name: 'Extract Workflows', description: 'Parse workflow definitions' },
+  { id: 'extract_integrations', name: 'Extract Integrations', description: 'Parse integration mappings' },
+  { id: 'normalize', name: 'Normalize (.onto)', description: 'Merge, deduplicate, produce .onto bundle' },
+  { id: 'enrich', name: 'LLM Enrichment', description: 'Generate semantic descriptions with LLM' },
+  { id: 'chunk_embed', name: 'Chunk & Embed', description: 'Semantic chunking + embedding generation' },
+  { id: 'load_vector', name: 'Load Vector DB', description: 'Upsert embeddings into pgvector' },
+  { id: 'index_nlq_exemplars', name: 'Index NLQ Exemplars', description: 'Generate NLP query exemplars from curated YAML + canonical schema templates and index for AI Query Builder' },
+  { id: 'load_graph', name: 'Load Graph DB', description: 'Load relationships into graph DB' },
+  { id: 'validate', name: 'Validate Quality', description: 'Run black-box test scenarios' },
 ];
 
 // Stage definition for call processing (single stage)
@@ -148,125 +115,120 @@ const CALL_PROCESSING_STAGE = {
   id: 'call_processing',
   name: 'Call Processing',
   description: 'Process and analyze call recordings from Webex CC',
-  icon: Phone,
 };
 
 const SEMANTIC_RAG_STAGE = {
   id: 'semantic_rag',
   name: 'Knowledge Processor',
   description: 'Build enterprise knowledge graph from metadata, policies, workflows',
-  icon: Brain,
 };
 
 const O2C_STEPS = [
-  { id: 'entity_resolution', name: 'Entity Resolution', description: 'Match orders across Salesforce, SAP, Oracle', icon: Link2 },
-  { id: 'three_way_match', name: 'Three-Way Match', description: 'Validate PO qty = delivered qty = invoiced qty', icon: Shield },
-  { id: 'anomaly_scoring', name: 'Anomaly Scoring', description: 'Score each order for anomalies vs baselines', icon: Activity },
-  { id: 'risk_prioritization', name: 'Risk Prioritization', description: 'Rank orders by composite risk score', icon: TrendingUp },
-  { id: 'workflow_actions', name: 'Workflow Actions', description: 'Execute credit holds, disputes, SLA escalations for at-risk orders', icon: Sparkles },
-  { id: 'dunning_and_collections', name: 'Dunning & Collections', description: 'Send collection notices for overdue invoices by aging tier', icon: FileText },
-  { id: 'action_summary', name: 'Action Summary', description: 'Summarize all workflow actions taken and generate audit log', icon: FileCode },
-  { id: 'cash_flow_projection', name: 'Cash Flow Projection', description: 'Project cash inflows from open AR', icon: BarChart3 },
-  { id: 'store_results', name: 'Store Results', description: 'Write order data, alerts, KPIs to S3 + simulator', icon: Database },
-  { id: 'verify_results', name: 'Verify Results', description: 'Read back result entities from VDL and display summary', icon: CheckCircle2 },
+  { id: 'entity_resolution', name: 'Entity Resolution', description: 'Match orders across Salesforce, SAP, Oracle' },
+  { id: 'three_way_match', name: 'Three-Way Match', description: 'Validate PO qty = delivered qty = invoiced qty' },
+  { id: 'anomaly_scoring', name: 'Anomaly Scoring', description: 'Score each order for anomalies vs baselines' },
+  { id: 'risk_prioritization', name: 'Risk Prioritization', description: 'Rank orders by composite risk score' },
+  { id: 'workflow_actions', name: 'Workflow Actions', description: 'Execute credit holds, disputes, SLA escalations for at-risk orders' },
+  { id: 'dunning_and_collections', name: 'Dunning & Collections', description: 'Send collection notices for overdue invoices by aging tier' },
+  { id: 'action_summary', name: 'Action Summary', description: 'Summarize all workflow actions taken and generate audit log' },
+  { id: 'cash_flow_projection', name: 'Cash Flow Projection', description: 'Project cash inflows from open AR' },
+  { id: 'store_results', name: 'Store Results', description: 'Write order data, alerts, KPIs to S3 + simulator' },
+  { id: 'verify_results', name: 'Verify Results', description: 'Read back result entities from VDL and display summary' },
 ];
 
 const O2C_STAGE = {
   id: 'order_to_cash',
   name: 'Order-to-Cash Monitor',
   description: 'Entity resolution, three-way matching, anomaly detection, workflow actions, cash flow projection',
-  icon: TrendingUp,
 };
 
 const DEMAND_FORECASTING_STEPS = [
-  { id: 'feature_engineering', name: 'Feature Engineering', description: 'Aggregate sales history, inventory, promotions, market signals into feature matrix', icon: Database },
-  { id: 'model_ensemble', name: 'Model Ensemble', description: 'Run time-series + ML models in parallel; combine via weighted average', icon: Brain },
-  { id: 'promotion_overlay', name: 'Promotion Overlay', description: 'Apply learned promotion response curves per mechanic x category x region', icon: TrendingUp },
-  { id: 'cannibalization_adjustment', name: 'Cannibalization Adjustment', description: 'Apply cross-product substitution factors from historical data', icon: Activity },
-  { id: 'consensus_integration', name: 'Consensus Integration', description: 'Merge AI forecast with approved Forecast_Override entries from sales team', icon: Users },
-  { id: 'publish_forecast', name: 'Publish Forecast', description: 'Write forecast data, KPIs, alerts to S3 and simulator', icon: BarChart3 },
+  { id: 'feature_engineering', name: 'Feature Engineering', description: 'Aggregate sales history, inventory, promotions, market signals into feature matrix' },
+  { id: 'model_ensemble', name: 'Model Ensemble', description: 'Run time-series + ML models in parallel; combine via weighted average' },
+  { id: 'promotion_overlay', name: 'Promotion Overlay', description: 'Apply learned promotion response curves per mechanic x category x region' },
+  { id: 'cannibalization_adjustment', name: 'Cannibalization Adjustment', description: 'Apply cross-product substitution factors from historical data' },
+  { id: 'consensus_integration', name: 'Consensus Integration', description: 'Merge AI forecast with approved Forecast_Override entries from sales team' },
+  { id: 'publish_forecast', name: 'Publish Forecast', description: 'Write forecast data, KPIs, alerts to S3 and simulator' },
 ];
 
 const DEMAND_FORECASTING_STAGE = {
   id: 'demand_forecasting',
   name: 'Demand Forecasting Engine',
   description: 'AI-driven demand prediction across SKUs, regions, and channels',
-  icon: BarChart3,
 };
 
 const IO_STEPS = [
-  { id: 'load_positions', name: 'Load Positions', description: 'Query inventory positions, materials, plants, batches', icon: Database },
-  { id: 'abc_classification', name: 'ABC Classification', description: 'Classify SKUs by volume and value into A/B/C categories', icon: BarChart3 },
-  { id: 'reorder_calculation', name: 'Reorder Calculation', description: 'Calculate safety stock, reorder points, days of supply', icon: TrendingUp },
-  { id: 'expiry_analysis', name: 'Expiry Analysis', description: 'Score batch-level shelf-life risk and expiry exposure', icon: Activity },
-  { id: 'rebalance_recommendations', name: 'Rebalance Recommendations', description: 'Generate inter-plant transfer suggestions', icon: GitMerge },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write inventory KPIs, alerts, position data to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_positions', name: 'Load Positions', description: 'Query inventory positions, materials, plants, batches' },
+  { id: 'abc_classification', name: 'ABC Classification', description: 'Classify SKUs by volume and value into A/B/C categories' },
+  { id: 'reorder_calculation', name: 'Reorder Calculation', description: 'Calculate safety stock, reorder points, days of supply' },
+  { id: 'expiry_analysis', name: 'Expiry Analysis', description: 'Score batch-level shelf-life risk and expiry exposure' },
+  { id: 'rebalance_recommendations', name: 'Rebalance Recommendations', description: 'Generate inter-plant transfer suggestions' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write inventory KPIs, alerts, position data to S3 and simulator' },
 ];
-const IO_STAGE = { id: 'inventory_optimization', name: 'Inventory Optimization', description: 'Multi-echelon inventory optimization and distribution intelligence', icon: Database };
+const IO_STAGE = { id: 'inventory_optimization', name: 'Inventory Optimization', description: 'Multi-echelon inventory optimization and distribution intelligence' };
 
 const PA_STEPS = [
-  { id: 'load_procurement_data', name: 'Load Procurement Data', description: 'Query purchase orders, invoices, vendors, goods receipts', icon: Database },
-  { id: 'spend_classification', name: 'Spend Classification', description: 'Categorize spending and detect maverick purchases', icon: BarChart3 },
-  { id: 'three_way_match', name: 'Three-Way Match', description: 'Reconcile PO vs goods receipt vs invoice', icon: Shield },
-  { id: 'price_variance_analysis', name: 'Price Variance Analysis', description: 'Compare contract prices vs actual and identify anomalies', icon: TrendingUp },
-  { id: 'vendor_scorecard', name: 'Vendor Scorecard', description: 'Score vendors on delivery, quality, compliance', icon: Activity },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write spend KPIs, alerts, analytics to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_procurement_data', name: 'Load Procurement Data', description: 'Query purchase orders, invoices, vendors, goods receipts' },
+  { id: 'spend_classification', name: 'Spend Classification', description: 'Categorize spending and detect maverick purchases' },
+  { id: 'three_way_match', name: 'Three-Way Match', description: 'Reconcile PO vs goods receipt vs invoice' },
+  { id: 'price_variance_analysis', name: 'Price Variance Analysis', description: 'Compare contract prices vs actual and identify anomalies' },
+  { id: 'vendor_scorecard', name: 'Vendor Scorecard', description: 'Score vendors on delivery, quality, compliance' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write spend KPIs, alerts, analytics to S3 and simulator' },
 ];
-const PA_STAGE = { id: 'procurement_analytics', name: 'Procurement & Spend Analytics', description: 'Spend visibility, maverick detection, intelligent invoice processing', icon: BarChart3 };
+const PA_STAGE = { id: 'procurement_analytics', name: 'Procurement & Spend Analytics', description: 'Spend visibility, maverick detection, intelligent invoice processing' };
 
 const PQ_STEPS = [
-  { id: 'load_production_data', name: 'Load Production Data', description: 'Query production orders, lines, BOM, batches, quality inspections', icon: Database },
-  { id: 'oee_calculation', name: 'OEE Calculation', description: 'Calculate Overall Equipment Effectiveness per production line', icon: BarChart3 },
-  { id: 'yield_analysis', name: 'Yield Analysis', description: 'Analyze planned vs actual quantities and defects', icon: TrendingUp },
-  { id: 'quality_scoring', name: 'Quality Scoring', description: 'Evaluate inspection lot results and first-pass rates', icon: Shield },
-  { id: 'schedule_adherence', name: 'Schedule Adherence', description: 'Compare planned vs actual completion dates', icon: Activity },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write production KPIs, quality alerts to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_production_data', name: 'Load Production Data', description: 'Query production orders, lines, BOM, batches, quality inspections' },
+  { id: 'oee_calculation', name: 'OEE Calculation', description: 'Calculate Overall Equipment Effectiveness per production line' },
+  { id: 'yield_analysis', name: 'Yield Analysis', description: 'Analyze planned vs actual quantities and defects' },
+  { id: 'quality_scoring', name: 'Quality Scoring', description: 'Evaluate inspection lot results and first-pass rates' },
+  { id: 'schedule_adherence', name: 'Schedule Adherence', description: 'Compare planned vs actual completion dates' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write production KPIs, quality alerts to S3 and simulator' },
 ];
-const PQ_STAGE = { id: 'production_quality', name: 'Production & Quality Copilot', description: 'AI-assisted production scheduling, yield optimization, quality detection', icon: BarChart3 };
+const PQ_STAGE = { id: 'production_quality', name: 'Production & Quality Copilot', description: 'AI-assisted production scheduling, yield optimization, quality detection' };
 
 const SCR_STEPS = [
-  { id: 'load_supplier_data', name: 'Load Supplier Data', description: 'Query vendors, purchase orders, goods receipts, quality data', icon: Database },
-  { id: 'delivery_scoring', name: 'Delivery Scoring', description: 'Calculate on-time delivery rate per vendor', icon: TrendingUp },
-  { id: 'quality_scoring', name: 'Quality Scoring', description: 'Evaluate inspection pass rates and rejection history', icon: Shield },
-  { id: 'financial_risk', name: 'Financial Risk', description: 'Assess payment terms, concentration, single-source exposure', icon: Activity },
-  { id: 'market_signal_integration', name: 'Market Signal Integration', description: 'Integrate external disruption signals', icon: Sparkles },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write risk scores, KPIs, alerts to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_supplier_data', name: 'Load Supplier Data', description: 'Query vendors, purchase orders, goods receipts, quality data' },
+  { id: 'delivery_scoring', name: 'Delivery Scoring', description: 'Calculate on-time delivery rate per vendor' },
+  { id: 'quality_scoring', name: 'Quality Scoring', description: 'Evaluate inspection pass rates and rejection history' },
+  { id: 'financial_risk', name: 'Financial Risk', description: 'Assess payment terms, concentration, single-source exposure' },
+  { id: 'market_signal_integration', name: 'Market Signal Integration', description: 'Integrate external disruption signals' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write risk scores, KPIs, alerts to S3 and simulator' },
 ];
-const SCR_STAGE = { id: 'supply_chain_risk', name: 'Supply Chain Risk Radar', description: 'Real-time supplier risk scoring and early warning', icon: Shield };
+const SCR_STAGE = { id: 'supply_chain_risk', name: 'Supply Chain Risk Radar', description: 'Real-time supplier risk scoring and early warning' };
 
 const C360_STEPS = [
-  { id: 'load_customer_data', name: 'Load Customer Data', description: 'Query accounts, opportunities, invoices, payments, sentiment', icon: Database },
-  { id: 'clv_calculation', name: 'CLV Calculation', description: 'Calculate customer lifetime value from revenue and frequency', icon: TrendingUp },
-  { id: 'churn_prediction', name: 'Churn Prediction', description: 'Score churn risk from behavioral signals and sentiment', icon: Activity },
-  { id: 'wallet_share_analysis', name: 'Wallet Share Analysis', description: 'Estimate share of customer spend vs potential', icon: BarChart3 },
-  { id: 'cross_sell_scoring', name: 'Cross-Sell Scoring', description: 'Identify product affinity and whitespace opportunities', icon: Sparkles },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write customer profiles, KPIs, alerts to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_customer_data', name: 'Load Customer Data', description: 'Query accounts, opportunities, invoices, payments, sentiment' },
+  { id: 'clv_calculation', name: 'CLV Calculation', description: 'Calculate customer lifetime value from revenue and frequency' },
+  { id: 'churn_prediction', name: 'Churn Prediction', description: 'Score churn risk from behavioral signals and sentiment' },
+  { id: 'wallet_share_analysis', name: 'Wallet Share Analysis', description: 'Estimate share of customer spend vs potential' },
+  { id: 'cross_sell_scoring', name: 'Cross-Sell Scoring', description: 'Identify product affinity and whitespace opportunities' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write customer profiles, KPIs, alerts to S3 and simulator' },
 ];
-const C360_STAGE = { id: 'customer_360', name: 'Customer 360 & Revenue Growth', description: 'Unified customer profiles with churn prediction and cross-sell', icon: Users };
+const C360_STAGE = { id: 'customer_360', name: 'Customer 360 & Revenue Growth', description: 'Unified customer profiles with churn prediction and cross-sell' };
 
 const ESG_STEPS = [
-  { id: 'load_esg_data', name: 'Load ESG Data', description: 'Query plants, materials, production, sustainability reports', icon: Database },
-  { id: 'carbon_footprint', name: 'Carbon Footprint', description: 'Calculate production emissions, transport, energy usage', icon: Activity },
-  { id: 'water_and_waste', name: 'Water & Waste', description: 'Analyze water consumption and waste generation per plant', icon: BarChart3 },
-  { id: 'packaging_analysis', name: 'Packaging Analysis', description: 'Evaluate recycled content vs sustainability targets', icon: Shield },
-  { id: 'sentiment_integration', name: 'Sentiment Integration', description: 'Integrate brand sustainability perception', icon: Sparkles },
-  { id: 'publish_results', name: 'Publish Results', description: 'Write ESG scores, KPIs, alerts to S3 and simulator', icon: CheckCircle2 },
+  { id: 'load_esg_data', name: 'Load ESG Data', description: 'Query plants, materials, production, sustainability reports' },
+  { id: 'carbon_footprint', name: 'Carbon Footprint', description: 'Calculate production emissions, transport, energy usage' },
+  { id: 'water_and_waste', name: 'Water & Waste', description: 'Analyze water consumption and waste generation per plant' },
+  { id: 'packaging_analysis', name: 'Packaging Analysis', description: 'Evaluate recycled content vs sustainability targets' },
+  { id: 'sentiment_integration', name: 'Sentiment Integration', description: 'Integrate brand sustainability perception' },
+  { id: 'publish_results', name: 'Publish Results', description: 'Write ESG scores, KPIs, alerts to S3 and simulator' },
 ];
-const ESG_STAGE = { id: 'esg_sustainability', name: 'ESG & Sustainability Tracker', description: 'Carbon footprint tracking, water monitoring, ESG compliance', icon: TrendingUp };
+const ESG_STAGE = { id: 'esg_sustainability', name: 'ESG & Sustainability Tracker', description: 'Carbon footprint tracking, water monitoring, ESG compliance' };
 
 const ETL_PIPELINE_STEPS = [
-  { id: 'extract', name: 'Extract Source Data', description: 'Read data from source system (FDW, simulator, API)', icon: Upload },
-  { id: 'validate_schema', name: 'Validate Schema', description: 'Validate source data against field definitions', icon: Shield },
-  { id: 'transform', name: 'Transform Data', description: 'Apply field mappings and business logic transforms', icon: GitMerge },
-  { id: 'load', name: 'Load Data', description: 'Write transformed data to virtual data layer', icon: Database },
-  { id: 'verify', name: 'Verify Results', description: 'Row count checks, null validation, data quality', icon: CheckCircle2 },
+  { id: 'extract', name: 'Extract Source Data', description: 'Read data from source system (FDW, simulator, API)' },
+  { id: 'validate_schema', name: 'Validate Schema', description: 'Validate source data against field definitions' },
+  { id: 'transform', name: 'Transform Data', description: 'Apply field mappings and business logic transforms' },
+  { id: 'load', name: 'Load Data', description: 'Write transformed data to virtual data layer' },
+  { id: 'verify', name: 'Verify Results', description: 'Row count checks, null validation, data quality' },
 ];
 
 const ETL_PIPELINE_STAGE = {
   id: 'etl_pipeline',
   name: 'ETL Pipeline',
   description: 'Extract, transform, and load data from external sources into the virtual data layer',
-  icon: Database,
 };
 
 function isSemanticRag(stages: any[], journey?: any): boolean {
@@ -345,7 +307,6 @@ function projectCopilotStepsFromSavedDoc(savedDoc: any): typeof CALL_PROCESSING_
         id: sid,
         name: step.name || sid,
         description: step.description || (step.tool ? `Tool: ${step.tool}` : ''),
-        icon: Workflow,
       });
     }
   }
@@ -358,7 +319,6 @@ function projectCopilotStageFromSavedDoc(savedDoc: any) {
     id: firstStage?.stage_id || 'main',
     name: firstStage?.name || savedDoc?.title || 'Main',
     description: firstStage?.description || savedDoc?.description || 'Copilot-authored journey',
-    icon: Workflow,
   };
 }
 
@@ -1585,38 +1545,6 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
     return `${mins}m ${secs}s`;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'running':
-      case 'in_progress':
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'cancelled':
-        return <StopCircle className="h-4 w-4 text-orange-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'running':
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'cancelled':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   // When user selected a job, show that job's details (from viewed state we fetch on selection)
   const isViewingSelectedJob = selectedJobId != null;
   const effectiveJobStatus = isViewingSelectedJob ? viewedJobStatus : currentJobStatus;
@@ -1627,7 +1555,6 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
   // Reads journey.solutionId (set on create or by the backfill script); falls
   // back to the catalog's _default row when unset / unknown.
   const kpiDefinition = getKpiDefinition(journey?.solutionId);
-  const PrimaryKpiIcon = getKpiIcon(kpiDefinition.primary.icon);
 
   // Returns a non-negative finite duration in seconds for a job, or null when
   // neither the backend's authoritative metrics.durationSeconds nor a parseable
@@ -1689,769 +1616,408 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
   const rawDuration = stats.avgDuration;
   const stageDuration = rawDuration && rawDuration !== '0s' && !rawDuration.includes('NaN') ? rawDuration : undefined;
 
+  // ------------------------------------------------------------------
+  // Presentation only below this line: values derived for the layout.
+  // ------------------------------------------------------------------
+  const isWide = useIsWide();
+  // Open state of the two dialogs reached from the "More" menu.
+  const [jobsModalOpen, setJobsModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading journey...</span>
-        </div>
+      <div className="space-y-8" aria-label="Loading journey">
+        {!hideHeader && (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-72 max-w-full" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+        )}
+        {!hideStatsCards && <Skeleton className="h-24 w-full rounded-xl" />}
+        <Skeleton className="h-72 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
-        <h2 className="text-xl font-semibold">{error}</h2>
-        <Button onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Journeys
-        </Button>
+      <div className="space-y-4">
+        <InlineError onRetry={() => loadJourneyData()}>
+          {error === 'Journey not found' ? 'This journey could not be found. It may have been deleted.' : 'The journey could not be loaded.'}
+        </InlineError>
+        {!hideBackButton && (
+          <Button variant="outline" onClick={onBack}>
+            <Icon name="chevron-left" /> All journeys
+          </Button>
+        )}
       </div>
     );
   }
 
+  const isStageRunning = stageStatusForDisplay === 'running';
+  const runningStepId = effectiveJobStatus?.currentStep || null;
+  const runningStepIndex = runningStepId ? activeSteps.findIndex(s => s.id === runningStepId) : -1;
+  const runningStepName = runningStepIndex >= 0 ? activeSteps[runningStepIndex].name : runningStepId;
+  const overallProgress = Math.max(0, Math.min(100, Math.round(effectiveJobStatus?.progress || 0)));
+  const completedSteps = activeSteps.filter(s => effectiveStepStates[s.id]?.status === 'completed').length;
+
+  const selectedIndex = currentStep ? currentStepIndex : 0;
+  const selectedStep = currentStep || activeSteps[0];
+  const selectedState = selectedStep ? effectiveStepStates[selectedStep.id] : currentStepState;
+  const selectedStatus = (selectedState?.status || 'pending') as StepStatus;
+  const selectedIsLive = !!selectedStep && selectedStatus === 'running' && selectedStep.id === currentJobStatus?.currentStep && !isViewingSelectedJob;
+
+  const pipelineSteps: PipelineStep[] = activeSteps.map(step => {
+    const st = effectiveStepStates[step.id];
+    const status = (st?.status || 'pending') as StepStatus;
+    return {
+      id: step.id,
+      name: step.name,
+      description: step.description,
+      status,
+      meta: status === 'running' ? `${Math.round(st?.progress || 0)}%` : status === 'completed' && st?.duration ? st.duration : undefined,
+    };
+  });
+
+  const sourceMode = journey?.config?.wxccMode && journey.config.wxccMode !== 'inherit_global'
+    ? (journey.config.wxccMode === 'real' ? 'Real source data' : 'Simulator data')
+    : globalSimulatorEnabled === null
+      ? null
+      : globalSimulatorEnabled ? 'Simulator data (global setting)' : 'Real source data (global setting)';
+  const typeLabel = humanize(journey?.solutionId || journey?.type);
+  const metaParts = [typeLabel, scheduleInWords(activeSchedule), sourceMode].filter(Boolean) as string[];
+
+  const statusLabel = isStageRunning
+    ? `Running, ${overallProgress}%`
+    : stageStatusForDisplay === 'pending' ? 'Not run yet' : stageStatusForDisplay;
+
+  const backToLatest = () => {
+    setSelectedJobId(null);
+    setViewedJobStatus(null);
+    setViewedStepStates({});
+    setStepLogs({});
+    setExpandedSteps([]);
+  };
+
+  const latestJob: any = jobHistory[0] || null;
+  const resultsJob: any = (isViewingSelectedJob && selectedJob) ? selectedJob : latestJob;
+  const resultsIndex = resultsJob ? Math.max(0, jobHistory.findIndex(j => (j.id || (j as any).jobId) === (resultsJob.id || resultsJob.jobId))) : 0;
+  const totalRunsLabel = (() => {
+    const firstJobId = (jobHistory[0]?.id || (jobHistory[0] as any)?.jobId || '') as string;
+    const match = firstJobId.match(/JOB-(\d+)/);
+    const total = match ? parseInt(match[1], 10) : jobHistory.length;
+    return `${total.toLocaleString()} ${total === 1 ? 'run' : 'runs'} so far`;
+  })();
+
+  const primaryAction = isStageRunning && displayJobId ? (
+    <Button variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleCancelJob(displayJobId)}>
+      <span className="h-2.5 w-2.5 rounded-[2px] bg-current" aria-hidden="true" /> Stop run
+    </Button>
+  ) : isStageRunning ? (
+    <Button disabled>
+      <Icon name="spinner" className="animate-spin" /> Starting
+    </Button>
+  ) : (
+    <Button onClick={handleRunJob} disabled={isRunningJob}>
+      <Icon name="play" /> {stageStatusForDisplay === 'pending' ? 'Run now' : 'Run again'}
+    </Button>
+  );
+
+  const stepDetail = selectedStep ? (
+    <StepDetail
+      index={selectedIndex}
+      total={activeSteps.length}
+      name={selectedStep.name}
+      description={selectedStep.description}
+      status={selectedStatus}
+      progress={selectedState?.progress}
+      duration={selectedState?.duration}
+      taskProgress={selectedIsLive ? taskProgress : null}
+      logsCount={stepLogs[selectedStep.id]?.length || selectedState?.logsCount || 0}
+      logsOpen={expandedSteps.includes(selectedStep.id)}
+      onToggleLogs={() => handleToggleLogs(selectedStep.id)}
+      onOpenLogs={() => handleViewLogs(selectedStep.id)}
+      onPrev={selectedIndex > 0 ? () => setCurrentStepIndex(selectedIndex - 1) : undefined}
+      onNext={selectedIndex < activeSteps.length - 1 ? () => setCurrentStepIndex(selectedIndex + 1) : undefined}
+      compact={!isWide}
+    >
+      {expandedSteps.includes(selectedStep.id) && (
+        <StepConsole
+          logs={stepLogs[selectedStep.id] || []}
+          isExpanded
+          onToggle={() => toggleStepConsole(selectedStep.id)}
+          stepName={selectedStep.name}
+          stepStatus={selectedStatus}
+          taskProgress={selectedIsLive ? taskProgress : null}
+          onClear={() => clearStepLogs(selectedStep.id)}
+          showHeader={false}
+          maxHeight="280px"
+        />
+      )}
+    </StepDetail>
+  ) : null;
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      {!hideHeader && <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          {!hideBackButton && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          )}
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{journey?.name || 'Journey Studio'}</h1>
-              {/* WXCC Mode Badge - Prominent indicator for Real vs Simulator */}
-              {journey?.config?.wxccMode && journey.config.wxccMode !== 'inherit_global' ? (
-                <Badge 
-                  variant={journey.config.wxccMode === 'real' ? 'default' : 'secondary'}
-                  className={`text-sm px-3 py-1 ${
-                    journey.config.wxccMode === 'real' 
-                      ? 'bg-green-600 hover:bg-green-700 text-white' 
-                      : 'bg-blue-100 text-blue-800 border border-blue-300'
-                  }`}
-                >
-                  {journey.config.wxccMode === 'real' ? '🌐 Real Webex' : '🔧 Simulator'}
-                </Badge>
-              ) : (
-                // Show actual global mode (Real or Simulator)
-                <Badge 
-                  variant={globalSimulatorEnabled ? 'secondary' : 'default'}
-                  className={`text-sm px-3 py-1 ${
-                    globalSimulatorEnabled === null
-                      ? 'bg-gray-100 text-gray-600 border border-gray-300'
-                      : globalSimulatorEnabled
-                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                  }`}
-                >
-                  {globalSimulatorEnabled === null 
-                    ? '📡 Loading...' 
-                    : globalSimulatorEnabled 
-                      ? '🔧 Simulator (Global)' 
-                      : '🌐 Real Webex (Global)'}
-                </Badge>
-              )}
+    <div className="space-y-8 sm:space-y-10">
+      {/* Header: what this is, its state, and the one primary action */}
+      <header>
+        {!hideHeader && !hideBackButton && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="-ml-1 mb-3 inline-flex items-center gap-1 rounded-sm px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Icon name="chevron-left" className="h-3.5 w-3.5" /> All journeys
+          </button>
+        )}
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {hideHeader
+                ? <h2 className="text-md font-medium text-foreground">{activeStage.name}</h2>
+                : <h1 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">{journey?.name || 'Journey'}</h1>}
+              <StatusPill status={stageStatusForDisplay} variant="soft">{statusLabel}</StatusPill>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {journey?.name || journey?.type || 'journey'} • {journeyId}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground">
-            Last updated: {lastRefresh.toLocaleTimeString()}
-          </div>
-          
-        <Button
-            onClick={handleRefresh} 
-          variant="outline"
-          size="sm"
-          disabled={isRefreshing}
-        >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-          {extraHeaderButtons}
-        </div>
-      </div>}
-
-      {/* Statistics Cards */}
-      {!hideStatsCards && <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 flex-shrink-0">
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{kpiDefinition.primary.label}</p>
-                <p className="text-2xl font-bold">{stats.primaryValue.toLocaleString()}</p>
-              </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <PrimaryKpiIcon className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Success Rate</p>
-                <p className="text-2xl font-bold">{stats.successRate}%</p>
-              </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Duration</p>
-                <p className="text-2xl font-bold">{stats.avgDuration}</p>
-              </div>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Timer className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Jobs</p>
-                <p className="text-2xl font-bold">{stats.totalJobs}</p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.completedJobs} completed • {stats.failedJobs} failed
-                </p>
-              </div>
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>}
-
-      {/* Main Content - Left Sidebar + Right Panel */}
-      <div className="flex-1 flex gap-6 min-h-0">
-        {/* Left Sidebar - Stages Panel (Collapsible) */}
-        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-72'} flex-shrink-0`}>
-          <Card className="bg-card border-border h-full">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                {!isSidebarCollapsed && (
-                  <div>
-                    <CardTitle className="text-base">Processing Stages</CardTitle>
-                    <CardDescription className="text-xs">
-                      Track your progress through each stage
-                    </CardDescription>
-                  </div>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                >
-                  {isSidebarCollapsed ? (
-                    <ChevronRight className="h-4 w-4" />
-                  ) : (
-                    <ChevronLeft className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            
-            {!isSidebarCollapsed && (
-              <CardContent className="pt-0">
-                {/* Stage - Dynamic based on journey type */}
-                <div
-                  className="p-4 rounded-lg cursor-pointer transition-all duration-200 bg-primary/10 border-2 border-primary/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary/20 rounded-lg">
-                      {activeStage.id === 'semantic_rag' ? <Brain className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{activeStage.name}</span>
-                        {stageStatusForDisplay === 'running' ? (
-                          <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-                        ) : (
-                          getStatusIcon(stageStatusForDisplay)
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${getStatusBadgeColor(stageStatusForDisplay)}`}>
-                          {stageStatusForDisplay === 'running' 
-                            ? `${effectiveJobStatus?.progress || 0}%` 
-                            : stageStatusForDisplay.charAt(0).toUpperCase() + stageStatusForDisplay.slice(1)}
-                        </span>
-                      </div>
-                      {/* Progress bar when running */}
-                      {stageStatusForDisplay === 'running' && effectiveJobStatus && (
-                        <div className="mt-2">
-                          <Progress value={effectiveJobStatus.progress} className="h-1" />
-                          {effectiveJobStatus.currentStep && (
-                            <span className="text-xs text-blue-600 mt-1 block">
-                              {activeSteps.find(s => s.id === effectiveJobStatus.currentStep)?.name || effectiveJobStatus.currentStep}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Stage Action Button */}
-                      <div className="mt-3">
-                        {(stageStatusForDisplay === 'pending' || stageStatusForDisplay === 'created') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full h-7 text-xs justify-start gap-1"
-                            onClick={handleRunJob}
-                            disabled={isRunningJob}
-                          >
-                            <Play className="h-3 w-3" />
-                            Start Stage
-                          </Button>
-                        )}
-                        {stageStatusForDisplay === 'completed' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full h-7 text-xs justify-start gap-1"
-                            onClick={handleRunJob}
-                            disabled={isRunningJob}
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            Repeat
-                          </Button>
-                        )}
-                        {stageStatusForDisplay === 'running' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full h-7 text-xs justify-start gap-1"
-                            disabled
-                          >
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            In Progress
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+            <p className="mt-1.5 text-sm text-muted-foreground">{metaParts.join(' · ')}</p>
+            {!hideHeader && (
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-subtle-foreground">
+                <span className="num">Updated {timeOfDay(lastRefresh)}</span>
+                <span className="mono-id">{journeyId}</span>
+                {sseConnected && <span className="inline-flex items-center gap-1.5 text-muted-foreground"><span className="dot-live text-primary dark:text-brand-hi" aria-hidden="true" /> Live output connected</span>}
+              </p>
             )}
-          </Card>
-        </div>
+          </div>
 
-        {/* Right Panel - Stage Details and Steps */}
-        <div className="flex-1 overflow-auto space-y-6">
-          {/* Stage Header Card */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    {activeStage.id === 'semantic_rag' ? <Brain className="h-6 w-6" /> : <Phone className="h-6 w-6" />}
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">{activeStage.name}</CardTitle>
-                    <CardDescription>{activeStage.description}</CardDescription>
-                  </div>
-                </div>
-                {stageStatusForDisplay !== 'pending' && (
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusBadgeColor(stageStatusForDisplay)}>
-                      {stageStatusForDisplay === 'running' ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        getStatusIcon(stageStatusForDisplay)
-                      )}
-                      <span className="ml-1">
-                        {stageStatusForDisplay === 'running' 
-                          ? `${effectiveJobStatus?.progress || 0}% - ${activeSteps.find(s => s.id === effectiveJobStatus?.currentStep)?.name || 'Processing'}` 
-                          : stageStatusForDisplay}
-                      </span>
-                    </Badge>
-                    {stageDuration && (
-                      <Badge variant="outline">{stageDuration}</Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Stage Level Action Buttons */}
-              <div className="flex items-center gap-3">
-                {/* Start/Repeat Stage Button */}
-                {(stageStatusForDisplay === 'pending' || stageStatusForDisplay === 'created') && (
-                  <Button onClick={handleRunJob} className="flex items-center gap-2" disabled={isRunningJob}>
-                    <Play className="h-4 w-4" />
-                    Start Processing
-                  </Button>
-                )}
-                {stageStatusForDisplay === 'completed' && (
-                  <Button variant="outline" onClick={handleRunJob} className="flex items-center gap-2" disabled={isRunningJob}>
-                    <RotateCcw className="h-4 w-4" />
-                    Repeat Stage
-                  </Button>
-                )}
-                {stageStatusForDisplay === 'running' && displayJobId && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleCancelJob(displayJobId)}
-                    className="flex items-center gap-2"
-                  >
-                    <StopCircle className="h-4 w-4" />
-                    Cancel Job
-                  </Button>
-                )}
-
-                {/* Schedule Button */}
-                <Button
-                  variant={activeSchedule ? 'outline' : 'secondary'}
-                  onClick={() => setScheduleDialogOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Calendar className="h-4 w-4" />
-                  {activeSchedule ? 'Edit Schedule' : 'Schedule'}
+          <div className="flex flex-wrap items-center gap-2">
+            {overrideReportButton}
+            {extraHeaderButtons}
+            <Button variant="outline" onClick={() => setScheduleDialogOpen(true)}>
+              <Icon name="calendar" /> {activeSchedule ? 'Edit schedule' : 'Schedule'}
+            </Button>
+            {primaryAction}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <Icon name="more" />
                 </Button>
-
-                {activeSchedule && activeSchedule.enabled && (
-                  <Badge variant="outline" className="text-sm font-medium border-green-600 text-green-800 bg-green-50 dark:border-green-500 dark:text-green-300 dark:bg-green-950/40 px-3 py-1">
-                    Every {activeSchedule.intervalMinutes}m
-                    {activeSchedule.nextRunAt && (
-                      <span className="ml-1.5 text-green-600 dark:text-green-400">
-                        &middot; next {new Date(activeSchedule.nextRunAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {!overrideReportButton && (
+                  <DropdownMenuItem onSelect={() => setReportModalOpen(true)}>
+                    <Icon name="document" /> View report
+                  </DropdownMenuItem>
                 )}
-                
-                {/* View Report - Stage Level */}
-                {overrideReportButton || (
-                  <StageReportModal
-                    journeyId={journeyId}
-                    journeyName={journey?.name}
-                    trigger={
-                      <Button variant="outline" className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        View Report
-                      </Button>
-                    }
-                  />
-                )}
-                
-                {/* View All Jobs - Stage Level */}
-                <StageJobsModal
-                  journeyId={journeyId}
-                  journeyName={journey?.name}
-                  trigger={
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      View All Jobs
-                    </Button>
-                  }
-                  onJobAction={(jobId, action) => {
-                    if (action === 'repeat') {
-                      handleRunJob();
-                    }
-                  }}
-                  onViewJob={(jobId) => handleJobSelection(jobId)}
-                />
-                {extraHeaderButtons}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Phase-2: inline approval surface for Copilot saved
-              journeys paused on awaiting_step_approval. Re-uses the
-              same PendingStepCard the legacy journey-builder approval
-              flow renders, so approve / reject hit the Copilot
-              engine and the bridge flips the JobExecution status. */}
-          {isCopilotJourney && pendingStep && copilotSessionId && (
-            <PendingStepCard
-              runId={copilotSessionId}
-              pending={pendingStep}
-              onApprove={handleApprovePendingStep}
-              onReject={handleRejectPendingStep}
-              className="mb-4"
-            />
-          )}
-
-          {/* Stage Steps Section */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Stage Steps</CardTitle>
-                {effectiveJobStatus && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={getStatusBadgeColor(effectiveJobStatus.status)}>
-                      {effectiveJobStatus.status === 'running' && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      {effectiveJobStatus.status === 'running' ? `${effectiveJobStatus.progress}%` : effectiveJobStatus.status}
-                    </Badge>
-                    {displayJobId && (
-                      <span className="text-xs text-muted-foreground">Job: {displayJobId.slice(-8)}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Progress Banner — shows when a job is actively running */}
-              {effectiveJobStatus?.status === 'running' && effectiveJobStatus.currentStep && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
-                  <Loader2 className="h-4 w-4 text-blue-600 animate-spin flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-blue-800">
-                      Processing step {activeSteps.findIndex(s => s.id === effectiveJobStatus.currentStep) + 1} of {activeSteps.length}:{' '}
-                      {activeSteps.find(s => s.id === effectiveJobStatus.currentStep)?.name || effectiveJobStatus.currentStep}
-                    </span>
-                    {taskProgress && effectiveJobStatus.currentStep === currentJobStatus?.currentStep && (
-                      <span className="ml-2 text-xs text-blue-600">
-                        ({taskProgress.current}/{taskProgress.total})
-                      </span>
-                    )}
-                  </div>
-                  <Progress value={effectiveJobStatus.progress} className="w-32 h-2" />
-                  <span className="text-xs font-medium text-blue-700 tabular-nums">{effectiveJobStatus.progress}%</span>
-                </div>
-              )}
-
-              {/* Step Details List with Vertical Stepper */}
-              <div className="relative">
-                {activeSteps.map((step, index) => {
-                  const state = effectiveStepStates[step.id];
-                  const StepIcon = step.icon;
-                  const isCurrentStep = effectiveJobStatus?.currentStep === step.id;
-                  const isCompleted = state?.status === 'completed';
-                  const isRunning = state?.status === 'running';
-                  const isFailed = state?.status === 'failed';
-                  const isLast = index === activeSteps.length - 1;
-                  
-                  return (
-                    <div key={step.id} className="flex gap-4">
-                      {/* Vertical Stepper Column */}
-                      <div className="flex flex-col items-center">
-                        {/* Step Circle */}
-                        <div
-                          className={`
-                            w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 flex-shrink-0 z-10 bg-white
-                            ${isCompleted ? 'bg-green-500 border-green-500 text-white' : ''}
-                            ${isRunning ? 'bg-blue-500 border-blue-500 text-white' : ''}
-                            ${isFailed ? 'bg-red-500 border-red-500 text-white' : ''}
-                            ${!isCompleted && !isRunning && !isFailed ? 'bg-white border-gray-300 text-gray-400' : ''}
-                          `}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle2 className="h-5 w-5" />
-                          ) : isRunning ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : isFailed ? (
-                            <AlertCircle className="h-5 w-5" />
-                          ) : (
-                            <span className="text-sm font-medium">{index + 1}</span>
-                          )}
-                        </div>
-                        
-                        {/* Vertical Connector Line */}
-                        {!isLast && (
-                          <div className="w-0.5 flex-1 min-h-[20px] -my-1">
-                            <div 
-                              className={`w-full h-full transition-all duration-500 ${
-                                isCompleted ? 'bg-green-500' : 
-                                isRunning ? 'bg-gradient-to-b from-blue-500 to-gray-200' : 
-                                'bg-gray-200'
-                              }`}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Step Card */}
-                      <div
-                        className={`
-                          flex-1 mb-4 p-4 rounded-lg border transition-all duration-300
-                          ${isRunning ? 'border-blue-300 bg-blue-50/50 ring-2 ring-blue-200 shadow-md' : 'bg-muted/10 hover:bg-muted/20'}
-                          ${isCompleted ? 'border-green-200 bg-green-50/30' : ''}
-                          ${isFailed ? 'border-red-200 bg-red-50/30' : ''}
-                          ${!isCompleted && !isRunning && !isFailed ? 'border-gray-200' : ''}
-                        `}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <StepIcon className={`h-5 w-5 ${
-                                isRunning ? 'text-blue-600' :
-                                isCompleted ? 'text-green-600' :
-                                isFailed ? 'text-red-600' :
-                                'text-muted-foreground'
-                              }`} />
-                              <span className={`font-semibold ${
-                                isRunning ? 'text-blue-700' :
-                                isCompleted ? 'text-green-700' :
-                                isFailed ? 'text-red-700' :
-                                ''
-                              }`}>{step.name}</span>
-                              {isRunning && (
-                                <Badge className="text-xs bg-blue-500 text-white animate-pulse">
-                                  Active
-                                </Badge>
-                              )}
-                              {isCompleted && (
-                                <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
-                                  Done
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">{step.description}</p>
-                            
-                            {/* Progress bar when running */}
-                            {isRunning && (
-                              <div className="flex items-center gap-3 mt-2">
-                                <div className="flex-1 max-w-xs">
-                                  <Progress value={state?.progress || 0} className="h-2" />
-                                </div>
-                                <span className="text-sm font-medium text-blue-600">{state?.progress || 0}%</span>
-                              </div>
-                            )}
-                            
-                            {/* Duration when completed */}
-                            {isCompleted && state?.duration && (
-                              <span className="text-xs text-green-600 flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Completed in {state.duration}
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Logs Button - toggles inline console */}
-                          <Button 
-                            variant={isRunning ? "default" : "outline"} 
-                            size="sm" 
-                            className={`gap-2 ${isRunning ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                            onClick={() => handleToggleLogs(step.id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            Logs ({stepLogs[step.id]?.length || state?.logsCount || 0})
-                          </Button>
-                        </div>
-                        
-                        {/* Real-time Task Progress (only for live running job) */}
-                        {isRunning && taskProgress && step.id === currentJobStatus?.currentStep && (
-                          <div className="mt-2 flex items-center gap-2 text-sm">
-                            <Activity className="h-4 w-4 text-blue-500 animate-pulse" />
-                            <span className="text-blue-700">
-                              Processing call {taskProgress.current} of {taskProgress.total}
-                            </span>
-                            <Progress 
-                              value={(taskProgress.current / taskProgress.total) * 100} 
-                              className="w-32 h-2" 
-                            />
-                          </div>
-                        )}
-                        
-                        {/* Inline Step Console */}
-                        <StepConsole
-                          logs={stepLogs[step.id] || []}
-                          isExpanded={expandedSteps.includes(step.id)}
-                          onToggle={() => toggleStepConsole(step.id)}
-                          stepName={step.name}
-                          stepStatus={state?.status || 'pending'}
-                          taskProgress={isRunning && step.id === currentJobStatus?.currentStep && !isViewingSelectedJob ? taskProgress : null}
-                          onClear={() => clearStepLogs(step.id)}
-                          showHeader={false}
-                          maxHeight="150px"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Job History Section */}
-          {jobHistory.length > 0 && (
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Recent Jobs</CardTitle>
-                    <CardDescription>
-                      {(() => {
-                        const firstJobId = (jobHistory[0]?.id || (jobHistory[0] as any)?.jobId || '') as string;
-                        const match = firstJobId.match(/JOB-(\d+)/);
-                        const total = match ? parseInt(match[1], 10) : jobHistory.length;
-                        return `${total} job${total !== 1 ? 's' : ''} executed`;
-                      })()}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-muted-foreground text-xs">
-                        <th className="pb-2 pr-2 font-medium">Job</th>
-                        <th className="pb-2 pr-2 font-medium text-center">Fetched</th>
-                        <th className="pb-2 pr-2 font-medium text-center">Deduped</th>
-                        <th className="pb-2 pr-2 font-medium text-center">Processed</th>
-                        <th className="pb-2 pr-2 font-medium text-center">Success</th>
-                        <th className="pb-2 pr-2 font-medium text-center">Failed</th>
-                        <th className="pb-2 pr-2 font-medium text-center">No Rec</th>
-                        <th className="pb-2 pr-2 font-medium">Time Taken</th>
-                        <th className="pb-2 font-medium text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jobHistory.slice(0, 10).map((job, index) => {
-                        const jobId = job.id || (job as any).jobId;
-                        const isSelected = selectedJobId === jobId;
-                        const jobAny = job as any;
-                        const metrics = jobAny.metrics || {};
-                        const stepResults = jobAny.stepResults || {};
-                        const duration = jobAny.duration || job.duration;
-                        const fetched = metrics.availableCalls ?? metrics.itemsTotal ?? jobAny.itemsTotal ?? 0;
-                        const deduped = metrics.skippedTasks ?? 0;
-                        const processed = metrics.newTasks ?? 0;
-                        const successCount = metrics.successfulProcessing ?? metrics.itemsProcessed ?? jobAny.itemsProcessed ?? 0;
-                        const failedCount = metrics.failedProcessing ?? 0;
-                        const noRecCount = metrics.noRecording ?? 0;
-                        const startTimeStr = job.startedAt ?? jobAny.startTime;
-                        const startDisplay = startTimeStr
-                          ? new Date(startTimeStr).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : '-';
-                        const jobNum = (() => {
-                          const id = (job.id || jobAny.jobId || '') as string;
-                          const m = id.match(/JOB-(\d+)/);
-                          return m ? parseInt(m[1], 10) : jobHistory.length - index;
-                        })();
-                        const stepTimeParts = activeSteps
-                          .map(s => {
-                            const sr = stepResults[s.id];
-                            if (!sr) return null;
-                            const d = sr.durationFormatted || (sr.durationSeconds != null ? `${Math.floor(sr.durationSeconds / 60)}m ${Math.round(sr.durationSeconds % 60)}s` : null);
-                            if (!d) return null;
-                            return { label: s.name, duration: d };
-                          })
-                          .filter(Boolean) as { label: string; duration: string }[];
-
-                        return (
-                          <tr
-                            key={job.id || jobId}
-                            onClick={() => handleJobSelection(jobId)}
-                            className={`border-b last:border-b-0 cursor-pointer transition-colors ${
-                              isSelected ? 'bg-primary/5' : 'hover:bg-muted/20'
-                            }`}
-                          >
-                            <td className="py-2.5 pr-2">
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(job.status)}
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-xs whitespace-nowrap">#{jobNum}</span>
-                                    {index === 0 && (
-                                      <span className="text-[9px] font-medium bg-primary/10 text-primary px-1 py-0.5 rounded">Latest</span>
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground whitespace-nowrap">{startDisplay}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums">{fetched}</td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums text-orange-500">{deduped}</td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums">{processed}</td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums text-green-600 font-medium">{successCount}</td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums">
-                              {failedCount > 0
-                                ? <span className="text-red-500 font-medium">{failedCount}</span>
-                                : <span className="text-muted-foreground">0</span>
-                              }
-                            </td>
-                            <td className="py-2.5 pr-2 text-center text-xs tabular-nums">
-                              {noRecCount > 0
-                                ? <span className="text-amber-600 font-medium">{noRecCount}</span>
-                                : <span className="text-muted-foreground">0</span>
-                              }
-                            </td>
-                            <td className="py-2.5 pr-2">
-                              {duration ? (
-                                <div className="group relative">
-                                  <span className="text-xs font-medium whitespace-nowrap">{duration}</span>
-                                  {stepTimeParts.length > 0 && (
-                                    <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block bg-popover border border-border rounded-md shadow-lg p-2 min-w-[180px]">
-                                      <p className="text-[10px] font-semibold text-muted-foreground mb-1">Step-wise Breakdown</p>
-                                      {stepTimeParts.map(sp => (
-                                        <div key={sp.label} className="flex justify-between text-[10px] py-0.5">
-                                          <span className="text-muted-foreground">{sp.label}</span>
-                                          <span className="font-medium ml-3">{sp.duration}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {(job.status === 'running' || job.status === 'in_progress') && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleCancelJob(jobId); }}
-                                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
-                                    title="Cancel this job"
-                                  >
-                                    <StopCircle className="h-2.5 w-2.5" />
-                                    Cancel
-                                  </button>
-                                )}
-                                <Badge variant="outline" className={`text-[10px] ${getStatusBadgeColor(job.status)}`}>
-                                  {job.status}
-                                </Badge>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Batch Schedules Panel */}
-          <BatchSchedulesPanel journeyId={journeyId} journeyName={journey?.name} onScheduleChanged={loadActiveSchedule} />
+                <DropdownMenuItem onSelect={() => setJobsModalOpen(true)}>
+                  <Icon name="history" /> All runs
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleRefresh} disabled={isRefreshing}>
+                  <Icon name="refresh" /> Refresh
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
+      </header>
+
+      {!hideStatsCards && (
+        <MetricStrip
+          items={[
+            {
+              label: sentenceCase(kpiDefinition.primary.label),
+              value: Number(stats.primaryValue || 0).toLocaleString(),
+              hint: isViewingSelectedJob ? 'In this run' : 'Across all runs',
+            },
+            {
+              label: 'Success rate',
+              value: `${stats.successRate}%`,
+              hint: isViewingSelectedJob ? 'This run' : `${stats.completedJobs} of ${stats.totalJobs} runs completed`,
+            },
+            {
+              label: isViewingSelectedJob ? 'Duration' : 'Average duration',
+              value: stageDuration || 'No data',
+              hint: isViewingSelectedJob ? 'This run' : 'Per run',
+            },
+            {
+              label: 'Runs',
+              value: stats.totalJobs.toLocaleString(),
+              hint: stats.failedJobs > 0 ? `${stats.failedJobs} failed` : 'None failed',
+              tone: stats.failedJobs > 0 ? 'danger' : 'neutral',
+              onClick: () => setJobsModalOpen(true),
+            },
+          ]}
+        />
+      )}
+
+      {isViewingSelectedJob && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-surface-2/60 px-4 py-2.5 text-sm animate-fade-up">
+          <Icon name="history" className="shrink-0 text-muted-foreground" />
+          <p className="min-w-0 flex-1 text-foreground">
+            Showing run <span className="mono-id text-foreground">{selectedJobId}</span>
+            {selectedJob && dayAndTime((selectedJob as any).startedAt ?? (selectedJob as any).startTime) ? ` from ${dayAndTime((selectedJob as any).startedAt ?? (selectedJob as any).startTime)}` : ''}.
+            <span className="text-muted-foreground"> The pipeline, output and results below are for this run.</span>
+          </p>
+          <Button variant="ghost" size="sm" onClick={backToLatest}>Back to latest</Button>
+        </div>
+      )}
+
+      {/* Approval gate for Copilot saved journeys paused on awaiting_step_approval.
+          Re-uses the PendingStepCard of the journey-builder approval flow, so
+          approve / reject hit the Copilot engine and the bridge flips the run. */}
+      {isCopilotJourney && pendingStep && copilotSessionId && (
+        <PendingStepCard
+          runId={copilotSessionId}
+          pending={pendingStep}
+          onApprove={handleApprovePendingStep}
+          onReject={handleRejectPendingStep}
+        />
+      )}
+
+      {/* The pipeline: one stepper, the selected step's detail below it */}
+      <section aria-label="Pipeline" className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 px-4 pt-4 sm:px-6 sm:pt-5">
+          <div className="min-w-0">
+            <h2 className="text-md font-medium text-foreground">{hideHeader ? 'Pipeline' : activeStage.name}</h2>
+            <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{activeStage.description}</p>
+          </div>
+          <p className="num flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+            <span>{completedSteps} of {activeSteps.length} steps done</span>
+            {displayJobId && <span className="mono-id" title={displayJobId}>Run {displayJobId.slice(-8)}</span>}
+          </p>
+        </div>
+
+        {effectiveJobStatus?.status === 'running' && (
+          <div className="px-4 pt-4 sm:px-6" aria-live="polite">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+              <p className="min-w-0 text-foreground">
+                {runningStepId
+                  ? <>Running step {runningStepIndex + 1} of {activeSteps.length}: <span className="font-medium">{runningStepName}</span></>
+                  : 'Starting the run'}
+                {taskProgress && effectiveJobStatus.currentStep === currentJobStatus?.currentStep && (
+                  <span className="num text-muted-foreground"> ({taskProgress.current.toLocaleString()} of {taskProgress.total.toLocaleString()})</span>
+                )}
+              </p>
+              <span className="num text-xs text-muted-foreground">{overallProgress}%</span>
+            </div>
+            <Meter value={overallProgress} className="mt-2" label="Run progress" />
+          </div>
+        )}
+
+        <div className="px-3 py-5 sm:px-5 sm:py-6">
+          <StepPipeline
+            steps={pipelineSteps}
+            selectedId={selectedStep?.id}
+            onSelect={(_id, index) => setCurrentStepIndex(index)}
+            wide={isWide}
+            detail={!isWide ? stepDetail : undefined}
+          />
+        </div>
+
+        {isWide && stepDetail && (
+          <div key={selectedStep?.id} className="animate-fade-in border-t border-border bg-surface-2/30 px-4 py-5 sm:px-6">
+            {stepDetail}
+          </div>
+        )}
+      </section>
+
+      {/* Results of the latest (or the selected) run, as a short report */}
+      <section aria-label="Results">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-md font-medium text-foreground">Results</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{isViewingSelectedJob ? 'What the selected run did.' : 'What the latest run did.'}</p>
+          </div>
+        </div>
+        {resultsJob ? (
+          <div className="rounded-xl border border-border bg-card p-4 shadow-xs sm:p-6">
+            <RunResults
+              job={resultsJob}
+              steps={activeSteps}
+              fallbackNumber={jobHistory.length - resultsIndex}
+              noun="records"
+              actions={
+                <>
+                  {!overrideReportButton && (
+                    <Button variant="outline" size="sm" onClick={() => setReportModalOpen(true)}>
+                      <Icon name="document" /> Open full report
+                    </Button>
+                  )}
+                  <span className="text-xs text-muted-foreground">The full report adds KPIs, alerts raised and actions taken across runs.</span>
+                </>
+              }
+            />
+          </div>
+        ) : (
+          <EmptyState
+            icon="play"
+            title="No runs yet"
+            description="Run the journey to see what it read, what it changed and how long each step took."
+            action={<Button onClick={handleRunJob} disabled={isRunningJob}><Icon name="play" /> Run now</Button>}
+          />
+        )}
+      </section>
+
+      {/* Recent runs */}
+      {jobHistory.length > 0 && (
+        <section aria-label="Recent runs">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-md font-medium text-foreground">Recent runs</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">{totalRunsLabel}. Select a run to see its pipeline and output above.</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setJobsModalOpen(true)}>
+              All runs <Icon name="arrow-right" />
+            </Button>
+          </div>
+          <RunsTable
+            jobs={jobHistory}
+            steps={activeSteps}
+            selectedJobId={selectedJobId}
+            onSelect={handleJobSelection}
+            onCancel={handleCancelJob}
+          />
+        </section>
+      )}
+
+      {/* Batch Schedules Panel */}
+      <BatchSchedulesPanel journeyId={journeyId} journeyName={journey?.name} onScheduleChanged={loadActiveSchedule} />
+
+      {/* All runs (opened from the header menu, the Runs figure and the table) */}
+      <StageJobsModal
+        journeyId={journeyId}
+        journeyName={journey?.name}
+        open={jobsModalOpen}
+        onOpenChange={setJobsModalOpen}
+        onJobAction={(jobId, action) => {
+          if (action === 'repeat') {
+            handleRunJob();
+          }
+        }}
+        onViewJob={(jobId) => handleJobSelection(jobId)}
+      />
+
+      {/* Report (unless the host supplies its own report button) */}
+      {!overrideReportButton && (
+        <StageReportModal
+          journeyId={journeyId}
+          journeyName={journey?.name}
+          open={reportModalOpen}
+          onOpenChange={setReportModalOpen}
+        />
+      )}
 
       {/* Logs Modal */}
       {logsModalOpen && (
-      <LogsModal
+        <LogsModal
           journeyId={journeyId}
           jobId={currentJobId || selectedJobId || jobHistory[0]?.jobId || jobHistory[0]?.id}
           stepId={logsStepId}
           stepName={activeSteps.find(s => s.id === logsStepId)?.name || 'Step'}
           isOpen={logsModalOpen}
-        onClose={() => setLogsModalOpen(false)}
-      />
+          onClose={() => setLogsModalOpen(false)}
+        />
       )}
 
       {/* Batch Schedule Dialog */}

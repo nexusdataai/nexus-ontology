@@ -21,6 +21,7 @@ import { CreateProductionQualityDialog } from './CreateProductionQualityDialog';
 import { CreateSupplyChainRiskDialog } from './CreateSupplyChainRiskDialog';
 import { CreateCustomer360Dialog } from './CreateCustomer360Dialog';
 import { CreateESGDialog } from './CreateESGDialog';
+import { confirmDialog } from '@/components/ds/confirm';
 
 export interface JourneysPanelProps {
   initialJourneyId?: string;
@@ -52,6 +53,8 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
   const [journeys, setJourneys] = useState<CallProcessingJourney[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  // The last list load failed (shown as an error with a retry in the list).
+  const [loadError, setLoadError] = useState(false);
   
   // Dialog state
   const [createRagDialogOpen, setCreateRagDialogOpen] = useState(false);
@@ -67,6 +70,7 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
   // Load journeys
   const loadJourneys = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       console.log('🔄 JourneysPanel: Loading journeys from backend...');
       const response = await callProcessingJourneyService.listJourneys();
@@ -87,6 +91,7 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
     } catch (err) {
       console.error('❌ JourneysPanel: Error loading journeys:', err);
       setJourneys([]);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +120,7 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
 
   // Delete journey handler
   const handleDelete = async (journeyId: string) => {
-    if (!window.confirm('Are you sure you want to delete this journey? This action cannot be undone.')) {
+    if (!(await confirmDialog({ title: 'Delete this journey?', description: 'This cannot be undone.', destructive: true }))) {
       return;
     }
     
@@ -151,14 +156,17 @@ export function JourneysPanel({ initialJourneyId }: JourneysPanelProps) {
             onDelete={handleDelete}
             onRefresh={loadJourneys}
             actionLoadingId={actionLoadingId}
+            error={loadError}
           />
         </div>
       ) : (
         selectedJourneyId && (
-          <JourneyStudioView
-            journeyId={selectedJourneyId}
-            onBack={handleBackToList}
-          />
+          <div className="page">
+            <JourneyStudioView
+              journeyId={selectedJourneyId}
+              onBack={handleBackToList}
+            />
+          </div>
         )
       )}
 

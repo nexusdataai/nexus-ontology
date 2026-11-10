@@ -58,12 +58,12 @@ export function AggregationConfig({
         <div className="flex-1">
           <Label className="text-xs text-muted-foreground">Aggregation</Label>
           <Select value={aggregation?.function || NONE} onValueChange={handleFunctionChange}>
-            <SelectTrigger className="h-7 text-[10px] mt-1">
+            <SelectTrigger className="h-7 text-xs mt-1">
               <SelectValue placeholder="None" />
             </SelectTrigger>
             <SelectContent>
               {AGG_FUNCTIONS.map((fn) => (
-                <SelectItem key={fn.value} value={fn.value} className="text-[10px]">{fn.label}</SelectItem>
+                <SelectItem key={fn.value} value={fn.value} className="text-xs">{fn.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -72,12 +72,12 @@ export function AggregationConfig({
           <div className="flex-1">
             <Label className="text-xs text-muted-foreground">Agg. Field</Label>
             <Select value={aggregation.field || NONE} onValueChange={handleFieldChange}>
-              <SelectTrigger className="h-7 text-[10px] mt-1">
+              <SelectTrigger className="h-7 text-xs mt-1">
                 <SelectValue placeholder="Select field" />
               </SelectTrigger>
               <SelectContent>
                 {(availableFields || []).map((f) => (
-                  <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
+                  <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -95,7 +95,7 @@ export function AggregationConfig({
                   key={f}
                   type="button"
                   onClick={() => handleGroupByChange(f)}
-                  className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+                  className={`px-2 py-0.5 rounded text-xs border transition-colors ${
                     selected
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-background text-muted-foreground border-border hover:border-primary/50'

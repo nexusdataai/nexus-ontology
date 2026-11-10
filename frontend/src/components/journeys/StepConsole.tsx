@@ -6,9 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Terminal, Trash2, Download } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Icon } from '../ds/Icon';
 import { LogEntry } from '../../types/callProcessingJourney';
 import { cn } from '../../lib/utils';
 
@@ -25,21 +24,13 @@ export interface StepConsoleProps {
   onClear?: () => void;
 }
 
-// Log level colors for terminal display
+// Level word colour. Only warnings and errors carry a status colour.
 const LOG_LEVEL_COLORS: Record<string, string> = {
-  debug: 'text-gray-400',
-  info: 'text-blue-400',
-  warning: 'text-yellow-400',
-  warn: 'text-yellow-400',
-  error: 'text-red-400',
-};
-
-const LOG_LEVEL_BADGE_COLORS: Record<string, string> = {
-  debug: 'bg-gray-700 text-gray-300',
-  info: 'bg-blue-900/50 text-blue-300',
-  warning: 'bg-yellow-900/50 text-yellow-300',
-  warn: 'bg-yellow-900/50 text-yellow-300',
-  error: 'bg-red-900/50 text-red-300',
+  debug: 'text-subtle-foreground',
+  info: 'text-muted-foreground',
+  warning: 'text-warning',
+  warn: 'text-warning',
+  error: 'text-destructive',
 };
 
 export function StepConsole({
@@ -109,135 +100,90 @@ export function StepConsole({
     URL.revokeObjectURL(url);
   };
 
-  // Get status indicator color
-  const getStatusColor = () => {
-    switch (stepStatus) {
-      case 'running':
-        return 'bg-blue-500';
-      case 'completed':
-        return 'bg-green-500';
-      case 'failed':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
+  const running = stepStatus === 'running';
 
   return (
-    <div className="rounded-lg border border-border bg-muted dark:bg-gray-900 overflow-hidden">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface-2/70">
       {/* Header */}
       {showHeader && (
-        <div
-          className="flex items-center justify-between px-3 py-2 bg-muted/50 dark:bg-gray-800/50 border-b border-border cursor-pointer hover:bg-muted dark:hover:bg-gray-800/70 transition-colors"
-          onClick={onToggle}
-        >
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-gray-400" />
-            <span className="text-sm font-medium text-muted-foreground">{stepName} Logs</span>
-            <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
-              {logs.length}
-            </Badge>
-            {/* Status indicator */}
-            <div className={cn('w-2 h-2 rounded-full', getStatusColor())} />
-            {/* Task progress */}
-            {taskProgress && stepStatus === 'running' && (
-              <Badge variant="outline" className="text-xs bg-blue-900/30 text-blue-300 border-blue-700">
-                {taskProgress.current}/{taskProgress.total} tasks
-              </Badge>
+        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate font-medium">{stepName} output</span>
+            <span className="num text-xs text-subtle-foreground">{logs.length} lines</span>
+            {running && <span className="dot-live shrink-0 text-primary dark:text-brand-hi" aria-hidden="true" />}
+            {taskProgress && running && (
+              <span className="num text-xs text-muted-foreground">{taskProgress.current} of {taskProgress.total}</span>
             )}
-          </div>
-          <div className="flex items-center gap-1">
-            {isExpanded && logs.length > 0 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-gray-400 hover:text-foreground"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadLogs();
-                  }}
-                  title="Download logs"
-                >
-                  <Download className="h-3 w-3" />
+          </button>
+          {isExpanded && logs.length > 0 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={downloadLogs} aria-label="Download output" title="Download output">
+                <Icon name="download" className="h-3.5 w-3.5" />
+              </Button>
+              {onClear && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClear} aria-label="Clear output" title="Clear output">
+                  <Icon name="trash" className="h-3.5 w-3.5" />
                 </Button>
-                {onClear && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-gray-400 hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClear();
-                    }}
-                    title="Clear logs"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </>
-            )}
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Console Content */}
+      {/* Console content */}
       {isExpanded && (
-        <div
-          ref={scrollRef}
-          className="font-mono text-xs overflow-y-auto overflow-x-hidden"
-          style={{ maxHeight }}
-          onScroll={handleScroll}
-        >
-          {logs.length === 0 ? (
-            <div className="p-4 text-gray-500 text-center">
-              No logs yet. Logs will appear here when the step runs.
-            </div>
-          ) : (
-            <div className="p-2 space-y-0.5">
-              {logs.map((log, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    'flex items-start gap-2 py-0.5 px-1 rounded hover:bg-muted/50',
-                    log.level === 'error' && 'bg-red-950/20'
-                  )}
-                >
-                  <span className="text-gray-500 flex-shrink-0 select-none">
-                    {formatTimestamp(log.timestamp)}
-                  </span>
-                  <span
-                    className={cn(
-                      'px-1.5 py-0 rounded text-[10px] uppercase flex-shrink-0',
-                      LOG_LEVEL_BADGE_COLORS[log.level] || LOG_LEVEL_BADGE_COLORS.info
-                    )}
-                  >
-                    {log.level}
-                  </span>
-                  <span className={cn('flex-1 break-all', LOG_LEVEL_COLORS[log.level] || 'text-gray-300')}>
-                    {log.message}
-                  </span>
-                </div>
-              ))}
+        <div className="relative">
+          {!showHeader && logs.length > 0 && (
+            <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md border border-border bg-card p-0.5">
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={downloadLogs} aria-label="Download output" title="Download output">
+                <Icon name="download" className="h-3.5 w-3.5" />
+              </Button>
+              {onClear && (
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClear} aria-label="Clear output" title="Clear output">
+                  <Icon name="trash" className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           )}
+          <div
+            ref={scrollRef}
+            className="scroll-thin overflow-y-auto overflow-x-hidden font-mono text-xs leading-5"
+            style={{ maxHeight }}
+            onScroll={handleScroll}
+          >
+            {logs.length === 0 ? (
+              <p className="px-3 py-4 font-sans text-sm text-muted-foreground">
+                {running ? 'Waiting for the first line of output.' : 'No output yet. Lines appear here when the step runs.'}
+              </p>
+            ) : (
+              <div className="p-3">
+                {logs.map((log, index) => (
+                  <div key={index} className={cn('flex items-start gap-3 rounded-sm px-1', log.level === 'error' && 'bg-destructive/10')}>
+                    <span className="num shrink-0 select-none text-subtle-foreground">{formatTimestamp(log.timestamp)}</span>
+                    <span className={cn('w-12 shrink-0', LOG_LEVEL_COLORS[log.level] || LOG_LEVEL_COLORS.info)}>{log.level}</span>
+                    <span className={cn('min-w-0 flex-1 break-words', log.level === 'error' ? 'text-destructive' : 'text-foreground')}>{log.message}</span>
+                  </div>
+                ))}
+                {running && (
+                  <div className="mt-1 flex items-center gap-2 px-1 text-subtle-foreground">
+                    <span className="dot-live text-primary dark:text-brand-hi" aria-hidden="true" /> <span className="font-sans">Live</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Scroll to bottom button */}
           {!isAtBottom && logs.length > 5 && (
-            <div className="sticky bottom-2 flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-xs bg-muted border-border text-muted-foreground hover:bg-accent"
-                onClick={scrollToBottom}
-              >
-                <ChevronDown className="h-3 w-3 mr-1" />
-                Scroll to bottom
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+              <Button variant="outline" size="sm" className="pointer-events-auto h-7 bg-card text-xs shadow-sm" onClick={scrollToBottom}>
+                <Icon name="chevron-down" className="h-3 w-3" /> Latest lines
               </Button>
             </div>
           )}
@@ -264,24 +210,23 @@ export function InlineStepConsole({
   }
 
   return (
-    <div
-      className="mt-2 bg-muted dark:bg-gray-900/80 rounded-md p-2 font-mono text-xs cursor-pointer hover:bg-accent dark:hover:bg-gray-900"
+    <button
+      type="button"
+      className="mt-2 block w-full rounded-md border border-border bg-surface-2/70 p-2 text-left font-mono text-xs transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={onExpand}
     >
       {recentLogs.map((log, index) => (
-        <div key={index} className="flex items-center gap-2 py-0.5 truncate">
-          <span className={cn('flex-shrink-0', LOG_LEVEL_COLORS[log.level] || 'text-gray-400')}>
-            [{log.level.toUpperCase().charAt(0)}]
-          </span>
-          <span className="text-gray-300 truncate">{log.message}</span>
-        </div>
+        <span key={index} className="flex items-center gap-2 truncate py-0.5">
+          <span className={cn('shrink-0', LOG_LEVEL_COLORS[log.level] || 'text-muted-foreground')}>{log.level}</span>
+          <span className="truncate text-foreground">{log.message}</span>
+        </span>
       ))}
       {logs.length > maxLines && (
-        <div className="text-gray-500 text-center mt-1 text-[10px]">
-          +{logs.length - maxLines} more logs • Click to expand
-        </div>
+        <span className="mt-1 block font-sans text-xs text-muted-foreground">
+          {logs.length - maxLines} more lines. Select to open.
+        </span>
       )}
-    </div>
+    </button>
   );
 }
 

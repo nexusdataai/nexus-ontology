@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Code2, Download, Loader2, RefreshCw, Save, Trash2, Upload, Wrench,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
 import {
   toolBuilderService,
   type ToolDoc,
   type ToolSummary,
 } from '@/services/toolBuilderService';
+import { cn } from '@/lib/utils';
+import { RiskPill } from '@/components/reasoning/toolMeta';
 import ToolList from './ToolList';
 import ToolEditor from './ToolEditor';
 import ParametersEditor from './ParametersEditor';
@@ -16,6 +19,8 @@ import IdentityForm, { type IdentityValues } from './IdentityForm';
 import TestRunner from './TestRunner';
 import VersionHistory from './VersionHistory';
 import { DEFAULT_TOOL_TEMPLATE } from './typings';
+import { confirmDialog } from '@/components/ds/confirm';
+import { toast } from 'sonner';
 
 interface DraftState {
   isNew: boolean;
@@ -65,10 +70,16 @@ function docToDraft(doc: ToolDoc): DraftState {
   };
 }
 
+const iconBtn = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+
 /**
  * Reusable Tool Builder component (no Layout wrapper). Used by the
  * Reasoning page's "Tool Builder" tab. Owns its own height; expects to
  * be mounted inside a `flex-1` / `h-full` container.
+ *
+ * Layout: the list of tools on the left (behind "Browse tools" on small
+ * screens), the editor on the right with a fixed header (name, save state,
+ * actions) and tabs for code, details, parameters, test and history.
  */
 export default function ToolBuilder() {
   const [tools, setTools] = useState<ToolSummary[]>([]);
@@ -77,7 +88,9 @@ export default function ToolBuilder() {
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
   const [savedSnapshot, setSavedSnapshot] = useState<string>(JSON.stringify(EMPTY_DRAFT));
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState('identity');
+  const [tab, setTab] = useState('code');
+  // Local view state: the tool list sheet on small screens.
+  const [browseOpen, setBrowseOpen] = useState(false);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -95,12 +108,13 @@ export default function ToolBuilder() {
 
   const loadTool = useCallback(async (toolId: string) => {
     setError(null);
+    setBrowseOpen(false);
     try {
       const doc = await toolBuilderService.get(toolId);
       const d = docToDraft(doc);
       setDraft(d);
       setSavedSnapshot(JSON.stringify(d));
-      setTab('identity');
+      setTab('code');
     } catch (e: any) {
       setError(e?.message || String(e));
     }
@@ -110,12 +124,22 @@ export default function ToolBuilder() {
     setDraft(EMPTY_DRAFT);
     setSavedSnapshot(JSON.stringify(EMPTY_DRAFT));
     setTab('identity');
+    setBrowseOpen(false);
   };
 
   const dirty = useMemo(
     () => JSON.stringify(draft) !== savedSnapshot,
     [draft, savedSnapshot],
   );
+
+  // Open the first tool once the list arrives, unless a new tool is being written.
+  const [autoOpened, setAutoOpened] = useState(false);
+  useEffect(() => {
+    if (autoOpened || tools.length === 0) return;
+    setAutoOpened(true);
+    if (draft.isNew && !dirty) loadTool(tools[0].tool_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tools]);
 
   const handleSave = async () => {
     setError(null);
@@ -163,7 +187,7 @@ export default function ToolBuilder() {
 
   const handleDelete = async () => {
     if (!draft.tool_id) return;
-    if (!confirm(`Delete tool ${draft.identity.name}?`)) return;
+    if (!(await confirmDialog({ title: `Delete tool ${draft.identity.name}?`, description: 'This cannot be undone.', destructive: true }))) return;
     try {
       await toolBuilderService.remove(draft.tool_id);
       handleNew();
@@ -195,7 +219,7 @@ export default function ToolBuilder() {
         const data = JSON.parse(text);
         const tools = Array.isArray(data?.tools) ? data.tools : [];
         const r = await toolBuilderService.importBundle({ tools, mode: 'merge' });
-        alert(`Import: imported=${r.imported} updated=${r.updated} skipped=${r.skipped} errors=${r.errors.length}`);
+        toast.success('Import finished', { description: `${r.imported} imported, ${r.updated} updated, ${r.skipped} skipped, ${r.errors.length} errors` });
         loadList();
       } catch (e: any) {
         setError(e?.message || String(e));
@@ -204,131 +228,165 @@ export default function ToolBuilder() {
     input.click();
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-border px-6 py-3 flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-lg font-semibold flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-blue-300" />
-            ReAct Tool Builder
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Author async Python tools that query the Virtual Data Layer and call Connector APIs. Persisted in DynamoDB; usable by the Copilot agent and as journey steps.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleImport}>
-            <Upload className="h-3.5 w-3.5 mr-1" /> Import
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5 mr-1" /> Export
-          </Button>
-        </div>
+  const currentVersion = tools.find(t => t.tool_id === draft.tool_id)?.current_version;
+  const paramCount = Object.keys((draft.parameters?.properties as Record<string, unknown>) || {}).length;
+  // Remount editors that keep their own copy of the draft when another tool loads.
+  const draftKey = `${draft.tool_id ?? 'new'}:${draft.baselineUpdatedAt ?? ''}`;
+
+  const listPane = (
+    <>
+      <div className="flex shrink-0 items-center gap-1 px-3 pt-3">
+        <Button variant="outline" size="sm" className="mr-auto" onClick={handleNew}>
+          <Icon name="plus" /> New tool
+        </Button>
+        <button type="button" className={iconBtn} onClick={loadList} disabled={loading} aria-label="Refresh the list" title="Refresh the list">
+          <Icon name={loading ? 'spinner' : 'refresh'} className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+        </button>
+        <button type="button" className={iconBtn} onClick={handleImport} aria-label="Import tools from a file" title="Import tools from a file">
+          <Icon name="upload" className="h-3.5 w-3.5" />
+        </button>
+        <button type="button" className={iconBtn} onClick={handleExport} aria-label="Export all tools to a file" title="Export all tools to a file">
+          <Icon name="download" className="h-3.5 w-3.5" />
+        </button>
       </div>
+      <div className="min-h-0 flex-1">
+        <ToolList
+          tools={tools}
+          loading={loading}
+          selectedId={draft.tool_id}
+          onSelect={loadTool}
+          onNew={handleNew}
+          onRefresh={loadList}
+        />
+      </div>
+    </>
+  );
 
-      {error && (
-        <div className="mx-6 mt-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
-          {error}
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <aside className="hidden min-h-0 flex-col border-r border-border bg-sidebar/40 lg:flex" aria-label="Tools">
+        {listPane}
+      </aside>
+
+      <div className="flex min-h-0 min-w-0 flex-col">
+        <div className="shrink-0 border-b border-border px-4 py-2 lg:hidden">
+          <Button variant="outline" size="sm" className="w-full justify-between" onClick={() => setBrowseOpen(true)}>
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon name="list" className="h-3.5 w-3.5" />
+              <span className="truncate">Browse tools</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-normal text-muted-foreground">
+              <span className="num">{tools.length}</span>
+              <Icon name="chevron-down" className="h-3.5 w-3.5" />
+            </span>
+          </Button>
         </div>
-      )}
 
-      <div className="flex-1 grid grid-cols-[260px_1fr] overflow-hidden">
-        <div className="border-r border-border overflow-hidden">
-          <ToolList
-            tools={tools}
-            loading={loading}
-            selectedId={draft.tool_id}
-            onSelect={loadTool}
-            onNew={handleNew}
-            onRefresh={loadList}
-          />
-        </div>
-
-        <div className="flex flex-col overflow-hidden">
-          <div className="px-6 py-2 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 text-sm">
-              <Code2 className="h-4 w-4 text-muted-foreground" />
-              <span className="font-mono">{draft.identity.name || '(unsaved)'}</span>
-              {dirty && <span className="text-amber-300 text-[11px]">| unsaved changes</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              {!draft.isNew && draft.tool_id && (
-                <Button variant="outline" size="sm" onClick={handleDelete}>
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                </Button>
-              )}
-              <Button size="sm" onClick={handleSave} disabled={saving || !draft.identity.name || !draft.source_code}>
-                {saving
-                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  : <Save className="h-3.5 w-3.5 mr-1" />}
-                {draft.isNew ? 'Create' : 'Save'}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => draft.tool_id && loadTool(draft.tool_id)}>
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+        {/* Editor header: the object, its save state and its actions */}
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 pb-3 pt-4 sm:px-6">
+          <div className="min-w-0">
+            <h2 className={cn('truncate text-xl font-medium tracking-tight text-foreground', draft.identity.name && 'font-mono')}>
+              {draft.identity.name || 'New tool'}
+            </h2>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <RiskPill risk={draft.identity.risk_level} />
+              {!draft.isNew && currentVersion != null && <span className="num">Version {currentVersion}</span>}
+              <span aria-live="polite">{draft.isNew ? 'Not saved yet' : dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+            </p>
           </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {!draft.isNew && dirty && (
+              <Input
+                value={draft.changelog}
+                onChange={(e) => setDraft({ ...draft, changelog: e.target.value })}
+                placeholder="What changed (optional)"
+                aria-label="Change note for this version"
+                className="h-9 w-56 max-w-full animate-fade-in"
+              />
+            )}
+            {!draft.isNew && draft.tool_id && (
+              <>
+                <button type="button" className={cn(iconBtn, 'h-9 w-9')} onClick={() => draft.tool_id && loadTool(draft.tool_id)} aria-label="Reload the saved version" title="Reload the saved version">
+                  <Icon name="refresh" />
+                </button>
+                <Button variant="outline" onClick={handleDelete}>
+                  <Icon name="trash" /> Delete
+                </Button>
+              </>
+            )}
+            <Button onClick={handleSave} disabled={saving || !draft.identity.name || !draft.source_code}>
+              {saving && <Icon name="spinner" className="animate-spin" />}
+              {draft.isNew ? 'Create tool' : 'Save'}
+            </Button>
+          </div>
+        </div>
 
-          <div className="flex-1 grid grid-rows-[1fr_auto] overflow-hidden">
-            <div className="p-4 overflow-auto">
+        {error && (
+          <div className="shrink-0 px-4 pb-3 sm:px-6">
+            <InlineError>{error}</InlineError>
+          </div>
+        )}
+
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+          <TabsList variant="line" className="shrink-0 px-4 sm:px-6">
+            <TabsTrigger value="code">Code</TabsTrigger>
+            <TabsTrigger value="identity">Details</TabsTrigger>
+            <TabsTrigger value="parameters">
+              Parameters {paramCount > 0 && <span className="num text-xs font-normal text-muted-foreground">{paramCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="test">Test</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="code" className="relative mt-0 min-h-0 flex-1">
+            <div className="scroll-thin absolute inset-0 overflow-auto p-4 sm:px-6">
               <ToolEditor
                 value={draft.source_code}
                 onChange={(v) => setDraft({ ...draft, source_code: v })}
-                height="55vh"
+                height="100%"
               />
             </div>
-
-            <div className="border-t border-border bg-card overflow-hidden">
-              <Tabs value={tab} onValueChange={setTab} className="flex flex-col h-72">
-                <TabsList className="bg-transparent gap-1 h-auto p-2 border-b border-border/40">
-                  {[
-                    { value: 'identity', label: 'Identity' },
-                    { value: 'parameters', label: 'Parameters' },
-                    { value: 'test', label: 'Test' },
-                    { value: 'history', label: 'History' },
-                  ].map((t) => (
-                    <TabsTrigger
-                      key={t.value}
-                      value={t.value}
-                      className="data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300 text-xs px-3 py-1"
-                    >
-                      {t.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <div className="flex-1 overflow-auto p-3">
-                  <TabsContent value="identity" className="mt-0">
-                    <IdentityForm
-                      values={draft.identity}
-                      onChange={(v) => setDraft({ ...draft, identity: v })}
-                      isNew={draft.isNew}
-                    />
-                  </TabsContent>
-                  <TabsContent value="parameters" className="mt-0">
-                    <ParametersEditor
-                      schema={draft.parameters}
-                      onChange={(v) => setDraft({ ...draft, parameters: v })}
-                    />
-                  </TabsContent>
-                  <TabsContent value="test" className="mt-0">
-                    <TestRunner
-                      toolId={draft.tool_id}
-                      parameters={draft.parameters}
-                      unsaved={dirty}
-                    />
-                  </TabsContent>
-                  <TabsContent value="history" className="mt-0">
-                    <VersionHistory
-                      toolId={draft.tool_id}
-                      onRestored={() => draft.tool_id && loadTool(draft.tool_id)}
-                    />
-                  </TabsContent>
-                </div>
-              </Tabs>
-            </div>
-          </div>
-        </div>
+          </TabsContent>
+          <TabsContent value="identity" className="scroll-thin mt-0 min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-6">
+            <IdentityForm
+              values={draft.identity}
+              onChange={(v) => setDraft({ ...draft, identity: v })}
+              isNew={draft.isNew}
+            />
+          </TabsContent>
+          <TabsContent value="parameters" className="scroll-thin mt-0 min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-6">
+            <ParametersEditor
+              key={draftKey}
+              schema={draft.parameters}
+              onChange={(v) => setDraft({ ...draft, parameters: v })}
+            />
+          </TabsContent>
+          <TabsContent value="test" className="scroll-thin mt-0 min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-6">
+            <TestRunner
+              key={draft.tool_id ?? 'new'}
+              toolId={draft.tool_id}
+              parameters={draft.parameters}
+              unsaved={dirty}
+            />
+          </TabsContent>
+          <TabsContent value="history" className="scroll-thin mt-0 min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-6">
+            <VersionHistory
+              toolId={draft.tool_id}
+              onRestored={() => draft.tool_id && loadTool(draft.tool_id)}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <Sheet open={browseOpen} onOpenChange={setBrowseOpen}>
+        <SheetContent side="left" className="flex w-full flex-col gap-0 p-0 sm:max-w-sm">
+          <div className="border-b border-border px-4 py-3.5 pr-12">
+            <SheetTitle className="text-md font-medium">Tools</SheetTitle>
+            <SheetDescription className="sr-only">Choose a tool to edit, or start a new one</SheetDescription>
+          </div>
+          {listPane}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

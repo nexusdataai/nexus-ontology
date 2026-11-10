@@ -75,7 +75,7 @@ export const AuthCallback = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-surface-2 to-surface-2 dark:from-card dark:to-surface-3 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center">
@@ -95,7 +95,7 @@ export const AuthCallback = () => {
             
             {status === 'success' && (
               <>
-                <CheckCircle2 className="h-12 w-12 text-green-500" />
+                <CheckCircle2 className="h-12 w-12 text-success" />
                 <p className="text-center text-muted-foreground">{message}</p>
               </>
             )}

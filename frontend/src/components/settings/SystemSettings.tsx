@@ -1,36 +1,16 @@
 /**
- * System Settings Component
- * 
- * Allows administrators to view and edit SSM parameters grouped by category.
- * Changes are persisted to AWS SSM Parameter Store.
+ * System settings
+ *
+ * Administrators view and edit platform parameters, grouped by area.
+ * Layout: environment facts and actions on top, then a master-detail:
+ * the groups on the left, the selected group's parameters on the right.
+ * Changes are saved per group to the parameter store.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-  Server,
-  Shield,
-  Phone,
-  Database,
-  Layers,
-  Activity,
-  Settings2,
-  ChevronDown,
-  ChevronRight,
-  Save,
-  RotateCcw,
-  Trash2,
-  Search,
-  Building2,
-  Factory,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -39,35 +19,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { SystemLogo, resolveSystem } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
 import {
   ssmConfigService,
   type ConfigParametersResponse,
-  type ParameterCategory,
   type ParameterValue,
   type EnvironmentInfo,
 } from '@/services/ssmConfigService';
-
-// Icon mapping for categories
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  server: <Settings2 className="h-4 w-4" />,
-  cognito: <Shield className="h-4 w-4" />,
-  'wxcc-query': <Search className="h-4 w-4" />,
-  wxcc: <Phone className="h-4 w-4" />,
-  data_source_mode: <Layers className="h-4 w-4" />,
-  sfdc: <Database className="h-4 w-4" />,
-  'oracle-erp': <Building2 className="h-4 w-4" />,
-  sap: <Factory className="h-4 w-4" />,
-  s3: <Database className="h-4 w-4" />,
-  dynamodb: <Database className="h-4 w-4" />,
-  glue: <Layers className="h-4 w-4" />,
-  cloudwatch: <Activity className="h-4 w-4" />,
-};
 
 interface CategoryState {
   isOpen: boolean;
@@ -77,6 +39,24 @@ interface CategoryState {
   originalValues: Record<string, string>;
 }
 
+/** Short words that read better in capitals in a label. */
+const ACRONYMS = new Set(['url', 'api', 'id', 'ttl', 'ms', 'db', 'ocr', 'sap', 'erp', 'crm', 'sso', 'arn', 'kms', 'ssl', 'tls', 'uri', 'ip', 's3', 'aws', 'odata']);
+
+/** "sync_interval_minutes" becomes "Sync interval minutes". */
+const humanise = (key: string) =>
+  key
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w, i) => (ACRONYMS.has(w.toLowerCase()) ? (w.toLowerCase() === 'odata' ? 'OData' : w.toUpperCase()) : i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+
+/** Only real source systems get a logo; platform groups stay plain. */
+const SOURCE_SYSTEMS = new Set(['salesforce', 'sap', 'oracle', 'google_drive', 'microsoft', 'slack', 'mysql']);
+const systemOf = (key: string): string | null => {
+  const { key: resolved, def } = resolveSystem(key);
+  return def && SOURCE_SYSTEMS.has(resolved) ? key : null;
+};
+
 const SystemSettings: React.FC = () => {
   const [parameters, setParameters] = useState<ConfigParametersResponse | null>(null);
   const [environmentInfo, setEnvironmentInfo] = useState<EnvironmentInfo | null>(null);
@@ -85,6 +65,8 @@ const SystemSettings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [invalidatingCache, setInvalidatingCache] = useState(false);
+  // Which group is shown on the right (view state only).
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Fetch parameters and environment info
   const fetchParameters = useCallback(async () => {
@@ -147,17 +129,6 @@ const SystemSettings: React.FC = () => {
     });
   };
 
-  // Handle category toggle
-  const handleCategoryToggle = (category: string) => {
-    setCategoryStates(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        isOpen: !prev[category].isOpen,
-      },
-    }));
-  };
-
   // Save category parameters
   const handleSaveCategory = async (category: string) => {
     const catState = categoryStates[category];
@@ -192,7 +163,7 @@ const SystemSettings: React.FC = () => {
         },
       }));
 
-      setSuccess(`${parameters?.categories[category].label} settings saved successfully.`);
+      setSuccess(`${parameters?.categories[category].label} settings saved.`);
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
@@ -224,11 +195,11 @@ const SystemSettings: React.FC = () => {
     setError(null);
     try {
       await ssmConfigService.invalidateCache();
-      setSuccess('Configuration cache invalidated. Values will be reloaded on next access.');
+      setSuccess('Cache cleared. Values are read again the next time they are needed.');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Failed to invalidate cache:', err);
-      setError('Failed to invalidate cache.');
+      setError('Failed to clear the cache.');
     } finally {
       setInvalidatingCache(false);
     }
@@ -239,14 +210,12 @@ const SystemSettings: React.FC = () => {
     category: string,
     paramName: string,
     param: ParameterValue,
-    value: string
+    value: string,
+    inputId: string,
   ) => {
-    const isModified = value !== categoryStates[category]?.originalValues[paramName];
-
-    // Phase 2 (data-source-mode): render the simulator|real choice as a
-    // 2-button segmented pill instead of a dropdown so the active mode
-    // is obvious at a glance. Triggered by the category name only;
-    // every other 'select' parameter keeps the standard dropdown.
+    // The simulator / real choice is a two-way switch so the active mode is
+    // obvious at a glance. Triggered by the category name only; every other
+    // 'select' parameter keeps the standard dropdown.
     if (
       param.type === 'select' &&
       category === 'data_source_mode' &&
@@ -254,25 +223,27 @@ const SystemSettings: React.FC = () => {
       param.options.includes('simulator') &&
       param.options.includes('real')
     ) {
-      const opts: string[] = ['simulator', 'real'];
+      const opts: { value: string; label: string }[] = [
+        { value: 'simulator', label: 'Simulator' },
+        { value: 'real', label: 'Real system' },
+      ];
       return (
-        <div className={`inline-flex rounded-md border ${isModified ? 'border-amber-400' : 'border-border'} overflow-hidden`}>
+        <div role="radiogroup" aria-label={humanise(paramName)} className="inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface-2 p-0.5">
           {opts.map((opt) => {
-            const active = value === opt;
+            const active = value === opt.value;
             return (
               <button
-                key={opt}
+                key={opt.value}
                 type="button"
-                onClick={() => handleValueChange(category, paramName, opt)}
-                className={`px-3 py-1 text-xs font-medium transition-colors ${
-                  active
-                    ? opt === 'simulator'
-                      ? 'bg-green-500/20 text-green-300'
-                      : 'bg-amber-500/20 text-amber-300'
-                    : 'bg-transparent text-muted-foreground hover:bg-muted/40'
-                }`}
+                role="radio"
+                aria-checked={active}
+                onClick={() => handleValueChange(category, paramName, opt.value)}
+                className={cn(
+                  'h-full rounded-md px-3 text-sm font-medium transition-colors duration-200 ease-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  active ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+                )}
               >
-                {opt}
+                {opt.label}
               </button>
             );
           })}
@@ -283,11 +254,8 @@ const SystemSettings: React.FC = () => {
     switch (param.type) {
       case 'select':
         return (
-          <Select
-            value={value}
-            onValueChange={(v) => handleValueChange(category, paramName, v)}
-          >
-            <SelectTrigger className={isModified ? 'border-amber-400' : ''}>
+          <Select value={value} onValueChange={(v) => handleValueChange(category, paramName, v)}>
+            <SelectTrigger id={inputId} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -302,247 +270,230 @@ const SystemSettings: React.FC = () => {
 
       case 'boolean':
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex h-9 items-center gap-2.5">
             <Switch
+              id={inputId}
               checked={value === 'true'}
               onCheckedChange={(checked) =>
                 handleValueChange(category, paramName, checked ? 'true' : 'false')
               }
             />
-            <span className={`text-sm ${isModified ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'}`}>
-              {value === 'true' ? 'Enabled' : 'Disabled'}
-            </span>
+            <span className="text-sm text-muted-foreground">{value === 'true' ? 'On' : 'Off'}</span>
           </div>
         );
 
       case 'number':
         return (
           <Input
+            id={inputId}
             type="number"
             value={value}
             onChange={(e) => handleValueChange(category, paramName, e.target.value)}
-            className={isModified ? 'border-amber-400' : ''}
+            className="num w-full sm:max-w-[180px]"
           />
         );
 
       default:
         return (
           <Input
+            id={inputId}
             type="text"
             value={value}
             onChange={(e) => handleValueChange(category, paramName, e.target.value)}
-            className={isModified ? 'border-amber-400' : ''}
+            className="w-full"
           />
         );
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            System Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading system parameters...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const categories = parameters ? Object.entries(parameters.categories).filter(([name]) => categoryStates[name]) : [];
+  const openByDefault = categories.find(([name]) => categoryStates[name]?.isOpen)?.[0];
+  const selected =
+    selectedCategory && categories.some(([name]) => name === selectedCategory)
+      ? selectedCategory
+      : openByDefault ?? categories[0]?.[0] ?? null;
+  const selectedDef = selected ? parameters?.categories[selected] : null;
+  const selectedState = selected ? categoryStates[selected] : null;
+  const selectedSystem = selected ? systemOf(selected) : null;
+
+  const platform = environmentInfo
+    ? environmentInfo.is_localstack ? 'LocalStack' : environmentInfo.is_aws ? 'AWS' : 'Local'
+    : null;
 
   return (
-    <div className="space-y-4">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Settings2 className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-              <CardDescription>
-                Configure system parameters stored in AWS SSM Parameter Store
-              </CardDescription>
-            </div>
-            {environmentInfo && (
-              <Badge variant="outline" className="text-sm">
-                Environment: {environmentInfo.environment}
-              </Badge>
-            )}
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">System</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Platform parameters, grouped by area. A change applies to everyone using this environment.
+          </p>
+          {environmentInfo ? (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{environmentInfo.environment}</span>
+              <span aria-hidden="true">·</span>
+              <span>{environmentInfo.region}</span>
+              <span aria-hidden="true">·</span>
+              <span>{platform}</span>
+              <span aria-hidden="true">·</span>
+              <span>log level {environmentInfo.log_level}</span>
+            </p>
+          ) : loading ? (
+            <Skeleton className="mt-2 h-5 w-64" />
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={fetchParameters} disabled={loading}>
+            <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+          </Button>
+          <Button variant="outline" onClick={handleInvalidateCache} disabled={invalidatingCache}>
+            {invalidatingCache && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+            {invalidatingCache ? 'Clearing' : 'Clear cache'}
+          </Button>
+        </div>
+      </header>
+
+      {error && <InlineError onRetry={parameters ? undefined : fetchParameters}>{error}</InlineError>}
+
+      {success && (
+        <p role="status" className="flex items-center gap-2 text-sm text-foreground">
+          <Icon name="check-circle" className="h-4 w-4 text-success" />
+          {success}
+        </p>
+      )}
+
+      {loading && !parameters ? (
+        <div className="grid gap-x-8 gap-y-4 border-t border-border pt-6 lg:grid-cols-[220px_minmax(0,1fr)]" aria-busy="true">
+          <div className="hidden space-y-2 lg:block">
+            {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
           </div>
-        </CardHeader>
-        <CardContent>
-          {/* Alerts */}
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {success && (
-            <Alert className="mb-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Environment Info */}
-          {environmentInfo && (
-            <div className="p-4 bg-muted rounded-lg border border-border mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Server className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-sm text-foreground">Environment Details</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Environment:</span>
-                  <span className="ml-1 font-medium text-foreground">{environmentInfo.environment}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Region:</span>
-                  <span className="ml-1 font-medium text-foreground">{environmentInfo.region}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Platform:</span>
-                  <span className="ml-1 font-medium text-foreground">
-                    {environmentInfo.is_localstack ? 'LocalStack' : environmentInfo.is_aws ? 'AWS' : 'Local'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Log Level:</span>
-                  <span className="ml-1 font-medium text-foreground">{environmentInfo.log_level}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={fetchParameters}
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleInvalidateCache}
-              disabled={invalidatingCache}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className={`h-4 w-4 ${invalidatingCache ? 'animate-spin' : ''}`} />
-              Invalidate Cache
-            </Button>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-56" />
+            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      ) : parameters && categories.length === 0 ? (
+        <EmptyState icon="sliders" title="No parameters to show" description="This environment does not expose any editable parameters." />
+      ) : parameters && selected && selectedDef && selectedState ? (
+        <div className="grid gap-x-8 gap-y-5 border-t border-border pt-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+          {/* Group list: a column on desktop, a Select below lg */}
+          <div className="lg:hidden">
+            <Select value={selected} onValueChange={setSelectedCategory}>
+              <SelectTrigger aria-label="Parameter group" className="w-full sm:w-80">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(([name, category]) => (
+                  <SelectItem key={name} value={name}>
+                    {category.label}{categoryStates[name].isModified ? ' (unsaved)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* Parameter Categories */}
-      {parameters && Object.entries(parameters.categories).map(([catName, category]) => {
-        const catState = categoryStates[catName];
-        if (!catState) return null;
-
-        return (
-          <Card key={catName}>
-            <Collapsible open={catState.isOpen} onOpenChange={() => handleCategoryToggle(catName)}>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {catState.isOpen ? (
-                        <ChevronDown className="h-4 w-4 text-slate-500" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
+          <nav aria-label="Parameter groups" className="hidden lg:block">
+            <ul className="space-y-px">
+              {categories.map(([name, category], i) => {
+                const on = name === selected;
+                const system = systemOf(name);
+                const count = Object.keys(category.parameters).length;
+                return (
+                  <li key={name} className="rise" style={{ '--i': i } as React.CSSProperties}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory(name)}
+                      aria-current={on ? 'true' : undefined}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        on ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
                       )}
-                      {CATEGORY_ICONS[catName] || <Settings2 className="h-4 w-4" />}
-                      <div>
-                        <CardTitle className="text-base">{category.label}</CardTitle>
-                        <CardDescription className="text-sm">{category.description}</CardDescription>
+                    >
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                        {system && <SystemLogo system={system} size="sm" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{category.label}</span>
+                      {categoryStates[name].isModified && (
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" title="Unsaved changes">
+                          <span className="sr-only">Unsaved changes</span>
+                        </span>
+                      )}
+                      <span className="num shrink-0 text-xs font-normal text-subtle-foreground">{count}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {/* Selected group */}
+          <section key={selected} className="min-w-0" aria-label={selectedDef.label}>
+            <div className="flex items-start gap-3">
+              {selectedSystem && <SystemLogo system={selectedSystem} tile size="md" />}
+              <div className="min-w-0">
+                <h3 className="text-md font-medium text-foreground">{selectedDef.label}</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">{selectedDef.description}</p>
+              </div>
+            </div>
+
+            {Object.keys(selectedDef.parameters).length === 0 ? (
+              <EmptyState className="mt-5" title="No parameters in this group" />
+            ) : (
+              <div className="mt-4 border-t border-border">
+                {Object.entries(selectedDef.parameters).map(([paramName, param], i) => {
+                  const value = selectedState.values[paramName] || '';
+                  const isModified = value !== selectedState.originalValues[paramName];
+                  const inputId = `param-${selected}-${paramName}`;
+                  const rowSystem = selected === 'data_source_mode' ? systemOf(paramName) : null;
+
+                  return (
+                    <div
+                      key={paramName}
+                      className="rise grid gap-x-8 gap-y-2.5 border-b border-border py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)] sm:items-center"
+                      style={{ '--i': i } as React.CSSProperties}
+                    >
+                      <div className="min-w-0">
+                        <label htmlFor={inputId} className="flex items-center gap-2 text-sm font-medium text-foreground">
+                          {rowSystem && <SystemLogo system={rowSystem} size="sm" />}
+                          <span className="min-w-0 truncate">{humanise(paramName)}</span>
+                          {isModified && <span className="shrink-0 text-xs font-normal text-primary dark:text-brand-hi">Edited</span>}
+                        </label>
+                        {param.description && <p className="mt-0.5 text-sm text-muted-foreground">{param.description}</p>}
+                        {param.default !== '' && param.default != null && (
+                          <p className="mt-0.5 text-xs text-subtle-foreground">
+                            Default <span className="font-mono text-muted-foreground">{param.default}</span>
+                          </p>
+                        )}
+                      </div>
+                      <div className="min-w-0 sm:flex sm:justify-end">
+                        <div className="w-full sm:flex sm:justify-end">{renderParameterInput(selected, paramName, param, value, inputId)}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {catState.isModified && (
-                        <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800">
-                          Modified
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
+                  );
+                })}
+              </div>
+            )}
 
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <div className="space-y-4">
-                    {Object.entries(category.parameters).map(([paramName, param]) => {
-                      const value = catState.values[paramName] || '';
-                      const isModified = value !== catState.originalValues[paramName];
-
-                      return (
-                        <div
-                          key={paramName}
-                          className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-3 rounded-lg ${
-                            isModified ? 'bg-amber-50 dark:bg-amber-900/10' : 'bg-muted'
-                          }`}
-                        >
-                          <div className="space-y-1">
-                            <Label className="font-medium text-sm">
-                              {paramName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                            </Label>
-                            <p className="text-xs text-muted-foreground">{param.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Default: <code className="bg-muted px-1 rounded">{param.default}</code>
-                            </p>
-                          </div>
-                          <div className="md:col-span-2 flex items-center">
-                            {renderParameterInput(catName, paramName, param, value)}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Category Actions */}
-                    <div className="flex gap-3 pt-2 border-t">
-                      <Button
-                        onClick={() => handleSaveCategory(catName)}
-                        disabled={!catState.isModified || catState.isSaving}
-                        className="flex items-center gap-2"
-                      >
-                        {catState.isSaving ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Save className="h-4 w-4" />
-                        )}
-                        {catState.isSaving ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleResetCategory(catName)}
-                        disabled={!catState.isModified || catState.isSaving}
-                        className="flex items-center gap-2"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        Reset
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
-        );
-      })}
+            {/* Save bar: only when this group has unsaved changes. Left-aligned so it never sits under the assistant launcher. */}
+            {selectedState.isModified && (
+              <div className="sticky bottom-4 z-10 mt-5 flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl border border-border-strong bg-popover px-4 py-2.5 shadow-md animate-fade-up">
+                <span className="text-sm text-muted-foreground">
+                  Unsaved changes in <span className="text-foreground">{selectedDef.label}</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => handleSaveCategory(selected)} disabled={!selectedState.isModified || selectedState.isSaving}>
+                    {selectedState.isSaving && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+                    {selectedState.isSaving ? 'Saving' : 'Save changes'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleResetCategory(selected)} disabled={!selectedState.isModified || selectedState.isSaving}>
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 };

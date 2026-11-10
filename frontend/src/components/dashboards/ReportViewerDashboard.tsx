@@ -194,7 +194,7 @@ const ReportViewerDashboard: React.FC<ReportViewerProps> = ({ className }) => {
     h1: ({ children, ...props }: any) => {
       const id = `section-${children?.toString().toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-')}`;
       return (
-        <h1 id={id} className="text-2xl font-bold mt-8 mb-4 text-foreground border-b pb-2" {...props}>
+        <h1 id={id} className="text-2xl font-semibold mt-8 mb-4 text-foreground border-b pb-2" {...props}>
           {children}
         </h1>
       );
@@ -236,7 +236,7 @@ const ReportViewerDashboard: React.FC<ReportViewerProps> = ({ className }) => {
       </li>
     ),
     blockquote: ({ children, ...props }: any) => (
-      <blockquote className="border-l-4 border-blue-500 pl-4 my-4 italic text-muted-foreground text-sm" {...props}>
+      <blockquote className="border-l-4 border-primary/40 pl-4 my-4 italic text-muted-foreground text-sm" {...props}>
         {children}
       </blockquote>
     ),
@@ -280,7 +280,7 @@ const ReportViewerDashboard: React.FC<ReportViewerProps> = ({ className }) => {
     a: ({ children, href, ...props }: any) => (
       <a 
         href={href} 
-        className="text-blue-600 hover:text-blue-800 underline" 
+        className="text-primary hover:text-primary underline" 
         target="_blank" 
         rel="noopener noreferrer"
         {...props}
@@ -405,7 +405,7 @@ const ReportViewerDashboard: React.FC<ReportViewerProps> = ({ className }) => {
                     placeholder="Search in report..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-8 pr-4 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-8 pr-4 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               </div>

@@ -16,6 +16,8 @@ import { ScenarioComparisonWidget } from './widgets/ScenarioComparisonWidget';
 import { ContractDiffWidget } from './widgets/ContractDiffWidget';
 import { ShouldCostWidget } from './widgets/ShouldCostWidget';
 
+const SPAN: Record<number, string> = { 1: 'lg:col-span-1', 2: 'lg:col-span-2', 3: 'lg:col-span-3', 4: 'lg:col-span-4' };
+
 interface Props {
   appId: string;
   widgets: DashboardWidget[];
@@ -136,16 +138,16 @@ export function DashboardRenderer({ appId, widgets }: Props) {
   return (
     <div className="space-y-6">
       {kpiWidgets.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border shadow-xs sm:grid-cols-2 xl:grid-cols-4">
           {kpiWidgets.map(w => (
-            <div key={w.id}>{renderWidget(w)}</div>
+            <div key={w.id} className="min-w-0">{renderWidget(w)}</div>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4">
-        {chartWidgets.map(w => (
-          <div key={w.id} className={`col-span-${w.span || 2}`} style={{ gridColumn: `span ${w.span || 2}` }}>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+        {chartWidgets.map((w, i) => (
+          <div key={w.id} className={`rise min-w-0 ${SPAN[w.span || 2] || SPAN[2]}`} style={{ ['--i' as any]: Math.min(i, 6) }}>
             {renderWidget(w)}
           </div>
         ))}

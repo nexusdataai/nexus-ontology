@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Loader2, Play, Database,
-  ChevronDown, ChevronRight, RefreshCw, Activity,
-} from 'lucide-react';
+import { Loader2, Play, Database, ChevronDown, ChevronRight, RefreshCw, Activity } from 'lucide-react';
 import { Section, StatusBadge, formatLatency } from './_shared';
 import {
   virtualDataDiagnosticsService,
@@ -21,11 +18,11 @@ function CheckRow({ c }: { c: VirtualEntityCheck }) {
     <div className="border-l-2 border-border/60 pl-3 py-2 text-xs space-y-1">
       <div className="flex items-center gap-2 flex-wrap">
         <StatusBadge status={c.status} />
-        <span className="font-mono text-[10px]">{c.code}</span>
+        <span className="font-mono text-xs">{c.code}</span>
         <span className="text-muted-foreground">{c.message}</span>
       </div>
       {c.suggestion && (
-        <div className="text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+        <div className="text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1">
           {c.suggestion}
         </div>
       )}
@@ -51,7 +48,7 @@ function EntityRow({
   return (
     <div className="border-b border-border/40 last:border-b-0">
       <div
-        className={`flex items-center gap-3 px-3 py-2 text-xs ${expandable ? 'cursor-pointer hover:bg-muted/30' : ''}`}
+        className={`flex items-center gap-3 px-3 py-2 text-xs ${expandable ? 'cursor-pointer hover:bg-surface-2/60' : ''}`}
         onClick={() => expandable && setOpen(!open)}
       >
         <div className="w-4 flex-shrink-0">
@@ -61,12 +58,12 @@ function EntityRow({
           {result ? (
             <StatusBadge status={status} />
           ) : (
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">unrun</Badge>
+            <Badge variant="outline" className="text-xs text-muted-foreground">unrun</Badge>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{entry.virtualEntity}</div>
-          <div className="text-[10px] text-muted-foreground truncate">
+          <div className="text-xs text-muted-foreground truncate">
             {entry.sourceSchemas.join(', ') || '-'}
           </div>
         </div>
@@ -74,11 +71,11 @@ function EntityRow({
           <span className="font-mono">
             {entry.activeRuleCount}/{entry.totalRuleCount}
           </span>
-          <span className="block text-[9px] text-muted-foreground">active/total</span>
+          <span className="block text-xs text-muted-foreground">active/total</span>
         </div>
         <div className="w-32 flex-shrink-0 flex flex-wrap gap-1">
           {entry.sourceSystems.slice(0, 3).map(s => (
-            <Badge key={s} variant="outline" className="text-[9px]">{s}</Badge>
+            <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
           ))}
         </div>
         <div className="w-16 flex-shrink-0 text-right text-muted-foreground">
@@ -91,7 +88,7 @@ function EntityRow({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-[10px]"
+            className="h-7 text-xs"
             disabled={running}
             onClick={(e) => { e.stopPropagation(); onRun(); }}
           >
@@ -101,7 +98,7 @@ function EntityRow({
       </div>
       {open && result && (
         <div className="px-6 pb-3 pt-1 space-y-2 bg-muted/10">
-          <div className="text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+          <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
             {result.sourceType && <span>type: <span className="font-mono">{result.sourceType}</span></span>}
             {result.sourceSystem && <span>system: <span className="font-mono">{result.sourceSystem}</span></span>}
             {result.sourceTable && <span>table: <span className="font-mono">{result.sourceSchema}.{result.sourceTable}</span></span>}
@@ -112,9 +109,9 @@ function EntityRow({
             <CheckRow key={`${c.code}-${i}`} c={c} />
           ))}
           {result.sampleRow && (
-            <div className="text-[11px] mt-2 border-t border-border/40 pt-2">
+            <div className="text-xs mt-2 border-t border-border pt-2">
               <div className="text-muted-foreground mb-1">Sample row:</div>
-              <pre className="bg-muted/40 rounded px-2 py-1 font-mono text-[10px] overflow-x-auto">
+              <pre className="bg-surface-2 rounded px-2 py-1 font-mono text-xs overflow-x-auto">
                 {JSON.stringify(result.sampleRow, null, 2)}
               </pre>
             </div>
@@ -210,11 +207,11 @@ export default function VirtualDataDiagnosticsPanel() {
   }, [index, results]);
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px] mx-auto">
+    <div className="page space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold mb-1">Virtual Data Diagnostics</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Virtual Data Diagnostics</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Live probe for every mapped virtual entity - mapping rule, source schema/table resolution, backend load state, field-map sanity, query execution, row count, and null-field audit
           </p>
         </div>
@@ -223,13 +220,13 @@ export default function VirtualDataDiagnosticsPanel() {
             <RefreshCw className="h-4 w-4 mr-2" /> Reload
           </Button>
           <Button onClick={runAll} disabled={runAllRunning || index.length === 0}>
-            {runAllRunning ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running...</> : <><Play className="h-4 w-4 mr-2" /> Run All</>}
+            {runAllRunning ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running checks</> : <><Play className="h-4 w-4 mr-2" /> Run All</>}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+        <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">
           {error}
         </div>
       )}
@@ -245,7 +242,7 @@ export default function VirtualDataDiagnosticsPanel() {
         }
         defaultOpen={true}
         rightSlot={
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span><Activity className="h-3 w-3 inline" /> {counts.healthy} pass | {counts.degraded} warn | {counts.unhealthy} fail | {counts.unrun} unrun</span>
           </div>
         }
@@ -256,7 +253,7 @@ export default function VirtualDataDiagnosticsPanel() {
               key={f}
               size="sm"
               variant={filter === f ? 'default' : 'outline'}
-              className="h-7 text-[10px] capitalize"
+              className="h-7 text-xs capitalize"
               onClick={() => setFilter(f)}
             >
               {f}
@@ -266,12 +263,12 @@ export default function VirtualDataDiagnosticsPanel() {
             placeholder="Search by entity, system, schema..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-7 text-[10px] flex-1 min-w-[200px]"
+            className="h-7 text-xs flex-1 min-w-[200px]"
           />
         </div>
 
         <div className="rounded border border-border/60 bg-muted/5">
-          <div className="flex items-center gap-3 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground border-b border-border/40">
+          <div className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border/40">
             <div className="w-4 flex-shrink-0" />
             <div className="w-24 flex-shrink-0">Status</div>
             <div className="flex-1 min-w-0">Virtual Entity</div>

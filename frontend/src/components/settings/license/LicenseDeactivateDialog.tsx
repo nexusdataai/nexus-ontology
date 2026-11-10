@@ -1,9 +1,9 @@
 /**
  * LicenseDeactivateDialog Component
- * 
+ *
  * Confirmation dialog for license deactivation.
  * Requires reason input before confirming.
- * 
+ *
  * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
  */
 
@@ -18,12 +18,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { 
-  AlertTriangle, 
-  Loader2,
-  AlertCircle
-} from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { Field } from '@/components/ds/kit';
 import { LicenseDeactivateDialogProps, LicenseError } from '@/types/license';
 
 // ============================================================================
@@ -53,7 +49,7 @@ export function LicenseDeactivateDialog({
     }
 
     setError(null);
-    
+
     try {
       await onConfirm(reason.trim());
       // Reset state on success
@@ -76,32 +72,17 @@ export function LicenseDeactivateDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]" data-testid="deactivate-dialog">
+      <DialogContent className="sm:max-w-[440px]" data-testid="deactivate-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-red-600">
-            <AlertTriangle className="h-5 w-5" />
-            Deactivate License
-          </DialogTitle>
+          <DialogTitle>Deactivate this license?</DialogTitle>
           <DialogDescription>
-            This action will deactivate your current license. You will need to activate a new license to continue using premium features.
+            Licensed features stop working until a license is activated again.
+            {licenseId && <> License <span className="font-mono text-xs text-foreground">{licenseId}</span>.</>}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* License ID Display */}
-          {licenseId && (
-            <div className="p-3 bg-gray-50 rounded-lg border">
-              <p className="text-sm text-gray-600">
-                License ID: <span className="font-mono font-medium">{licenseId}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Reason Input */}
-          <div className="space-y-2">
-            <Label htmlFor="deactivation-reason">
-              Reason for deactivation *
-            </Label>
+        <div className="space-y-4 py-2">
+          <Field label="Reason" htmlFor="deactivation-reason" hint="At least 5 characters. It is kept in the license history.">
             <Textarea
               id="deactivation-reason"
               value={reason}
@@ -109,36 +90,29 @@ export function LicenseDeactivateDialog({
                 setReason(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="Please explain why you are deactivating this license..."
-              className={error ? 'border-red-500' : ''}
+              placeholder="Why is this license being deactivated?"
+              aria-invalid={error ? true : undefined}
               disabled={isDeactivating}
               rows={3}
               data-testid="deactivation-reason-input"
             />
-            <p className="text-xs text-muted-foreground">
-              This information helps us improve our service.
-            </p>
-          </div>
+          </Field>
 
-          {/* Error Display */}
           {error && (
-            <div 
-              className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200"
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
               data-testid="deactivation-error"
             >
-              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
-              <p className="text-sm text-red-600">{error}</p>
+              <Icon name="alert-triangle" className="mt-0.5 shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
-          {/* Warning */}
-          <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-            <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
-            <div className="text-sm text-yellow-800">
-              <p className="font-medium">Warning</p>
-              <p>After deactivation, you may be able to reactivate this license depending on your license terms.</p>
-            </div>
-          </div>
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" />
+            Whether the same license can be activated again depends on your license terms.
+          </p>
         </div>
 
         <DialogFooter>
@@ -156,14 +130,8 @@ export function LicenseDeactivateDialog({
             disabled={isDeactivating || !reason.trim()}
             data-testid="confirm-deactivate-button"
           >
-            {isDeactivating ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Deactivating...
-              </>
-            ) : (
-              'Deactivate License'
-            )}
+            {isDeactivating && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+            {isDeactivating ? 'Deactivating...' : 'Deactivate license'}
           </Button>
         </DialogFooter>
       </DialogContent>

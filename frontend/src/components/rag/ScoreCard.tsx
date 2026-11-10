@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, Target } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { StatusPill } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import type { HybridSearchResponse } from '@/services/ontoApi';
 
 interface ScoreCardProps {
@@ -9,18 +9,20 @@ interface ScoreCardProps {
 }
 
 const DIMENSIONS = [
-  { key: 'schema', label: 'Object/Schema', contentTypes: ['onto_schema', 'schema', 'fdw_table'] },
+  { key: 'schema', label: 'Schema', contentTypes: ['onto_schema', 'schema', 'fdw_table'] },
   { key: 'policy', label: 'Policy', contentTypes: ['onto_policy', 'policy'] },
   { key: 'workflow', label: 'Workflow', contentTypes: ['onto_workflow', 'workflow'] },
   { key: 'integration', label: 'Integration', contentTypes: ['onto_integration', 'integration'] },
 ];
 
+/**
+ * Retrieval quality of the last query: a verdict, then the six checks it is
+ * made of, written as one quiet strip instead of a score tile.
+ */
 const ScoreCard: React.FC<ScoreCardProps> = ({ results }) => {
   if (!results) {
     return (
-      <div className="text-center text-muted-foreground py-12">
-        Run a query to see the retrieval scorecard
-      </div>
+      <p className="text-sm text-muted-foreground">Run a query to score what it retrieves.</p>
     );
   }
 
@@ -37,58 +39,35 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ results }) => {
 
   const fullScore = totalScore + (hasGraph ? 1 : 0) + (hasVersion ? 1 : 0);
   const fullMax = maxScore + 2;
+  const passed = fullScore >= 5;
+
+  const checks = [
+    ...dimensionScores.map(d => ({ key: d.key, label: d.label, found: d.found })),
+    { key: 'graph', label: 'Cross-system links', found: hasGraph },
+    { key: 'version', label: 'Version info', found: hasVersion },
+  ];
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Target className="h-5 w-5" />
-          Retrieval Quality Score
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-center">
-          <div className="text-4xl font-bold">
-            {fullScore}/{fullMax}
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">
-            {fullScore >= 5 ? 'Production Ready' : 'Needs Improvement'}
-          </div>
-          <Badge variant={fullScore >= 5 ? 'default' : 'destructive'} className="mt-2">
-            {fullScore >= 5 ? 'PASS' : 'BELOW THRESHOLD'}
-          </Badge>
+    <section aria-label="Retrieval quality" className="flex flex-col gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3.5 shadow-xs sm:px-5 md:flex-row md:items-center">
+      <div className="shrink-0">
+        <div className="flex items-center gap-3">
+          <h3 className="text-md font-medium text-foreground">Retrieval quality</h3>
+          <StatusPill status={passed ? 'pass' : 'warning'}>{passed ? 'Ready for planning' : 'Below threshold'}</StatusPill>
         </div>
-
-        <div className="space-y-2">
-          {dimensionScores.map((dim) => (
-            <div key={dim.key} className="flex items-center justify-between text-sm">
-              <span>{dim.label}</span>
-              {dim.found ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-500" />
-              )}
-            </div>
-          ))}
-          <div className="flex items-center justify-between text-sm">
-            <span>Cross-System (Graph)</span>
-            {hasGraph ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
-            )}
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Version Awareness</span>
-            {hasVersion ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          <span className="num text-foreground">{fullScore}</span> of <span className="num">{fullMax}</span> kinds of context were retrieved. Five are needed.
+        </p>
+      </div>
+      <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-1.5 md:justify-end">
+        {checks.map((c, i) => (
+          <li key={c.key} className="rise inline-flex items-center gap-1.5 text-sm" style={{ ['--i' as any]: i }}>
+            <Icon name={c.found ? 'check' : 'minus'} className={cn('h-3.5 w-3.5', c.found ? 'text-success' : 'text-subtle-foreground')} />
+            <span className={c.found ? 'text-foreground' : 'text-muted-foreground'}>{c.label}</span>
+            <span className="sr-only">{c.found ? 'retrieved' : 'missing'}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 };
 

@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Loader2, Play, RefreshCw, Workflow, BookOpen, Wrench, Server,
-  ChevronDown, ChevronRight, AlertTriangle, Network, Database, Activity,
-  CheckCircle2, XCircle, MinusCircle,
-} from 'lucide-react';
+import { Loader2, Play, RefreshCw, BookOpen, Wrench, Server, ChevronDown, ChevronRight, AlertTriangle, Network, Database, Activity, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
 import { Section, StatusBadge, formatLatency } from './_shared';
 import {
   automationDiagnosticsService,
@@ -32,27 +28,27 @@ function UseCaseRowView({ uc }: { uc: AutomationUseCaseRow }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/30 text-left"
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-surface-2/60 text-left"
       >
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
           <StatusBadge status={uc.status} />
           <span className="font-medium truncate">{uc.title}</span>
-          <span className="font-mono text-[10px] text-muted-foreground truncate">{uc.use_case_id}</span>
-          <Badge variant="outline" className="text-[9px]">{uc.solution_id}</Badge>
+          <span className="font-mono text-xs text-muted-foreground truncate">{uc.use_case_id}</span>
+          <Badge variant="outline" className="text-xs">{uc.solution_id}</Badge>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
           <span>{uc.stage_count}st / {uc.step_count}sp</span>
           {uc.high_risk_steps > 0 && (
-            <span className="text-amber-300 flex items-center gap-1">
+            <span className="text-warning flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" /> {uc.high_risk_steps} HR
             </span>
           )}
           {uc.missing_tools.length > 0 && (
-            <span className="text-red-300">missing tools: {uc.missing_tools.length}</span>
+            <span className="text-destructive">missing tools: {uc.missing_tools.length}</span>
           )}
           {uc.missing_connector_apis.length > 0 && (
-            <span className="text-red-300">missing apis: {uc.missing_connector_apis.length}</span>
+            <span className="text-destructive">missing apis: {uc.missing_connector_apis.length}</span>
           )}
         </div>
       </button>
@@ -65,7 +61,7 @@ function UseCaseRowView({ uc }: { uc: AutomationUseCaseRow }) {
             <div className="flex items-center gap-1 flex-wrap">
               <span className="text-muted-foreground">tags:</span>
               {uc.tags.map(t => (
-                <Badge key={t} variant="outline" className="text-[9px]">{t}</Badge>
+                <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
               ))}
             </div>
           )}
@@ -73,7 +69,7 @@ function UseCaseRowView({ uc }: { uc: AutomationUseCaseRow }) {
             <div className="flex items-center gap-1 flex-wrap">
               <span className="text-muted-foreground">kpi:</span>
               {uc.kpi_impact.map(k => (
-                <Badge key={k} variant="outline" className="text-[9px] bg-blue-500/10">{k}</Badge>
+                <Badge key={k} variant="outline" className="text-xs bg-primary/10">{k}</Badge>
               ))}
             </div>
           )}
@@ -87,7 +83,7 @@ function UseCaseRowView({ uc }: { uc: AutomationUseCaseRow }) {
                   return (
                     <span
                       key={t}
-                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${missing ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-muted/40'}`}
+                      className={`px-1.5 py-0.5 rounded font-mono text-xs ${missing ? 'bg-destructive/20 text-destructive border border-destructive/30' : 'bg-surface-2'}`}
                       title={missing ? 'Not registered in ToolRegistry' : ''}
                     >
                       {t}
@@ -105,7 +101,7 @@ function UseCaseRowView({ uc }: { uc: AutomationUseCaseRow }) {
                   return (
                     <span
                       key={a}
-                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] ${missing ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-muted/40'}`}
+                      className={`px-1.5 py-0.5 rounded font-mono text-xs ${missing ? 'bg-destructive/20 text-destructive border border-destructive/30' : 'bg-surface-2'}`}
                       title={missing ? 'Not in connector_apis registry' : ''}
                     >
                       {a}
@@ -129,7 +125,7 @@ function MetadataDot({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       title={`${label}: ${ok ? 'present' : 'missing'}`}
-      className={`inline-flex items-center gap-1 text-[10px] ${ok ? 'text-green-300' : 'text-muted-foreground'}`}
+      className={`inline-flex items-center gap-1 text-xs ${ok ? 'text-success' : 'text-muted-foreground'}`}
     >
       {ok ? <CheckCircle2 className="h-3 w-3" /> : <MinusCircle className="h-3 w-3 opacity-50" />}
       {label}
@@ -178,28 +174,28 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
         </div>
         <div>
           <div className="text-muted-foreground text-xs">YAML-only orphans</div>
-          <div className={`font-mono ${t.yaml_only_orphans ? 'text-red-300' : ''}`}>{t.yaml_only_orphans}</div>
+          <div className={`font-mono ${t.yaml_only_orphans ? 'text-destructive' : ''}`}>{t.yaml_only_orphans}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Registry-only orphans</div>
-          <div className={`font-mono ${t.registry_only_orphans ? 'text-amber-300' : ''}`}>{t.registry_only_orphans}</div>
+          <div className={`font-mono ${t.registry_only_orphans ? 'text-warning' : ''}`}>{t.registry_only_orphans}</div>
         </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap text-xs">
         <span className="text-muted-foreground">Risk:</span>
-        <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-300">{r.read_only} read-only</Badge>
-        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300">{r.low_risk_write} low-risk</Badge>
-        <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-300">{r.high_risk_write} high-risk</Badge>
+        <Badge variant="outline" className="text-xs bg-success/10 text-success">{r.read_only} read-only</Badge>
+        <Badge variant="outline" className="text-xs bg-warning/10 text-warning">{r.low_risk_write} low-risk</Badge>
+        <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive">{r.high_risk_write} high-risk</Badge>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap text-xs">
         <span className="text-muted-foreground">Metadata quality:</span>
-        <Badge variant="outline" className="text-[10px]">consumes {m.with_consumes_entities}/{yamlTotal}</Badge>
-        <Badge variant="outline" className="text-[10px]">produces {m.with_produces_entities}/{yamlTotal}</Badge>
-        <Badge variant="outline" className="text-[10px]">connector_api {m.with_connector_api}/{yamlTotal}</Badge>
-        <Badge variant="outline" className="text-[10px]">tags {m.with_tags}/{yamlTotal}</Badge>
-        <Badge variant="outline" className="text-[10px]">example {m.with_example_invocation}/{yamlTotal}</Badge>
+        <Badge variant="outline" className="text-xs">consumes {m.with_consumes_entities}/{yamlTotal}</Badge>
+        <Badge variant="outline" className="text-xs">produces {m.with_produces_entities}/{yamlTotal}</Badge>
+        <Badge variant="outline" className="text-xs">connector_api {m.with_connector_api}/{yamlTotal}</Badge>
+        <Badge variant="outline" className="text-xs">tags {m.with_tags}/{yamlTotal}</Badge>
+        <Badge variant="outline" className="text-xs">example {m.with_example_invocation}/{yamlTotal}</Badge>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -207,7 +203,7 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
         <Button
           size="sm"
           variant={!groupFilter ? 'default' : 'outline'}
-          className="h-6 text-[10px] px-2"
+          className="h-6 text-xs px-2"
           onClick={() => setGroupFilter('')}
         >
           all ({t.yaml_tools})
@@ -217,7 +213,7 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
             key={g}
             size="sm"
             variant={groupFilter === g ? 'default' : 'outline'}
-            className="h-6 text-[10px] px-2"
+            className="h-6 text-xs px-2"
             onClick={() => setGroupFilter(groupFilter === g ? '' : g)}
           >
             {g} ({c})
@@ -226,22 +222,22 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
       </div>
 
       {report.yaml_only_orphans.length > 0 && (
-        <div className="text-xs border-l-2 border-red-500/40 pl-3 py-1">
-          <div className="text-red-300 mb-1">YAML refers to tools not registered ({report.yaml_only_orphans.length}):</div>
+        <div className="text-xs border-l-2 border-destructive/40 pl-3 py-1">
+          <div className="text-destructive mb-1">YAML refers to tools not registered ({report.yaml_only_orphans.length}):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.yaml_only_orphans.map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/30 font-mono text-xs">{t}</span>
             ))}
           </div>
         </div>
       )}
 
       {report.registry_only_orphans.length > 0 && (
-        <div className="text-xs border-l-2 border-amber-500/40 pl-3 py-1">
-          <div className="text-amber-300 mb-1">Tools registered but no YAML ({report.registry_only_orphans.length}) - invisible to KG retrieval:</div>
+        <div className="text-xs border-l-2 border-warning/40 pl-3 py-1">
+          <div className="text-warning mb-1">Tools registered but no YAML ({report.registry_only_orphans.length}) - invisible to KG retrieval:</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.registry_only_orphans.map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30 font-mono text-xs">{t}</span>
             ))}
           </div>
         </div>
@@ -258,8 +254,8 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
       </div>
 
       <div className="border rounded-md max-h-80 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 bg-muted/40">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 bg-surface-2">
             <tr className="text-left">
               <th className="px-2 py-1">Tool</th>
               <th className="px-2 py-1">Group</th>
@@ -270,24 +266,24 @@ function ToolCatalogueSection({ report, loading }: { report: ToolCatalogueReport
           </thead>
           <tbody>
             {filtered.map(tool => (
-              <tr key={tool.tool_id} className="border-t border-border/40 hover:bg-muted/20">
+              <tr key={tool.tool_id} className="border-t border-border hover:bg-surface-2/60">
                 <td className="px-2 py-1">
                   <div className="font-mono">{tool.tool_id}</div>
                   {!tool.yaml_present && (
-                    <Badge variant="outline" className="text-[9px] text-amber-300 border-amber-500/30 mt-0.5">no yaml</Badge>
+                    <Badge variant="outline" className="text-xs text-warning border-warning/30 mt-0.5">no yaml</Badge>
                   )}
                   {!tool.registered && (
-                    <Badge variant="outline" className="text-[9px] text-red-300 border-red-500/30 mt-0.5">not registered</Badge>
+                    <Badge variant="outline" className="text-xs text-destructive border-destructive/30 mt-0.5">not registered</Badge>
                   )}
                 </td>
                 <td className="px-2 py-1 text-muted-foreground">{tool.group}</td>
                 <td className="px-2 py-1">
                   <span className={
-                    tool.risk_level === 'high_risk_write' ? 'text-red-300' :
-                    tool.risk_level === 'low_risk_write' ? 'text-amber-300' : 'text-green-300'
+                    tool.risk_level === 'high_risk_write' ? 'text-destructive' :
+                    tool.risk_level === 'low_risk_write' ? 'text-warning' : 'text-success'
                   }>{tool.risk_level}</span>
                   {tool.requires_approval && (
-                    <Badge variant="outline" className="text-[9px] ml-1">approval</Badge>
+                    <Badge variant="outline" className="text-xs ml-1">approval</Badge>
                   )}
                 </td>
                 <td className="px-2 py-1">
@@ -337,7 +333,7 @@ function GraphIntegritySection({
           ['onto_tool', 'Tools'],
         ] as const).map(([key, label]) => (
           <div key={key} className="rounded border border-border/50 p-2">
-            <div className="text-muted-foreground text-[10px]">{label}</div>
+            <div className="text-muted-foreground text-xs">{label}</div>
             <div className="font-mono text-base">{vec[key] ?? 0}</div>
           </div>
         ))}
@@ -346,16 +342,16 @@ function GraphIntegritySection({
       <div className="flex items-center gap-3 flex-wrap text-xs">
         <span className="text-muted-foreground">Knowledge graph backend:</span>
         {ageOk ? (
-          <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-300 border-green-500/30">AGE Cypher</Badge>
+          <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">AGE Cypher</Badge>
         ) : (
-          <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">metadata fallback</Badge>
+          <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30">metadata fallback</Badge>
         )}
         {integrity && (
           <>
             <span className="text-muted-foreground">| Use cases checked:</span>
             <span className="font-mono">{integrity.use_cases_checked}</span>
             <span className="text-muted-foreground">| Broken edges:</span>
-            <span className={`font-mono ${integrity.broken_edges.length ? 'text-red-300' : ''}`}>
+            <span className={`font-mono ${integrity.broken_edges.length ? 'text-destructive' : ''}`}>
               {integrity.broken_edges.length}
             </span>
           </>
@@ -363,12 +359,12 @@ function GraphIntegritySection({
       </div>
 
       {integrity && integrity.broken_edges.length > 0 && (
-        <div className="text-xs border-l-2 border-red-500/40 pl-3 py-1 space-y-1">
+        <div className="text-xs border-l-2 border-destructive/40 pl-3 py-1 space-y-1">
           {integrity.broken_edges.slice(0, 12).map((e, i) => (
             <div key={i} className="font-mono">
               <span className="text-muted-foreground">{e.use_case_id}</span>
-              <span className="text-red-300"> -[{e.type}]-&gt; </span>
-              <span className="text-red-300">{e.missing_target}</span>
+              <span className="text-destructive"> -[{e.type}]-&gt; </span>
+              <span className="text-destructive">{e.missing_target}</span>
             </div>
           ))}
           {integrity.broken_edges.length > 12 && (
@@ -386,7 +382,7 @@ function GraphIntegritySection({
           </div>
           <div className="flex items-center gap-1 flex-wrap">
             {integrity.orphan_registry_tools.slice(0, 30).map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-surface-2 font-mono text-xs">{t}</span>
             ))}
             {integrity.orphan_registry_tools.length > 30 && (
               <span className="text-muted-foreground italic">+{integrity.orphan_registry_tools.length - 30} more</span>
@@ -396,7 +392,7 @@ function GraphIntegritySection({
       )}
 
       {report?.errors && report.errors.length > 0 && (
-        <div className="text-xs text-red-300">
+        <div className="text-xs text-destructive">
           {report.errors.length} indexer error(s) - see Tool Catalogue panel.
         </div>
       )}
@@ -419,7 +415,7 @@ function SavedJourneysSection({ report, loading }: { report: SavedJourneysReport
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Broken (need re-author)</div>
-          <div className={`font-mono ${report.broken_journeys.length ? 'text-red-300' : ''}`}>
+          <div className={`font-mono ${report.broken_journeys.length ? 'text-destructive' : ''}`}>
             {report.broken_journeys.length}
           </div>
         </div>
@@ -427,10 +423,10 @@ function SavedJourneysSection({ report, loading }: { report: SavedJourneysReport
           <div className="text-muted-foreground text-xs">By kind</div>
           <div className="flex items-center gap-1 flex-wrap">
             {Object.entries(report.by_kind).map(([k, v]) => (
-              <Badge key={k} variant="outline" className="text-[10px]">{k}: {v}</Badge>
+              <Badge key={k} variant="outline" className="text-xs">{k}: {v}</Badge>
             ))}
             {Object.keys(report.by_kind).length === 0 && (
-              <span className="text-muted-foreground text-[11px]">-</span>
+              <span className="text-muted-foreground text-xs">-</span>
             )}
           </div>
         </div>
@@ -438,30 +434,30 @@ function SavedJourneysSection({ report, loading }: { report: SavedJourneysReport
           <div className="text-muted-foreground text-xs">By solution</div>
           <div className="flex items-center gap-1 flex-wrap">
             {Object.entries(report.by_solution).slice(0, 3).map(([k, v]) => (
-              <Badge key={k} variant="outline" className="text-[10px]">{k}: {v}</Badge>
+              <Badge key={k} variant="outline" className="text-xs">{k}: {v}</Badge>
             ))}
             {Object.keys(report.by_solution).length > 3 && (
-              <span className="text-muted-foreground text-[10px]">+{Object.keys(report.by_solution).length - 3}</span>
+              <span className="text-muted-foreground text-xs">+{Object.keys(report.by_solution).length - 3}</span>
             )}
             {Object.keys(report.by_solution).length === 0 && (
-              <span className="text-muted-foreground text-[11px]">-</span>
+              <span className="text-muted-foreground text-xs">-</span>
             )}
           </div>
         </div>
       </div>
 
       {report.broken_journeys.length > 0 && (
-        <div className="text-xs border-l-2 border-red-500/40 pl-3 py-1 space-y-1">
-          <div className="text-red-300 mb-1">Journeys that no longer validate:</div>
+        <div className="text-xs border-l-2 border-destructive/40 pl-3 py-1 space-y-1">
+          <div className="text-destructive mb-1">Journeys that no longer validate:</div>
           {report.broken_journeys.slice(0, 8).map(j => (
             <div key={j.journey_id} className="space-y-0.5">
               <div className="font-mono">{j.title || j.journey_id}</div>
               <div className="text-muted-foreground">
                 {j.missing_tools.length > 0 && (
-                  <span>missing tools: <span className="text-red-300">{j.missing_tools.join(', ')}</span></span>
+                  <span>missing tools: <span className="text-destructive">{j.missing_tools.join(', ')}</span></span>
                 )}
                 {j.missing_connector_apis.length > 0 && (
-                  <span className="ml-2">missing apis: <span className="text-red-300">{j.missing_connector_apis.join(', ')}</span></span>
+                  <span className="ml-2">missing apis: <span className="text-destructive">{j.missing_connector_apis.join(', ')}</span></span>
                 )}
               </div>
             </div>
@@ -473,8 +469,8 @@ function SavedJourneysSection({ report, loading }: { report: SavedJourneysReport
         <div>
           <div className="text-muted-foreground text-xs mb-1">Recent saves</div>
           <div className="border rounded-md max-h-72 overflow-auto">
-            <table className="w-full text-[11px]">
-              <thead className="sticky top-0 bg-muted/40">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-surface-2">
                 <tr className="text-left">
                   <th className="px-2 py-1">Title</th>
                   <th className="px-2 py-1">Kind</th>
@@ -486,11 +482,11 @@ function SavedJourneysSection({ report, loading }: { report: SavedJourneysReport
               </thead>
               <tbody>
                 {report.recent.map(j => (
-                  <tr key={j.journey_id} className="border-t border-border/40">
+                  <tr key={j.journey_id} className="border-t border-border">
                     <td className="px-2 py-1">
                       <span className="font-mono">{j.title || j.journey_id}</span>
                       {!j.validation_ok && (
-                        <Badge variant="outline" className="ml-1 text-[9px] text-red-300 border-red-500/30">broken</Badge>
+                        <Badge variant="outline" className="ml-1 text-xs text-destructive border-destructive/30">broken</Badge>
                       )}
                     </td>
                     <td className="px-2 py-1 text-muted-foreground">{j.kind}</td>
@@ -532,10 +528,10 @@ function CopilotRuntimeSection({
   const ss = report.session_store;
   const total = Math.max(1, ss.recent_count);
   const statusColor = (s: string): string => {
-    if (s === 'completed') return 'bg-green-500/40 text-green-300';
-    if (s === 'awaiting_step_approval') return 'bg-amber-500/40 text-amber-300';
-    if (s === 'rejected' || s === 'error') return 'bg-red-500/40 text-red-300';
-    return 'bg-blue-500/40 text-blue-300';
+    if (s === 'completed') return 'bg-success/40 text-success';
+    if (s === 'awaiting_step_approval') return 'bg-warning/40 text-warning';
+    if (s === 'rejected' || s === 'error') return 'bg-destructive/40 text-destructive';
+    return 'bg-primary/40 text-primary';
   };
 
   return (
@@ -550,10 +546,10 @@ function CopilotRuntimeSection({
                 <Badge
                   key={src}
                   variant="outline"
-                  className={`text-[10px] ${
+                  className={`text-xs ${
                     mode === 'simulator'
-                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                      : 'bg-green-500/10 text-green-300 border-green-500/30'
+                      ? 'bg-warning/10 text-warning border-warning/30'
+                      : 'bg-success/10 text-success border-success/30'
                   }`}
                   title={`${src}: ${mode}`}
                 >
@@ -561,7 +557,7 @@ function CopilotRuntimeSection({
                 </Badge>
               );
             })}
-            <Badge variant="outline" className="text-[9px] text-muted-foreground">
+            <Badge variant="outline" className="text-xs text-muted-foreground">
               default {modes.default}
             </Badge>
           </div>
@@ -576,14 +572,14 @@ function CopilotRuntimeSection({
               variant="outline"
               className={
                 ss.mode === 'pg'
-                  ? 'text-green-300 border-green-500/30'
-                  : 'text-amber-300 border-amber-500/30'
+                  ? 'text-success border-success/30'
+                  : 'text-warning border-warning/30'
               }
             >
               {ss.mode}
             </Badge>
             {ss.mode === 'memory' && (
-              <span className="text-[10px] text-amber-300">multi-replica unsafe</span>
+              <span className="text-xs text-warning">multi-replica unsafe</span>
             )}
           </div>
         </div>
@@ -593,7 +589,7 @@ function CopilotRuntimeSection({
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Stuck approvals (24h)</div>
-          <div className={`font-mono ${ss.stuck_awaiting_approval_24h ? 'text-amber-300' : ''}`}>
+          <div className={`font-mono ${ss.stuck_awaiting_approval_24h ? 'text-warning' : ''}`}>
             {ss.stuck_awaiting_approval_24h}
           </div>
         </div>
@@ -621,9 +617,9 @@ function CopilotRuntimeSection({
               );
             })}
           </div>
-          <div className="flex items-center gap-2 flex-wrap mt-1 text-[10px]">
+          <div className="flex items-center gap-2 flex-wrap mt-1 text-xs">
             {Object.entries(ss.by_status).map(([status, n]) => (
-              <Badge key={status} variant="outline" className="text-[9px]">
+              <Badge key={status} variant="outline" className="text-xs">
                 {status}: {n}
               </Badge>
             ))}
@@ -636,12 +632,12 @@ function CopilotRuntimeSection({
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
           {Object.entries(report.vector_index).map(([ct, n]) => (
             <div key={ct} className="border border-border/50 rounded px-2 py-1">
-              <div className="text-muted-foreground text-[10px] font-mono">{ct}</div>
+              <div className="text-muted-foreground text-xs font-mono">{ct}</div>
               <div className="font-mono">{n}</div>
             </div>
           ))}
           {Object.keys(report.vector_index).length === 0 && (
-            <span className="text-muted-foreground italic text-[11px]">No vector store rows reported</span>
+            <span className="text-muted-foreground italic text-xs">No vector store rows reported</span>
           )}
         </div>
       </div>
@@ -670,8 +666,8 @@ function SmokeTestSection({
   if (!report) return null;
 
   const stageIcon = (s: string) => {
-    if (s === 'pass') return <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />;
-    if (s === 'fail') return <XCircle className="h-3.5 w-3.5 text-red-300" />;
+    if (s === 'pass') return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
+    if (s === 'fail') return <XCircle className="h-3.5 w-3.5 text-destructive" />;
     return <MinusCircle className="h-3.5 w-3.5 text-muted-foreground" />;
   };
 
@@ -687,11 +683,11 @@ function SmokeTestSection({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium">{stg.name}</span>
-                <Badge variant="outline" className="text-[10px]">{stg.status}</Badge>
-                <span className="text-[10px] text-muted-foreground">{formatLatency(stg.duration_ms)}</span>
+                <Badge variant="outline" className="text-xs">{stg.status}</Badge>
+                <span className="text-xs text-muted-foreground">{formatLatency(stg.duration_ms)}</span>
               </div>
               {stg.detail && Object.keys(stg.detail).length > 0 && (
-                <pre className="text-[10px] text-muted-foreground mt-1 whitespace-pre-wrap break-all font-mono">
+                <pre className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-all font-mono">
                   {JSON.stringify(stg.detail)}
                 </pre>
               )}
@@ -800,14 +796,12 @@ export default function AutomationDiagnosticsPanel() {
   }, [report]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="page space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Workflow className="h-5 w-5 text-blue-300" />
-            Automation Diagnostics
+          <h2 className="flex items-center gap-2 text-xl font-medium tracking-tight text-foreground">Automation Diagnostics
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Validates every Use Case YAML and cross-references each tool / connector_api against the live registries used by the AI Copilot.
           </p>
         </div>
@@ -823,7 +817,7 @@ export default function AutomationDiagnosticsPanel() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -859,26 +853,26 @@ export default function AutomationDiagnosticsPanel() {
               <div>
                 <div className="text-muted-foreground text-xs">Pass / Warn / Fail</div>
                 <div className="font-mono">
-                  <span className="text-green-300">{counts.pass}</span> /{' '}
-                  <span className="text-amber-300">{counts.warn}</span> /{' '}
-                  <span className="text-red-300">{counts.fail}</span>
+                  <span className="text-success">{counts.pass}</span> /{' '}
+                  <span className="text-warning">{counts.warn}</span> /{' '}
+                  <span className="text-destructive">{counts.fail}</span>
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Missing tools</div>
-                <div className={`font-mono ${report.totals.missing_tools ? 'text-red-300' : ''}`}>
+                <div className={`font-mono ${report.totals.missing_tools ? 'text-destructive' : ''}`}>
                   {report.totals.missing_tools}
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Missing connector APIs</div>
-                <div className={`font-mono ${report.totals.missing_connector_apis ? 'text-red-300' : ''}`}>
+                <div className={`font-mono ${report.totals.missing_connector_apis ? 'text-destructive' : ''}`}>
                   {report.totals.missing_connector_apis}
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Validation errors</div>
-                <div className={`font-mono ${report.validation_errors ? 'text-red-300' : ''}`}>
+                <div className={`font-mono ${report.validation_errors ? 'text-destructive' : ''}`}>
                   {report.validation_errors}
                 </div>
               </div>
@@ -965,7 +959,7 @@ export default function AutomationDiagnosticsPanel() {
                 </div>
                 <div className="flex items-center gap-1 flex-wrap">
                   {report.registry.known_tools.map(t => (
-                    <span key={t} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{t}</span>
+                    <span key={t} className="px-1.5 py-0.5 rounded bg-surface-2 font-mono text-xs">{t}</span>
                   ))}
                 </div>
               </div>
@@ -975,7 +969,7 @@ export default function AutomationDiagnosticsPanel() {
                 </div>
                 <div className="flex items-center gap-1 flex-wrap">
                   {report.registry.known_connector_apis.map(a => (
-                    <span key={a} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{a}</span>
+                    <span key={a} className="px-1.5 py-0.5 rounded bg-surface-2 font-mono text-xs">{a}</span>
                   ))}
                 </div>
               </div>
@@ -986,8 +980,8 @@ export default function AutomationDiagnosticsPanel() {
             <Section title="YAML validation errors" icon={AlertTriangle} status="fail" defaultOpen>
               <div className="space-y-2 text-xs">
                 {report.errors.map((e, i) => (
-                  <div key={i} className="border-l-2 border-red-500/40 pl-3">
-                    <div className="font-mono text-red-300">{e.file}</div>
+                  <div key={i} className="border-l-2 border-destructive/40 pl-3">
+                    <div className="font-mono text-destructive">{e.file}</div>
                     <pre className="text-muted-foreground whitespace-pre-wrap break-all">{e.error}</pre>
                   </div>
                 ))}
@@ -1016,7 +1010,7 @@ export default function AutomationDiagnosticsPanel() {
                     key={f}
                     size="sm"
                     variant={filter === f ? 'default' : 'outline'}
-                    className="h-7 text-[11px] px-2"
+                    className="h-7 text-xs px-2"
                     onClick={() => setFilter(f)}
                   >
                     {f}

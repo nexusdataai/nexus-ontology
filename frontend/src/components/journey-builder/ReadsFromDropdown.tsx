@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import type { BuilderNode, OutputHint, ToolOutputHints } from './builderState';
 
 /**
@@ -16,6 +19,8 @@ import type { BuilderNode, OutputHint, ToolOutputHints } from './builderState';
  */
 
 const LITERAL_VALUE = '';
+/** The Select control cannot hold an empty value, so "typed value" gets a stand-in. */
+const LITERAL_ITEM = '__literal__';
 
 interface ReadsFromDropdownProps {
   /** The node whose param is being edited. */
@@ -65,7 +70,7 @@ export function ReadsFromDropdown({
         // No catalogue entry -- still allow the user to type a key in
         // the canvas drag flow; the dropdown surfaces a single
         // "<no hints>" option so the producer appears in the picker.
-        opts.push({ value: `${src.id}|`, label: 'no hints -- drag instead', group, desc: '' });
+        opts.push({ value: `${src.id}|`, label: 'No known outputs, drag on the canvas instead', group, desc: '' });
         continue;
       }
       for (const h of hints) {
@@ -97,50 +102,63 @@ export function ReadsFromDropdown({
     onPick({ fromNode: id, fromKey: key });
   };
 
+  const triggerClass = 'h-7 w-auto min-w-[9rem] max-w-[14rem] gap-1.5 px-2 text-xs';
+
   if (sources.length === 0) {
     return (
-      <select
-        disabled
-        className={cn(
-          'h-6 px-1 text-[10px] rounded border bg-background/50 text-muted-foreground',
-          className,
-        )}
-        title="No prior step to read from"
-      >
-        <option>(no prior steps)</option>
-      </select>
+      <Select disabled value={LITERAL_ITEM}>
+        <SelectTrigger className={cn(triggerClass, 'text-muted-foreground', className)} title="No prior step to read from" aria-label={`Source for ${consumerParam}`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={LITERAL_ITEM}>No earlier steps</SelectItem>
+        </SelectContent>
+      </Select>
     );
   }
 
-  // Group options by source node for the optgroup labels.
+  // Group options by source node for the group labels.
   const grouped = new Map<string, typeof options>();
   for (const o of options) {
     if (!grouped.has(o.group)) grouped.set(o.group, []);
     grouped.get(o.group)!.push(o);
   }
+  // A chained value whose key is not in the catalogue still has to show in the trigger.
+  const currentKnown = !currentValueStr || options.some((o) => o.value === currentValueStr);
 
   return (
-    <select
-      value={currentValueStr}
-      onChange={(e) => handleChange(e.target.value)}
-      title={`Wire '${consumerParam}' to a prior step's output`}
-      className={cn(
-        'h-6 px-1 text-[10px] rounded border bg-background',
-        currentValueStr ? 'text-blue-300 border-blue-500/40' : 'text-muted-foreground',
-        className,
-      )}
+    <Select
+      value={currentValueStr || LITERAL_ITEM}
+      onValueChange={(v) => handleChange(v === LITERAL_ITEM ? LITERAL_VALUE : v)}
     >
-      <option value={LITERAL_VALUE}>(literal)</option>
-      {Array.from(grouped.entries()).map(([groupLabel, opts]) => (
-        <optgroup key={groupLabel} label={groupLabel}>
-          {opts.map((o) => (
-            <option key={o.value} value={o.value} disabled={o.value.endsWith('|')} title={o.desc}>
-              {o.label}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+      <SelectTrigger
+        title={`Wire '${consumerParam}' to a prior step's output`}
+        aria-label={`Source for ${consumerParam}`}
+        className={cn(
+          triggerClass,
+          currentValueStr ? 'border-brand/40 font-mono text-primary dark:text-brand-hi' : 'text-muted-foreground',
+          className,
+        )}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={LITERAL_ITEM}>Typed value</SelectItem>
+        {!currentKnown && current && (
+          <SelectItem value={currentValueStr} className="font-mono text-xs">{current.id}.{current.key}</SelectItem>
+        )}
+        {Array.from(grouped.entries()).map(([groupLabel, opts]) => (
+          <SelectGroup key={groupLabel}>
+            <SelectLabel className="text-xs font-medium text-muted-foreground">{groupLabel}</SelectLabel>
+            {opts.map((o) => (
+              <SelectItem key={o.value} value={o.value} disabled={o.value.endsWith('|')} title={o.desc} className={cn('text-xs', !o.value.endsWith('|') && 'font-mono')}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

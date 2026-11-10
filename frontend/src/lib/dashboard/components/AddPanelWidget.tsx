@@ -61,7 +61,7 @@ export function AddPanelWidget({ onSelect }: Props) {
                 }`}
               >
                 {cat.label}
-                <span className="ml-1.5 text-[10px] opacity-70">{count}</span>
+                <span className="ml-1.5 text-xs opacity-70">{count}</span>
               </button>
             );
           })}
@@ -79,7 +79,7 @@ export function AddPanelWidget({ onSelect }: Props) {
                 <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-medium truncate">{p.meta.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{p.meta.description}</p>
+                  <p className="text-xs text-muted-foreground truncate">{p.meta.description}</p>
                 </div>
               </button>
             );

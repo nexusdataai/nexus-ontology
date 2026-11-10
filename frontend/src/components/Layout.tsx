@@ -1,95 +1,128 @@
-import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import UserMenu from './UserMenu';
-import Chatbot from './Chatbot';
-import { MessageSquare, Search, Bell, RefreshCw, X, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { RefreshProvider } from '@/context/RefreshContext';
+import { getBreadcrumbs, getPageTitle } from '@/config/navigation';
+import { CommandPalette } from '@/components/ds/CommandPalette';
+import { MobileDrawer, MobileTabBar } from '@/components/ds/MobileNav';
+import { LogoMark } from '@/components/ds/Logo';
+import { Kbd } from '@/components/ds/primitives';
+import { Icon } from '@/components/ds/Icon';
+import { PageErrorBoundary } from '@/components/ds/PageErrorBoundary';
+import { cn } from '@/lib/utils';
 
-const TITLES: Record<string, string> = {
-  '/': 'NexusAI Platform',
-  '/ai-stack/data-plane': 'Data Plane',
-  '/ai-stack/control-plane': 'Control Plane',
-  '/ai-stack/reasoning': 'Reasoning',
-  '/workspace/apps': 'Solutions',
-  '/workspace/automation': 'AI Automation',
-  '/workspace/tools': 'Tools Catalogue',
-  '/workspace/ai-workspace': 'AI Workspace',
-  '/operations/diagnostics': 'Diagnostics',
-  '/operations/health': 'Health',
-  '/settings': 'Settings',
-  '/ai-analytics': 'AI Analytics',
-  '/dashboards': 'AI Analytics',
-  '/dashboard/builder': 'Dashboard Builder',
-  '/dashboard/view': 'Dashboard',
-  '/views': 'AI Analytics',
-  '/views/builder': 'View Builder',
-};
+interface LayoutProps {
+  children: React.ReactNode;
+  /** Optional override for the last breadcrumb (kept for existing callers). */
+  title?: string;
+}
 
-interface LayoutProps { children: React.ReactNode; }
+const iconBtn =
+  'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+/**
+ * App shell: sidebar (desktop), top bar with breadcrumbs and search, content
+ * area and drawer + bottom tabs (mobile). The assistant is docked in App.tsx.
+ * Every routed page renders inside this.
+ */
+const Layout: React.FC<LayoutProps> = ({ children, title }) => {
   const loc = useLocation();
-  const [chatOpen, setChatOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const title = TITLES[loc.pathname] || Object.entries(TITLES).find(([k]) => k !== '/' && loc.pathname.startsWith(k))?.[1] || 'NexusAI Platform';
+  const crumbs = getBreadcrumbs(loc.pathname);
+  if (title && crumbs.length) crumbs[crumbs.length - 1] = { label: title };
+
+  useEffect(() => {
+    document.title = `${title || getPageTitle(loc.pathname)} · Nexus AI`;
+  }, [loc.pathname, title]);
 
   return (
     <RefreshProvider>
-      <div className="min-h-screen h-screen flex overflow-hidden bg-background text-foreground">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
+
+      <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
         <Sidebar />
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex items-center justify-between px-5 h-12 shrink-0 border-b border-border bg-card">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[15px] font-semibold">{title}</h1>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Top bar */}
+          <header className="flex h-[var(--topbar-h)] shrink-0 items-center gap-3 border-b border-border bg-header px-3 sm:px-5 lg:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open menu" className={cn(iconBtn, 'lg:hidden')}>
+                <Icon name="menu" className="h-[18px] w-[18px]" />
+              </button>
+              <Link to="/" aria-label="Nexus AI home" className="mr-1 lg:hidden">
+                <LogoMark className="h-6 w-6 [--logo-bg:var(--header)]" />
+              </Link>
+
+              <nav aria-label="Breadcrumb" className="min-w-0">
+                <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+                  {crumbs.map((c, i) => {
+                    const last = i === crumbs.length - 1;
+                    return (
+                      <li key={`${c.label}-${i}`} className={cn('flex min-w-0 items-center gap-1.5', !last && 'hidden sm:flex')}>
+                        {i > 0 && <span className="hidden text-subtle-foreground sm:block" aria-hidden="true">/</span>}
+                        {c.path && !last ? (
+                          <Link to={c.path} className="truncate text-muted-foreground transition-colors hover:text-foreground">{c.label}</Link>
+                        ) : (
+                          <span className={cn('truncate', last ? 'font-medium text-foreground' : 'text-muted-foreground')} aria-current={last ? 'page' : undefined}>
+                            {c.label}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
             </div>
-            <div className="flex items-center gap-1">
-              <button onClick={toggleTheme} title="Toggle theme"
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+
+            {/* Search */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="hidden h-8 w-full max-w-[340px] items-center gap-2 rounded-md border border-border bg-surface-2/60 px-2.5 text-sm text-subtle-foreground transition-colors duration-150 hover:border-border-strong hover:text-muted-foreground md:flex"
+            >
+              <Icon name="search" />
+              <span className="flex-1 text-left">Search or jump to…</span>
+              <span className="flex items-center gap-0.5"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span>
+            </button>
+
+            <div className="flex shrink-0 items-center gap-0.5 md:flex-1 md:justify-end">
+              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search" className={cn(iconBtn, 'md:hidden')}>
+                <Icon name="search" className="h-[18px] w-[18px]" />
               </button>
-              <button className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                <Search className="h-4 w-4" />
+              <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className={iconBtn}>
+                <span key={theme} className="animate-scale-in">
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-[18px] w-[18px]" />
+                </span>
               </button>
-              <button className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
-              </button>
-              <button className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-              <UserMenu />
+              <div className="ml-2"><UserMenu /></div>
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto relative">
-            {children}
-
-            {!chatOpen && (
-              <button onClick={() => setChatOpen(true)}
-                className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-105 transition-transform">
-                <MessageSquare className="h-5 w-5" />
-              </button>
-            )}
-            {chatOpen && (
-              <div className="fixed bottom-6 right-6 z-50 w-96 h-[500px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-border bg-card">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h3 className="text-sm font-semibold">AI Assistant</h3>
-                  <button onClick={() => setChatOpen(false)} className="text-muted-foreground hover:text-foreground">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <Chatbot isOpen onClose={() => setChatOpen(false)} onNavigate={() => {}} />
-                </div>
-              </div>
-            )}
+          {/* Content */}
+          <main id="main" tabIndex={-1} className="scroll-thin relative min-h-0 flex-1 overflow-auto focus:outline-none">
+            <div className="min-h-full animate-fade-in">
+              <PageErrorBoundary resetKey={loc.pathname + loc.search}>
+                {children}
+              </PageErrorBoundary>
+            </div>
           </main>
+
+          <MobileTabBar onOpenMenu={() => setMenuOpen(true)} />
         </div>
       </div>
+
+      <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} onOpenSearch={() => setSearchOpen(true)} />
+      <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </RefreshProvider>
   );
 };

@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Loader2, Play, RefreshCw, Wrench, Network, Zap, Settings2,
-  ShieldCheck, CheckCircle2, XCircle, MinusCircle, ExternalLink,
-} from 'lucide-react';
+import { Loader2, Play, RefreshCw, Wrench, Network, Zap, Settings2, ShieldCheck, CheckCircle2, XCircle, MinusCircle, ExternalLink } from 'lucide-react';
 import { Section, formatLatency } from './_shared';
 import ConnectorApiTestDrawer from './ConnectorApiTestDrawer';
 import {
@@ -25,14 +22,14 @@ import {
 // ---------------------------------------------------------------------------
 
 function riskColor(risk: string): string {
-  if (risk === 'high_risk_write') return 'text-red-300';
-  if (risk === 'low_risk_write') return 'text-amber-300';
-  return 'text-green-300';
+  if (risk === 'high_risk_write') return 'text-destructive';
+  if (risk === 'low_risk_write') return 'text-warning';
+  return 'text-success';
 }
 
 function statusIcon(s: string) {
-  if (s === 'pass') return <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />;
-  if (s === 'fail') return <XCircle className="h-3.5 w-3.5 text-red-300" />;
+  if (s === 'pass') return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
+  if (s === 'fail') return <XCircle className="h-3.5 w-3.5 text-destructive" />;
   return <MinusCircle className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
@@ -82,11 +79,11 @@ function RegistrySection({
         </div>
         <div>
           <div className="text-muted-foreground text-xs">YAML-only orphans</div>
-          <div className={`font-mono ${t.yaml_only_orphans ? 'text-red-300' : ''}`}>{t.yaml_only_orphans}</div>
+          <div className={`font-mono ${t.yaml_only_orphans ? 'text-destructive' : ''}`}>{t.yaml_only_orphans}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Registry-only orphans</div>
-          <div className={`font-mono ${t.registry_only_orphans ? 'text-amber-300' : ''}`}>{t.registry_only_orphans}</div>
+          <div className={`font-mono ${t.registry_only_orphans ? 'text-warning' : ''}`}>{t.registry_only_orphans}</div>
         </div>
       </div>
 
@@ -96,10 +93,10 @@ function RegistrySection({
           <Badge
             key={k}
             variant="outline"
-            className={`text-[10px] ${
-              k === 'high_risk_write' ? 'bg-red-500/10 text-red-300' :
-              k === 'low_risk_write' ? 'bg-amber-500/10 text-amber-300' :
-              'bg-green-500/10 text-green-300'
+            className={`text-xs ${
+              k === 'high_risk_write' ? 'bg-destructive/10 text-destructive' :
+              k === 'low_risk_write' ? 'bg-warning/10 text-warning' :
+              'bg-success/10 text-success'
             }`}
           >
             {v} {k}
@@ -112,7 +109,7 @@ function RegistrySection({
         <Button
           size="sm"
           variant={!groupFilter ? 'default' : 'outline'}
-          className="h-6 text-[10px] px-2"
+          className="h-6 text-xs px-2"
           onClick={() => setGroupFilter('')}
         >
           all ({t.registered_tools})
@@ -122,7 +119,7 @@ function RegistrySection({
             key={g}
             size="sm"
             variant={groupFilter === g ? 'default' : 'outline'}
-            className="h-6 text-[10px] px-2"
+            className="h-6 text-xs px-2"
             onClick={() => setGroupFilter(groupFilter === g ? '' : g)}
           >
             {g} ({c})
@@ -141,8 +138,8 @@ function RegistrySection({
       </div>
 
       <div className="border rounded-md max-h-96 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 bg-muted/40">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 bg-surface-2">
             <tr className="text-left">
               <th className="px-2 py-1">Tool</th>
               <th className="px-2 py-1">Group</th>
@@ -156,23 +153,23 @@ function RegistrySection({
           </thead>
           <tbody>
             {filtered.map(t => (
-              <tr key={t.tool_id} className="border-t border-border/40 hover:bg-muted/20">
+              <tr key={t.tool_id} className="border-t border-border hover:bg-surface-2/60">
                 <td className="px-2 py-1 font-mono">{t.tool_id}</td>
                 <td className="px-2 py-1 text-muted-foreground">{t.group}</td>
                 <td className="px-2 py-1">
                   <span className={riskColor(t.risk_level)}>{t.risk_level}</span>
                   {t.requires_approval && (
-                    <Badge variant="outline" className="text-[9px] ml-1">approval</Badge>
+                    <Badge variant="outline" className="text-xs ml-1">approval</Badge>
                   )}
                 </td>
                 <td className="px-2 py-1">
                   {t.yaml_present
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
-                    : <MinusCircle className="h-3.5 w-3.5 text-amber-400" />}
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    : <MinusCircle className="h-3.5 w-3.5 text-warning" />}
                 </td>
                 <td className="px-2 py-1">
                   {t.has_canary
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                     : <MinusCircle className="h-3.5 w-3.5 text-muted-foreground" />}
                 </td>
                 <td className="px-2 py-1 font-mono">{t.use_case_refs}</td>
@@ -181,7 +178,7 @@ function RegistrySection({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 text-[10px] px-2"
+                    className="h-6 text-xs px-2"
                     onClick={() => onInspect(t)}
                   >
                     Inspect
@@ -194,21 +191,21 @@ function RegistrySection({
       </div>
 
       {(report.yaml_only_orphans.length > 0) && (
-        <div className="text-xs border-l-2 border-red-500/40 pl-3 py-1">
-          <div className="text-red-300 mb-1">YAML-only orphans (YAML exists, tool not registered):</div>
+        <div className="text-xs border-l-2 border-destructive/40 pl-3 py-1">
+          <div className="text-destructive mb-1">YAML-only orphans (YAML exists, tool not registered):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.yaml_only_orphans.map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/30 font-mono text-xs">{t}</span>
             ))}
           </div>
         </div>
       )}
       {(report.registry_only_orphans.length > 0) && (
-        <div className="text-xs border-l-2 border-amber-500/40 pl-3 py-1">
-          <div className="text-amber-300 mb-1">Registry-only orphans (registered, no YAML):</div>
+        <div className="text-xs border-l-2 border-warning/40 pl-3 py-1">
+          <div className="text-warning mb-1">Registry-only orphans (registered, no YAML):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.registry_only_orphans.map(t => (
-              <span key={t} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono text-[10px]">{t}</span>
+              <span key={t} className="px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30 font-mono text-xs">{t}</span>
             ))}
           </div>
         </div>
@@ -236,11 +233,11 @@ function ContractsSection({ report, loading }: { report: ContractsReport | null;
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Errors</div>
-          <div className={`font-mono ${report.totals.errors ? 'text-red-300' : ''}`}>{report.totals.errors}</div>
+          <div className={`font-mono ${report.totals.errors ? 'text-destructive' : ''}`}>{report.totals.errors}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Warnings</div>
-          <div className={`font-mono ${report.totals.warnings ? 'text-amber-300' : ''}`}>{report.totals.warnings}</div>
+          <div className={`font-mono ${report.totals.warnings ? 'text-warning' : ''}`}>{report.totals.warnings}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Tools with issues</div>
@@ -258,13 +255,13 @@ function ContractsSection({ report, loading }: { report: ContractsReport | null;
             <div className="font-mono text-xs mb-1">{toolId}</div>
             <div className="space-y-1">
               {items.map((it: ContractIssue, idx: number) => (
-                <div key={idx} className="flex items-start gap-2 text-[11px]">
+                <div key={idx} className="flex items-start gap-2 text-xs">
                   <Badge
                     variant="outline"
-                    className={`text-[9px] shrink-0 ${
+                    className={`text-xs shrink-0 ${
                       it.severity === 'error'
-                        ? 'text-red-300 border-red-500/30 bg-red-500/10'
-                        : 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                        ? 'text-destructive border-destructive/30 bg-destructive/10'
+                        : 'text-warning border-warning/30 bg-warning/10'
                     }`}
                   >
                     {it.severity}
@@ -313,15 +310,15 @@ function ConnectorAPIsSection({
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Errors</div>
-          <div className={`font-mono ${report.totals.errors ? 'text-red-300' : ''}`}>{report.totals.errors}</div>
+          <div className={`font-mono ${report.totals.errors ? 'text-destructive' : ''}`}>{report.totals.errors}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Warnings</div>
-          <div className={`font-mono ${report.totals.warnings ? 'text-amber-300' : ''}`}>{report.totals.warnings}</div>
+          <div className={`font-mono ${report.totals.warnings ? 'text-warning' : ''}`}>{report.totals.warnings}</div>
         </div>
         <div>
           <div className="text-muted-foreground text-xs">Orphans (no caller)</div>
-          <div className={`font-mono ${report.totals.orphans ? 'text-amber-300' : ''}`}>{report.totals.orphans}</div>
+          <div className={`font-mono ${report.totals.orphans ? 'text-warning' : ''}`}>{report.totals.orphans}</div>
         </div>
       </div>
 
@@ -330,7 +327,7 @@ function ConnectorAPIsSection({
         <Button
           size="sm"
           variant={!systemFilter ? 'default' : 'outline'}
-          className="h-6 text-[10px] px-2"
+          className="h-6 text-xs px-2"
           onClick={() => setSystemFilter('')}
         >
           all
@@ -340,7 +337,7 @@ function ConnectorAPIsSection({
             key={s}
             size="sm"
             variant={systemFilter === s ? 'default' : 'outline'}
-            className="h-6 text-[10px] px-2"
+            className="h-6 text-xs px-2"
             onClick={() => setSystemFilter(systemFilter === s ? '' : s)}
           >
             {s} ({c})
@@ -349,8 +346,8 @@ function ConnectorAPIsSection({
       </div>
 
       <div className="border rounded-md max-h-96 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 bg-muted/40">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 bg-surface-2">
             <tr className="text-left">
               <th className="px-2 py-1">api_id</th>
               <th className="px-2 py-1">System</th>
@@ -364,34 +361,34 @@ function ConnectorAPIsSection({
           </thead>
           <tbody>
             {filtered.map(a => (
-              <tr key={a.api_id} className="border-t border-border/40">
+              <tr key={a.api_id} className="border-t border-border">
                 <td className="px-2 py-1 font-mono">{a.api_id}</td>
                 <td className="px-2 py-1 text-muted-foreground">{a.target_system}</td>
-                <td className="px-2 py-1 font-mono text-[10px]">{a.operation}</td>
+                <td className="px-2 py-1 font-mono text-xs">{a.operation}</td>
                 <td className="px-2 py-1">
                   <span className={riskColor(a.risk_level)}>{a.risk_level}</span>
                 </td>
                 <td className="px-2 py-1">
                   {a.has_request_schema
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300 inline mr-1" />
-                    : <MinusCircle className="h-3.5 w-3.5 text-amber-400 inline mr-1" />}
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline mr-1" />
+                    : <MinusCircle className="h-3.5 w-3.5 text-warning inline mr-1" />}
                   req
                   {' '}
                   {a.has_response_schema
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-300 inline mr-1" />
-                    : <MinusCircle className="h-3.5 w-3.5 text-amber-400 inline mr-1" />}
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline mr-1" />
+                    : <MinusCircle className="h-3.5 w-3.5 text-warning inline mr-1" />}
                   res
                 </td>
                 <td className="px-2 py-1">
                   {a.tool_caller_count === 0 ? (
-                    <Badge variant="outline" className="text-[9px] text-amber-300 border-amber-500/30">orphan</Badge>
+                    <Badge variant="outline" className="text-xs text-warning border-warning/30">orphan</Badge>
                   ) : (
                     <span className="font-mono">{a.tool_caller_count}</span>
                   )}
                 </td>
                 <td className="px-2 py-1 font-mono">
                   {a.verified ? (
-                    <span className="text-green-300">{a.audit_count ?? 0}</span>
+                    <span className="text-success">{a.audit_count ?? 0}</span>
                   ) : (
                     <span className="text-muted-foreground">0</span>
                   )}
@@ -400,7 +397,7 @@ function ConnectorAPIsSection({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 text-[10px] px-2"
+                    className="h-6 text-xs px-2"
                     onClick={() => onTest(a.api_id)}
                   >
                     <ExternalLink className="h-3 w-3 mr-1" /> Workbench
@@ -413,11 +410,11 @@ function ConnectorAPIsSection({
       </div>
 
       {report.orphan_api_ids.length > 0 && (
-        <div className="text-xs border-l-2 border-amber-500/40 pl-3 py-1">
-          <div className="text-amber-300 mb-1">Connector APIs with no tool caller ({report.orphan_api_ids.length}):</div>
+        <div className="text-xs border-l-2 border-warning/40 pl-3 py-1">
+          <div className="text-warning mb-1">Connector APIs with no tool caller ({report.orphan_api_ids.length}):</div>
           <div className="flex items-center gap-1 flex-wrap">
             {report.orphan_api_ids.map(a => (
-              <span key={a} className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-[10px]">{a}</span>
+              <span key={a} className="px-1.5 py-0.5 rounded bg-surface-2 font-mono text-xs">{a}</span>
             ))}
           </div>
         </div>
@@ -465,26 +462,26 @@ function ExecutionSection({
           <span>only read-only</span>
         </label>
         <span className="text-muted-foreground">| total: <span className="font-mono">{t.checked}</span></span>
-        <span className="text-green-300">pass: <span className="font-mono">{t.pass}</span></span>
-        <span className="text-red-300">fail: <span className="font-mono">{t.fail}</span></span>
+        <span className="text-success">pass: <span className="font-mono">{t.pass}</span></span>
+        <span className="text-destructive">fail: <span className="font-mono">{t.fail}</span></span>
         <span className="text-muted-foreground">skip: <span className="font-mono">{t.skip}</span></span>
         <span className="text-muted-foreground">| total: {formatLatency(t.duration_ms)}</span>
         {t.read_only_failures > 0 && (
-          <Badge variant="outline" className="text-[10px] text-red-300 border-red-500/30">
+          <Badge variant="outline" className="text-xs text-destructive border-destructive/30">
             {t.read_only_failures} read-only failure(s)
           </Badge>
         )}
       </div>
 
       {report.error && (
-        <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+        <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">
           {report.error}
         </div>
       )}
 
       <div className="border rounded-md max-h-96 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 bg-muted/40">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 bg-surface-2">
             <tr className="text-left">
               <th className="px-2 py-1"></th>
               <th className="px-2 py-1">Tool</th>
@@ -498,7 +495,7 @@ function ExecutionSection({
             {report.results.map(r => (
               <tr
                 key={r.tool_id}
-                className="border-t border-border/40 hover:bg-muted/20 cursor-pointer"
+                className="border-t border-border hover:bg-surface-2/60 cursor-pointer"
                 onClick={() => onSelectTool(r.tool_id)}
               >
                 <td className="px-2 py-1">{statusIcon(r.status)}</td>
@@ -511,12 +508,12 @@ function ExecutionSection({
                   {r.status === 'skip' ? (
                     <span className="text-muted-foreground italic">{r.reason || 'skipped'}</span>
                   ) : (
-                    <span className={r.status === 'fail' ? 'text-red-300' : 'text-muted-foreground'}>
+                    <span className={r.status === 'fail' ? 'text-destructive' : 'text-muted-foreground'}>
                       {r.result_preview || '-'}
                     </span>
                   )}
                 </td>
-                <td className="px-2 py-1 text-[10px] text-muted-foreground font-mono">{r.marker || ''}</td>
+                <td className="px-2 py-1 text-xs text-muted-foreground font-mono">{r.marker || ''}</td>
               </tr>
             ))}
           </tbody>
@@ -597,12 +594,12 @@ function PerToolDetail({
           <div className="text-sm font-semibold flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-primary" />
             {tool.tool_id}
-            <Badge variant="outline" className={`text-[10px] ${riskColor(tool.risk_level)}`}>
+            <Badge variant="outline" className={`text-xs ${riskColor(tool.risk_level)}`}>
               {tool.risk_level}
             </Badge>
-            <Badge variant="outline" className="text-[10px]">{tool.group}</Badge>
+            <Badge variant="outline" className="text-xs">{tool.group}</Badge>
             {tool.requires_approval && (
-              <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/30">requires approval</Badge>
+              <Badge variant="outline" className="text-xs text-warning border-warning/30">requires approval</Badge>
             )}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">{tool.description}</div>
@@ -620,16 +617,16 @@ function PerToolDetail({
       )}
 
       {contractIssues.length > 0 && (
-        <div className="text-xs border-l-2 border-amber-500/40 pl-3 py-1 space-y-1">
+        <div className="text-xs border-l-2 border-warning/40 pl-3 py-1 space-y-1">
           <div className="text-muted-foreground mb-1">Contract issues for this tool:</div>
           {contractIssues.map((it, i) => (
             <div key={i} className="flex items-start gap-2">
               <Badge
                 variant="outline"
-                className={`text-[9px] ${
+                className={`text-xs ${
                   it.severity === 'error'
-                    ? 'text-red-300 border-red-500/30 bg-red-500/10'
-                    : 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                    ? 'text-destructive border-destructive/30 bg-destructive/10'
+                    : 'text-warning border-warning/30 bg-warning/10'
                 }`}
               >
                 {it.severity}
@@ -643,7 +640,7 @@ function PerToolDetail({
 
       <div>
         <div className="text-xs text-muted-foreground mb-1">parameters JSON Schema</div>
-        <pre className="text-[10px] bg-background/50 rounded p-2 overflow-auto max-h-48 font-mono">
+        <pre className="text-xs bg-background/50 rounded p-2 overflow-auto max-h-48 font-mono">
           {JSON.stringify(tool.parameters, null, 2)}
         </pre>
       </div>
@@ -663,7 +660,7 @@ function PerToolDetail({
       <div>
         <div className="flex items-center justify-between mb-1">
           <div className="text-xs text-muted-foreground">Try-it</div>
-          <div className="flex gap-1 text-[10px]">
+          <div className="flex gap-1 text-xs">
             <Button
               size="sm"
               variant={editMode === 'fields' ? 'default' : 'outline'}
@@ -695,8 +692,8 @@ function PerToolDetail({
                 <div key={f} className="flex items-center gap-2">
                   <span className="text-xs font-mono w-40 shrink-0">
                     {f}
-                    {isReq && <span className="text-red-400 ml-0.5">*</span>}
-                    <span className="text-[10px] text-muted-foreground ml-1">{spec.type || ''}</span>
+                    {isReq && <span className="text-destructive ml-0.5">*</span>}
+                    <span className="text-xs text-muted-foreground ml-1">{spec.type || ''}</span>
                   </span>
                   <Input
                     value={paramFields[f] || ''}
@@ -715,13 +712,13 @@ function PerToolDetail({
             value={paramJson}
             onChange={e => setParamJson(e.target.value)}
             spellCheck={false}
-            className="w-full h-32 text-[11px] font-mono bg-background/50 border rounded p-2"
+            className="w-full h-32 text-xs font-mono bg-background/50 border rounded p-2"
             placeholder='{}'
           />
         )}
 
         {error && (
-          <div className="text-xs text-red-300 mt-2">{error}</div>
+          <div className="text-xs text-destructive mt-2">{error}</div>
         )}
 
         <div className="flex items-center gap-2 mt-2">
@@ -741,7 +738,7 @@ function PerToolDetail({
         {result && (
           <div className="mt-2">
             <div className="text-xs text-muted-foreground mb-1">Result</div>
-            <pre className="text-[10px] bg-background/50 rounded p-2 overflow-auto max-h-64 font-mono">
+            <pre className="text-xs bg-background/50 rounded p-2 overflow-auto max-h-64 font-mono">
               {JSON.stringify(result.result ?? result, null, 2)}
             </pre>
           </div>
@@ -819,14 +816,12 @@ export default function ReactToolsDiagnosticsPanel() {
   }, [canaries]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="page space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-blue-300" />
-            ReAct Tools Diagnostics
+          <h2 className="flex items-center gap-2 text-xl font-medium tracking-tight text-foreground">ReAct Tools Diagnostics
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Verifies the ToolRegistry, validates each tool's contract and connector_api binding, and exercises every tool end-to-end with curated canary parameters.
           </p>
         </div>
@@ -838,7 +833,7 @@ export default function ReactToolsDiagnosticsPanel() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}

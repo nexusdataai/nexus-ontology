@@ -90,19 +90,19 @@ export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
                       onChange({ ...query, orderBy: `${v}${dir ? ' ' + dir : ''}` });
                     }}
                   >
-                    <SelectTrigger className="h-7 text-[10px] flex-1">
+                    <SelectTrigger className="h-7 text-xs flex-1">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__" className="text-[10px]">None</SelectItem>
+                      <SelectItem value="__none__" className="text-xs">None</SelectItem>
                       {fieldNames.map((f) => (
-                        <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
+                        <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
                   <Input
-                    className="h-7 text-[10px] flex-1"
+                    className="h-7 text-xs flex-1"
                     value={query.orderBy || ''}
                     onChange={(e) => onChange({ ...query, orderBy: e.target.value || undefined })}
                     placeholder="field ASC/DESC"
@@ -115,12 +115,12 @@ export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
                     if (field) onChange({ ...query, orderBy: `${field} ${dir}` });
                   }}
                 >
-                  <SelectTrigger className="h-7 text-[10px] w-[70px]">
+                  <SelectTrigger className="h-7 text-xs w-[70px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ASC" className="text-[10px]">ASC</SelectItem>
-                    <SelectItem value="DESC" className="text-[10px]">DESC</SelectItem>
+                    <SelectItem value="ASC" className="text-xs">ASC</SelectItem>
+                    <SelectItem value="DESC" className="text-xs">DESC</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -128,7 +128,7 @@ export function VDLQueryEditor({ query, onChange, onRunQuery }: Props) {
             <div className="w-[80px]">
               <Label className="text-xs text-muted-foreground">Limit</Label>
               <Input
-                className="h-7 text-[10px] mt-1"
+                className="h-7 text-xs mt-1"
                 type="number"
                 value={query.limit ?? 100}
                 onChange={(e) => onChange({ ...query, limit: Number(e.target.value) || 100 })}

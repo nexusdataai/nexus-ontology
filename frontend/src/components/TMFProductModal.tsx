@@ -77,13 +77,13 @@ const apiToComponentMap: Record<string, { name: string; description: string }> =
 const getTierIcon = (tier: string) => {
   switch (tier) {
     case "Tier 1":
-      return <Award className="h-4 w-4 text-yellow-500" />;
+      return <Award className="h-4 w-4 text-warning" />;
     case "Tier 2":
-      return <Star className="h-4 w-4 text-blue-500" />;
+      return <Star className="h-4 w-4 text-primary" />;
     case "Cloud-Native":
-      return <Cloud className="h-4 w-4 text-cyan-500" />;
+      return <Cloud className="h-4 w-4 text-primary" />;
     case "AI-Native":
-      return <Brain className="h-4 w-4 text-purple-500" />;
+      return <Brain className="h-4 w-4 text-primary" />;
     default:
       return <Building2 className="h-4 w-4" />;
   }
@@ -92,15 +92,15 @@ const getTierIcon = (tier: string) => {
 const getTierColor = (tier: string) => {
   switch (tier) {
     case "Tier 1":
-      return "bg-yellow-500";
+      return "bg-warning";
     case "Tier 2":
-      return "bg-blue-500";
+      return "bg-primary";
     case "Cloud-Native":
-      return "bg-cyan-500";
+      return "bg-primary";
     case "AI-Native":
-      return "bg-purple-500";
+      return "bg-primary";
     default:
-      return "bg-gray-500";
+      return "bg-border-strong";
   }
 };
 
@@ -151,7 +151,7 @@ export default function TMFProductModal({ isOpen, onClose, category }: TMFProduc
                           variant={product.tier === "AI-Native" ? "default" : "secondary"}
                           className={cn(
                             "text-xs",
-                            product.tier === "AI-Native" && "bg-purple-500 text-white"
+                            product.tier === "AI-Native" && "bg-primary text-white"
                           )}
                         >
                           {product.tier}
@@ -172,7 +172,7 @@ export default function TMFProductModal({ isOpen, onClose, category }: TMFProduc
                       <div className="space-y-3">
                         <div>
                           <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            <Activity className="h-4 w-4 text-blue-500" />
+                            <Activity className="h-4 w-4 text-primary" />
                             TMF APIs ({product.tmfAPIs.length})
                           </h4>
                           <div className="flex flex-wrap gap-1">
@@ -186,7 +186,7 @@ export default function TMFProductModal({ isOpen, onClose, category }: TMFProduc
 
                         <div>
                           <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            <Layers className="h-4 w-4 text-green-500" />
+                            <Layers className="h-4 w-4 text-success" />
                             ODA Components ({product.odaComponents.length})
                           </h4>
                           <div className="flex flex-wrap gap-1">
@@ -212,7 +212,7 @@ export default function TMFProductModal({ isOpen, onClose, category }: TMFProduc
                   <Card key={api}>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-500" />
+                        <Activity className="h-5 w-5 text-primary" />
                         {api}
                       </CardTitle>
                       <CardDescription>
@@ -254,7 +254,7 @@ export default function TMFProductModal({ isOpen, onClose, category }: TMFProduc
                   <Card key={component}>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Layers className="h-5 w-5 text-green-500" />
+                        <Layers className="h-5 w-5 text-success" />
                         {component}
                       </CardTitle>
                       <CardDescription>

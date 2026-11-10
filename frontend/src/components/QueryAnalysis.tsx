@@ -174,15 +174,15 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                   <h3 className="text-xl font-semibold mb-4">Key Insights</h3>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#40C057]"></span>
+                      <span className="h-3 w-3 rounded-full bg-success"></span>
                       <span>{sentimentData[0].value + sentimentData[1].value} positive experiences</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#868E96]"></span>
+                      <span className="h-3 w-3 rounded-full bg-muted-foreground"></span>
                       <span>{sentimentData[2].value} neutral feedbacks</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#FA5252]"></span>
+                      <span className="h-3 w-3 rounded-full bg-destructive"></span>
                       <span>{sentimentData[3].value + sentimentData[4].value} negative feedbacks</span>
                     </li>
                   </ul>
@@ -213,9 +213,9 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                           <td className="text-xs py-2 px-3 max-w-xs truncate" title={row.feedback}>{row.feedback}</td>
                           <td className="text-xs py-2 px-3 capitalize">
                             <span className={
-                              row.sentiment === 'positive' ? 'text-green-600' :
-                              row.sentiment === 'negative' ? 'text-red-600' :
-                              row.sentiment === 'neutral' ? 'text-yellow-600' :
+                              row.sentiment === 'positive' ? 'text-success' :
+                              row.sentiment === 'negative' ? 'text-destructive' :
+                              row.sentiment === 'neutral' ? 'text-warning' :
                               ''
                             }>
                               {row.sentiment}
@@ -269,7 +269,7 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                                 <p className="font-medium">{payload[0].payload.product_name}</p>
                                 <p>Demand: {payload[0].payload.demand} kg</p>
                                 <p>Supply: {payload[0].payload.supply} kg</p>
-                                <p className={gap > 0 ? "text-red-500" : "text-green-500"}>
+                                <p className={gap > 0 ? "text-destructive" : "text-success"}>
                                   Gap: {gap > 0 ? `${gap} kg short (${gapPercentage}%)` : `${Math.abs(gap)} kg excess (${Math.abs(Number(gapPercentage))}%)`}
                                 </p>
                               </div>
@@ -288,19 +288,19 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                   <h3 className="text-xl font-semibold mb-4">Inventory Insights</h3>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#FA5252]"></span>
+                      <span className="h-3 w-3 rounded-full bg-destructive"></span>
                       <span>Green Chilies are understocked by 20 kg (13%)</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#FA5252]"></span>
+                      <span className="h-3 w-3 rounded-full bg-destructive"></span>
                       <span>Tomatoes need 20 more kg to meet demand</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#40C057]"></span>
+                      <span className="h-3 w-3 rounded-full bg-success"></span>
                       <span>Mangoes have 15 kg of excess inventory</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#4C6EF5]"></span>
+                      <span className="h-3 w-3 rounded-full bg-primary"></span>
                       <span>Overall inventory efficiency is at 92%</span>
                     </li>
                     <li className="mt-4 text-muted-foreground">
@@ -335,7 +335,7 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                             <td className="text-xs py-2 px-3 font-medium">{row.product_name}</td>
                             <td className="text-xs py-2 px-3">{row.demand}</td>
                             <td className="text-xs py-2 px-3">{row.supply}</td>
-                            <td className={`text-xs py-2 px-3 font-semibold ${gap > 0 ? 'text-red-600' : 'text-green-600'}`}>{gap > 0 ? `Short by ${gap}` : gap < 0 ? `Excess ${-gap}` : 'Balanced'}</td>
+                            <td className={`text-xs py-2 px-3 font-semibold ${gap > 0 ? 'text-destructive' : 'text-success'}`}>{gap > 0 ? `Short by ${gap}` : gap < 0 ? `Excess ${-gap}` : 'Balanced'}</td>
                             <td className="text-xs py-2 px-3">{row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</td>
                           </tr>
                         );
@@ -384,7 +384,7 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                                 <p className="font-medium">{payload[0].payload.month}</p>
                                 <p>Actual Sales: ₹{payload[0].payload.actual}</p>
                                 <p>Target: ₹{payload[0].payload.target}</p>
-                                <p className={difference >= 0 ? "text-green-500" : "text-red-500"}>
+                                <p className={difference >= 0 ? "text-success" : "text-destructive"}>
                                   {difference >= 0 
                                     ? `${differencePercent}% above target (+₹${difference})` 
                                     : `${Math.abs(Number(differencePercent))}% below target (-₹${Math.abs(difference)})`
@@ -406,19 +406,19 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                   <h3 className="text-xl font-semibold mb-4">Performance Insights</h3>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#40C057]"></span>
+                      <span className="h-3 w-3 rounded-full bg-success"></span>
                       <span>Most months exceeded sales targets</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#FA5252]"></span>
+                      <span className="h-3 w-3 rounded-full bg-destructive"></span>
                       <span>February was below target by ₹4,000</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#4C6EF5]"></span>
+                      <span className="h-3 w-3 rounded-full bg-primary"></span>
                       <span>July had the highest sales: ₹60,000</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#868E96]"></span>
+                      <span className="h-3 w-3 rounded-full bg-muted-foreground"></span>
                       <span>Consistent growth observed in Q2 and Q3</span>
                     </li>
                   </ul>
@@ -451,7 +451,7 @@ const QueryAnalysis: React.FC<QueryAnalysisProps> = ({ queryType, className }) =
                             <td className="text-xs py-2 px-3 font-medium">{row.month}</td>
                             <td className="text-xs py-2 px-3">₹{row.actual.toLocaleString()}</td>
                             <td className="text-xs py-2 px-3">₹{row.target.toLocaleString()}</td>
-                            <td className={`text-xs py-2 px-3 font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>{diff >= 0 ? `+₹${diff.toLocaleString()} (${diffPercent}% above)` : `-₹${Math.abs(diff).toLocaleString()} (${Math.abs(diffPercent)}% below)`}</td>
+                            <td className={`text-xs py-2 px-3 font-semibold ${diff >= 0 ? 'text-success' : 'text-destructive'}`}>{diff >= 0 ? `+₹${diff.toLocaleString()} (${diffPercent}% above)` : `-₹${Math.abs(diff).toLocaleString()} (${Math.abs(diffPercent)}% below)`}</td>
                             <td className="text-xs py-2 px-3">{row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</td>
                           </tr>
                         );

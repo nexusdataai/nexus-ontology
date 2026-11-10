@@ -70,10 +70,10 @@ function StatusCard({ title, value, description, icon, statusColor }: StatusCard
         <div className="flex items-center gap-2">
           {statusColor && (
             <span className={`inline-block h-3 w-3 rounded-full ${
-              statusColor === 'green' ? 'bg-green-500' : statusColor === 'amber' ? 'bg-amber-500' : 'bg-red-500'
+              statusColor === 'green' ? 'bg-success' : statusColor === 'amber' ? 'bg-warning' : 'bg-destructive'
             }`} />
           )}
-          <div className="text-2xl font-bold">{value}</div>
+          <div className="text-2xl font-semibold">{value}</div>
         </div>
         {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
       </CardContent>
@@ -152,8 +152,8 @@ export function OntosDashboard({ fdwSource }: { fdwSource?: string }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">Dashboard</h2>
-            <Badge className="bg-amber-500/20 text-amber-300 text-[10px]">Simulator</Badge>
-            <Badge className="bg-blue-500/20 text-blue-300 text-[10px]">{sourceLabel}</Badge>
+            <Badge className="bg-warning/20 text-warning text-xs">Simulator</Badge>
+            <Badge className="bg-primary/20 text-primary text-xs">{sourceLabel}</Badge>
           </div>
           <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="h-4 w-4 mr-1" /> Refresh
@@ -197,7 +197,7 @@ export function OntosDashboard({ fdwSource }: { fdwSource?: string }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Dashboard</h2>
-          <Badge className="bg-green-500/20 text-green-300 text-[10px]">Real FDW</Badge>
+          <Badge className="bg-success/20 text-success text-xs">Real FDW</Badge>
         </div>
         {health?.latencyMs != null && (
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

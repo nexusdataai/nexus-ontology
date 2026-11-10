@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Users, Plus, Shield, RefreshCw, UserX, Key, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/apiClient';
+import { confirmDialog } from '@/components/ds/confirm';
+import { Icon } from '@/components/ds/Icon';
+import { Field, InlineError, SearchInput, StatusPill, TableShell, Toolbar, ToolbarSpacer, type Tone } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { cn } from '@/lib/utils';
 
 interface CognitoUser {
   sub: string;
   email: string;
+  /** Present when the directory has a display name. */
+  name?: string;
   status: string;
   enabled: boolean;
   groups: string[];
@@ -25,6 +28,36 @@ interface CognitoUser {
 }
 
 const ROLES = ['Admin', 'Executive', 'SalesManager', 'Rep'];
+
+const ROLE_LABEL: Record<string, string> = {
+  Admin: 'Admin',
+  Executive: 'Executive',
+  SalesManager: 'Sales manager',
+  Rep: 'Rep',
+};
+
+const initialsOf = (user: CognitoUser) =>
+  (user.name || user.email || '?')
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase())
+    .join('');
+
+const statusOf = (user: CognitoUser): { label: string; tone: Tone } => {
+  if (!user.enabled) return { label: 'Disabled', tone: 'danger' };
+  if (user.status === 'CONFIRMED') return { label: 'Active', tone: 'success' };
+  if (user.status === 'FORCE_CHANGE_PASSWORD') return { label: 'Pending', tone: 'warning' };
+  return { label: String(user.status || 'Unknown').replace(/_/g, ' ').toLowerCase(), tone: 'warning' };
+};
+
+const formatDate = (iso: string) => {
+  if (!iso) return 'Not recorded';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? 'Not recorded' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const HEAD = 'whitespace-nowrap border-b border-border bg-surface-2 px-5 py-2.5 text-left text-xs font-medium text-muted-foreground';
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<CognitoUser[]>([]);
@@ -40,6 +73,8 @@ const UserManagement: React.FC = () => {
   const [resetting, setResetting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ sub: string; email: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Local filter on the loaded list (view state only).
+  const [query, setQuery] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -88,7 +123,7 @@ const UserManagement: React.FC = () => {
   };
 
   const handleDisable = async (sub: string, email: string) => {
-    if (!confirm(`Disable user ${email}?`)) return;
+    if (!(await confirmDialog({ title: `Disable user ${email}?`, description: 'They will no longer be able to sign in.', confirmLabel: 'Disable', destructive: true }))) return;
     try {
       await apiClient.delete(`/api/v1/users/${sub}`, { requireAuth: false });
       toast.success(`User ${email} disabled`);
@@ -129,212 +164,235 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? users.filter(u => [u.email, u.name, u.role, ROLE_LABEL[u.role], statusOf(u).label].some(v => String(v || '').toLowerCase().includes(q)))
+    : users;
+  const disabledCount = users.filter(u => !u.enabled).length;
+  const pendingCount = users.filter(u => u.enabled && u.status !== 'CONFIRMED').length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            User Management
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage users, roles, and access</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add User
-          </Button>
-        </div>
+    <div className="space-y-4">
+      <div className="min-w-0">
+        <h2 className="text-md font-medium text-foreground">Users</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {users.length === 0
+            ? 'People who can sign in, their role and their sign-in security.'
+            : <>
+                <span className="num font-medium text-foreground">{users.length}</span> {users.length === 1 ? 'person' : 'people'} can sign in
+                {pendingCount > 0 && <>, <span className="num font-medium text-foreground">{pendingCount}</span> still to finish setting up</>}
+                {disabledCount > 0 && <>, <span className="num font-medium text-foreground">{disabledCount}</span> disabled</>}.
+              </>}
+        </p>
       </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <Toolbar>
+        <SearchInput value={query} onChange={setQuery} placeholder="Search by name, email or role" className="sm:w-72" />
+        <ToolbarSpacer />
+        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+        </Button>
+        <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+          <Icon name="plus" className="h-3.5 w-3.5" /> Add user
+        </Button>
+      </Toolbar>
+
+      {error && <InlineError onRetry={fetchUsers}>{error}</InlineError>}
+
+      {loading && users.length === 0 ? (
+        <div className="space-y-px overflow-hidden rounded-xl border border-border" aria-busy="true">
+          {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 w-full rounded-none" />)}
+        </div>
+      ) : users.length === 0 ? (
+        !error && (
+          <EmptyState
+            icon="users"
+            title="No users yet"
+            description="Add the first person who should be able to sign in."
+            action={<Button onClick={() => setCreateDialogOpen(true)}><Icon name="plus" className="h-3.5 w-3.5" /> Add user</Button>}
+          />
+        )
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon="search"
+          title="No one matches that search"
+          description={`Nothing found for "${query}".`}
+          action={<Button variant="outline" onClick={() => setQuery('')}>Clear search</Button>}
+        />
+      ) : (
+        <TableShell>
+          <table className="w-full min-w-[820px] border-collapse text-sm">
+            <thead>
+              <tr>
+                <th scope="col" className={HEAD}>User</th>
+                <th scope="col" className={HEAD}>Role</th>
+                <th scope="col" className={HEAD}>Status</th>
+                <th scope="col" className={HEAD}>Two-step sign-in</th>
+                <th scope="col" className={HEAD}>Created</th>
+                <th scope="col" className={HEAD}><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((user, i) => {
+                const status = statusOf(user);
+                return (
+                  <tr
+                    key={user.sub}
+                    className={cn('rise border-b border-border transition-colors last:border-b-0 hover:bg-surface-2/60', !user.enabled && 'text-muted-foreground')}
+                    style={{ '--i': Math.min(i, 12) } as React.CSSProperties}
+                  >
+                    <td className="px-5 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-xs font-medium text-foreground" aria-hidden="true">
+                          {initialsOf(user)}
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn('max-w-[260px] truncate font-medium', user.enabled ? 'text-foreground' : 'text-muted-foreground')} title={user.name || user.email}>
+                            {user.name || user.email}
+                          </div>
+                          {user.name && <div className="max-w-[260px] truncate text-xs text-muted-foreground" title={user.email}>{user.email}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <Select value={user.role} onValueChange={(val) => handleRoleChange(user.sub, user.groups, val)}>
+                        <SelectTrigger className="h-8 w-[150px]" aria-label={`Role of ${user.email}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map(r => (
+                            <SelectItem key={r} value={r}>{ROLE_LABEL[r] || r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-2.5">
+                      <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                    </td>
+                    <td className={cn('whitespace-nowrap px-5 py-2.5', user.mfa_enabled ? 'text-foreground' : 'text-muted-foreground')}>
+                      {user.mfa_enabled ? 'On' : 'Off'}
+                    </td>
+                    <td className="num whitespace-nowrap px-5 py-2.5 text-muted-foreground">{formatDate(user.created)}</td>
+                    <td className="px-5 py-2.5 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" aria-label={`More actions for ${user.email}`}>
+                            <Icon name="more" className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onSelect={() => setResetTarget({ sub: user.sub, email: user.email })}>
+                            <Icon name="key" className="mr-2 h-3.5 w-3.5" /> Reset password
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDisable(user.sub, user.email)}>
+                            <Icon name="cross-circle" className="mr-2 h-3.5 w-3.5" /> Disable
+                          </DropdownMenuItem>
+                          {user.role !== 'Admin' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleteTarget({ sub: user.sub, email: user.email })}>
+                                <Icon name="trash" className="mr-2 h-3.5 w-3.5" /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </TableShell>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>MFA</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    Loading users...
-                  </TableCell>
-                </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No users found
-                  </TableCell>
-                </TableRow>
-              ) : users.map(user => (
-                <TableRow key={user.sub}>
-                  <TableCell className="font-medium">{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.status === 'CONFIRMED' ? 'default' : 'secondary'} className="text-xs">
-                      {user.status === 'CONFIRMED' ? 'Active' : user.status === 'FORCE_CHANGE_PASSWORD' ? 'Pending' : user.status}
-                    </Badge>
-                    {!user.enabled && <Badge variant="destructive" className="text-xs ml-1">Disabled</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.role}
-                      onValueChange={(val) => handleRoleChange(user.sub, user.groups, val)}
-                    >
-                      <SelectTrigger className="h-8 w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLES.map(r => (
-                          <SelectItem key={r} value={r}>{r}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {user.mfa_enabled ? (
-                      <Badge className="bg-green-100 text-green-800 text-xs">
-                        <Shield className="h-3 w-3 mr-1" />
-                        Enabled
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Off</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {user.created ? new Date(user.created).toLocaleDateString() : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setResetTarget({ sub: user.sub, email: user.email })}>
-                        <Key className="h-3 w-3 mr-1" />
-                        Reset
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-orange-600" onClick={() => handleDisable(user.sub, user.email)}>
-                        <UserX className="h-3 w-3 mr-1" />
-                        Disable
-                      </Button>
-                      {user.role !== 'Admin' && (
-                        <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => setDeleteTarget({ sub: user.sub, email: user.email })}>
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Create User Dialog */}
+      {/* Add user */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
+            <DialogTitle>Add user</DialogTitle>
             <DialogDescription>
-              Create a new user account. They will be prompted to change their password on first login.
+              They sign in with the temporary password and choose their own the first time.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" placeholder="user@example.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Temporary Password</Label>
-              <Input type="password" placeholder="Min 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Must include uppercase, lowercase, and numbers</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
+            <Field label="Email" htmlFor="new-user-email">
+              <Input id="new-user-email" type="email" autoComplete="off" placeholder="name@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+            </Field>
+            <Field label="Temporary password" htmlFor="new-user-password" hint="At least 8 characters, with upper case, lower case and a number.">
+              <Input id="new-user-password" type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+            </Field>
+            <Field label="Role" htmlFor="new-user-role">
               <Select value={newRole} onValueChange={setNewRole}>
-                <SelectTrigger>
+                <SelectTrigger id="new-user-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map(r => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                    <SelectItem key={r} value={r}>{ROLE_LABEL[r] || r}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={creating}>Cancel</Button>
             <Button onClick={handleCreate} disabled={!newEmail || !newPassword || creating}>
-              {creating ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Creating...</> : 'Create User'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Reset Password Dialog */}
-      <Dialog open={!!resetTarget} onOpenChange={(open) => { if (!open) { setResetTarget(null); setResetTempPassword(''); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription>
-              Set a temporary password for <strong>{resetTarget?.email}</strong>. They will be required to choose a new password on their next login.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Temporary Password</Label>
-              <Input
-                type="password"
-                placeholder="Min 8 characters"
-                value={resetTempPassword}
-                onChange={e => setResetTempPassword(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Must include uppercase, lowercase, and numbers. The user will be logged out of all active sessions.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setResetTarget(null); setResetTempPassword(''); }} disabled={resetting}>Cancel</Button>
-            <Button onClick={handleResetPassword} disabled={resetting || resetTempPassword.length < 8}>
-              {resetting ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Resetting...</> : 'Reset Password'}
+              {creating && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {creating ? 'Creating' : 'Create user'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete User Dialog */}
+      {/* Reset password */}
+      <Dialog open={!!resetTarget} onOpenChange={(open) => { if (!open) { setResetTarget(null); setResetTempPassword(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>
+              Set a temporary password for <span className="font-medium text-foreground">{resetTarget?.email}</span>. They choose a new one the next time they sign in.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Field
+              label="Temporary password"
+              htmlFor="reset-user-password"
+              hint="At least 8 characters, with upper case, lower case and a number. The user is signed out everywhere."
+            >
+              <Input
+                id="reset-user-password"
+                type="password"
+                autoComplete="new-password"
+                value={resetTempPassword}
+                onChange={e => setResetTempPassword(e.target.value)}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setResetTempPassword(''); }} disabled={resetting}>Cancel</Button>
+            <Button onClick={handleResetPassword} disabled={resetting || resetTempPassword.length < 8}>
+              {resetting && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {resetting ? 'Resetting' : 'Reset password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete user */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>Delete this user?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete <strong>{deleteTarget?.email}</strong>?
+              <span className="font-medium text-foreground">{deleteTarget?.email}</span> will be removed for good, with all sessions and associated data. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <Alert variant="destructive">
-            <AlertDescription>
-              This action cannot be undone. The user account, all sessions, and associated data will be permanently removed.
-            </AlertDescription>
-          </Alert>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : 'Delete Permanently'}
+              {deleting && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {deleting ? 'Deleting' : 'Delete for good'}
             </Button>
           </DialogFooter>
         </DialogContent>

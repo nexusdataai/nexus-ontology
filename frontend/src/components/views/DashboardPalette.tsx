@@ -35,7 +35,7 @@ export function DashboardPalette({ className }: DashboardPaletteProps) {
   return (
     <div className={cn('flex flex-col h-full border-r bg-background', className)}>
       <div className="px-3 pt-3 pb-2 border-b">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+        <div className="text-xs font-semibold text-muted-foreground mb-2">
           Dashboards
         </div>
         <div className="relative">
@@ -89,9 +89,9 @@ function DraggableDashboard({ dashboard }: DraggableDashboardProps) {
       <div className="min-w-0 flex-1">
         <div className="text-xs font-medium truncate">{dashboard.title}</div>
         {dashboard.description && (
-          <div className="text-[10px] text-muted-foreground truncate">{dashboard.description}</div>
+          <div className="text-xs text-muted-foreground truncate">{dashboard.description}</div>
         )}
-        <div className="text-[10px] text-muted-foreground mt-0.5">{dashboard.panelCount} panels</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{dashboard.panelCount} panels</div>
       </div>
     </div>
   );

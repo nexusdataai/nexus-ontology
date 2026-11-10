@@ -37,7 +37,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, profileNam
     {
       id: '1',
       isUser: false,
-      text: `Welcome ${profileName || 'to Totogi Telco Insights'}! How can I help you today?`,
+      text: `Welcome ${profileName || 'to Nexus AI'}! How can I help you today?`,
       timestamp: new Date(),
       containsChartData: false,
     }
@@ -68,7 +68,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, profileNam
       {
         id: Date.now().toString(),
         isUser: false,
-        text: `Welcome ${profileName || 'to Totogi Telco Insights'}! How can I help you today?`,
+        text: `Welcome ${profileName || 'to Nexus AI'}! How can I help you today?`,
         timestamp: new Date(),
         containsChartData: false,
       }

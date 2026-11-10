@@ -1,10 +1,11 @@
-
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 @import 'mapbox-gl/dist/mapbox-gl.css';
 @import './theme.css';
+@import './utils.css';
 @import './components.css';
 @import './maps.css';
 @import './charts.css';
-@import './utils.css';
 
 @tailwind base;
 @tailwind components;
@@ -15,7 +16,46 @@
     @apply border-border;
   }
 
+  html,
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    height: 100dvh;
+    width: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  code, kbd, pre, samp {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: hsl(var(--brand) / 0.32);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }

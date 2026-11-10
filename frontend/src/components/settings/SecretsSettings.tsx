@@ -1,38 +1,21 @@
 /**
- * Secrets Settings Component
- * 
- * Allows administrators to view and manage secrets stored in AWS Secrets Manager.
- * Secret values are always masked for security.
+ * Secrets
+ *
+ * Administrators see which credentials are stored and replace their values.
+ * Values are never shown in full. Layout: heading row, one quiet note, then
+ * one table; editing opens a side sheet.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-  Key,
-  Eye,
-  EyeOff,
-  Save,
-  ExternalLink,
-  Lock,
-  Shield,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { DetailSheet, Field, InlineError, StatusPill, TableShell } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { SystemLogo, resolveSystem } from '@/components/ds/SystemLogo';
+import { cn } from '@/lib/utils';
 import {
   ssmConfigService,
   type SecretInfo,
@@ -46,6 +29,26 @@ interface EditSecretState {
   showValues: Record<string, boolean>;
   isSaving: boolean;
 }
+
+const SOURCE_SYSTEMS = new Set(['salesforce', 'sap', 'oracle', 'google_drive', 'microsoft', 'slack', 'mysql']);
+
+/** The source system a secret belongs to, if its name or label says so. */
+const systemOfSecret = (secret: { name: string; label: string }): string | null => {
+  const candidates = [secret.name, secret.name.split(/[-_]/)[0], secret.label];
+  for (const c of candidates) {
+    const { key, def } = resolveSystem(c);
+    if (def && SOURCE_SYSTEMS.has(key)) return key;
+  }
+  return null;
+};
+
+const formatDate = (iso: string | null) => {
+  if (!iso) return 'Never';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? 'Unknown' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const prettyConnector = (id: string) => id.replace(/[-_]+/g, ' ').replace(/^\w/, c => c.toUpperCase());
 
 const SecretsSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -82,12 +85,12 @@ const SecretsSettings: React.FC = () => {
     fetchSecrets();
   }, [fetchSecrets]);
 
-  // Open edit dialog
+  // Open edit sheet
   const handleEditSecret = async (secretName: string) => {
     try {
       setError(null);
       const detail = await ssmConfigService.getSecret(secretName);
-      
+
       // Initialize values from masked values (empty for editing)
       const values: Record<string, string> = {};
       const showValues: Record<string, boolean> = {};
@@ -109,7 +112,7 @@ const SecretsSettings: React.FC = () => {
     }
   };
 
-  // Handle value change in edit dialog
+  // Handle value change in the edit sheet
   const handleValueChange = (key: string, value: string) => {
     setEditState(prev => ({
       ...prev,
@@ -147,8 +150,8 @@ const SecretsSettings: React.FC = () => {
 
     try {
       await ssmConfigService.updateSecret(editState.secret.name, nonEmptyValues);
-      
-      setSuccess(`Secret "${editState.secret.label}" updated successfully.`);
+
+      setSuccess(`Secret "${editState.secret.label}" updated.`);
       setEditState({
         isOpen: false,
         secret: null,
@@ -169,7 +172,7 @@ const SecretsSettings: React.FC = () => {
     }
   };
 
-  // Close edit dialog
+  // Close edit sheet
   const handleCloseDialog = () => {
     setEditState({
       isOpen: false,
@@ -180,244 +183,193 @@ const SecretsSettings: React.FC = () => {
     });
   };
 
-  // Get status badge for secret
-  const getStatusBadge = (secret: SecretInfo) => {
-    if (secret.managed_by) {
-      return (
-        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-          Managed by {secret.managed_by}
-        </Badge>
-      );
-    }
-    if (secret.exists) {
-      return (
-        <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
-          Configured
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
-        Not Set
-      </Badge>
-    );
+  // Go to the connector that owns a managed secret
+  const openConnector = (secret: SecretInfo) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('view', 'tools');
+    // Map managed_by to tool ID
+    const toolId = secret.managed_by === 'webex-connector' ? 'webex-connector' : secret.managed_by;
+    searchParams.set('tool', toolId as string);
+    navigate(`${location.pathname}?${searchParams.toString()}`);
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Secrets Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading secrets...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Status of a secret
+  const getStatusBadge = (secret: SecretInfo) => {
+    if (secret.managed_by) return <StatusPill tone="info">Managed by connector</StatusPill>;
+    if (secret.exists) return <StatusPill tone="success">Configured</StatusPill>;
+    return <StatusPill tone="warning">Missing</StatusPill>;
+  };
+
+  const missing = secrets.filter(s => !s.exists && !s.managed_by).length;
+  const editing = editState.secret;
+  const editingSystem = editing ? systemOfSecret(editing) : null;
 
   return (
-    <div className="space-y-4">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Secrets Management
-          </CardTitle>
-          <CardDescription>
-            Manage sensitive credentials stored in AWS Secrets Manager. Values are always encrypted and masked for security.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Alerts */}
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Secrets</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            {secrets.length === 0
+              ? 'Credentials the platform uses to reach your systems, stored encrypted.'
+              : <>
+                  <span className="num font-medium text-foreground">{secrets.length}</span> credentials stored encrypted
+                  {missing > 0 && <>, <span className="num font-medium text-foreground">{missing}</span> not set yet</>}.
+                </>}
+          </p>
+        </div>
+        <Button variant="outline" onClick={fetchSecrets} disabled={loading}>
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+        </Button>
+      </header>
 
-          {success && (
-            <Alert className="mb-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
-            </Alert>
-          )}
+      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+        <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" />
+        <span className="max-w-3xl">
+          Values are never shown in full. To change one, enter the complete new value. Secrets managed by a connector are changed in that connector.
+        </span>
+      </p>
 
-          {/* Security Notice */}
-          <div className="p-4 bg-amber-50 dark:bg-amber-900/15 rounded-lg border border-amber-100 dark:border-amber-800 mb-4">
-            <div className="flex items-start gap-2">
-              <Shield className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Security Notice</p>
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Secret values are never displayed in full. When editing, you must enter the complete new value.
-                  Some secrets are managed by integration connectors and cannot be edited here directly.
-                </p>
-              </div>
-            </div>
-          </div>
+      {error && !editState.isOpen && (
+        <InlineError onRetry={secrets.length === 0 ? fetchSecrets : undefined}>{error}</InlineError>
+      )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={fetchSecrets}
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {success && (
+        <p role="status" className="flex items-center gap-2 text-sm text-foreground">
+          <Icon name="check-circle" className="h-4 w-4 text-success" />
+          {success}
+        </p>
+      )}
 
-      {/* Secrets List */}
-      <div className="grid gap-4">
-        {secrets.map((secret) => (
-          <Card key={secret.name}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-muted rounded-lg">
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">{secret.label}</h3>
-                    <p className="text-sm text-muted-foreground">{secret.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        Keys: {secret.keys.join(', ')}
-                      </span>
-                      {secret.last_modified && (
-                        <span className="text-xs text-muted-foreground">
-                          | Last modified: {new Date(secret.last_modified).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {getStatusBadge(secret)}
-                  {secret.managed_by ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        // Navigate directly to the specific connector tool
-                        const searchParams = new URLSearchParams(location.search);
-                        searchParams.set('view', 'tools');
-                        // Map managed_by to tool ID
-                        const toolId = secret.managed_by === 'webex-connector' ? 'webex-connector' : secret.managed_by;
-                        searchParams.set('tool', toolId);
-                        navigate(`${location.pathname}?${searchParams.toString()}`);
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Go to Connector
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditSecret(secret.name)}
-                      className="flex items-center gap-2"
-                    >
-                      <Key className="h-4 w-4" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Edit Secret Dialog */}
-      <Dialog open={editState.isOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Secret: {editState.secret?.label}</DialogTitle>
-            <DialogDescription>
-              Enter new values for the secret keys. Leave fields empty to keep existing values.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {editState.secret?.keys.map((key) => (
-              <div key={key} className="space-y-2">
-                <Label htmlFor={key}>{key}</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id={key}
-                      type={editState.showValues[key] ? 'text' : 'password'}
-                      value={editState.values[key] || ''}
-                      onChange={(e) => handleValueChange(key, e.target.value)}
-                      placeholder={`Enter new ${key}`}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => toggleShowValue(key)}
-                    >
-                      {editState.showValues[key] ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+      {loading && secrets.length === 0 ? (
+        <div className="space-y-px overflow-hidden rounded-xl border border-border" aria-busy="true">
+          {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full rounded-none" />)}
+        </div>
+      ) : secrets.length === 0 && !error ? (
+        <EmptyState icon="lock" title="No secrets defined" description="Credentials appear here once a connector or integration needs them." />
+      ) : secrets.length > 0 ? (
+        <TableShell>
+          <table className="w-full min-w-[720px] border-collapse text-sm">
+            <thead>
+              <tr>
+                {['Secret', 'Keys', 'Last changed', 'Status', ''].map((h, i) => (
+                  <th key={i} scope="col" className="whitespace-nowrap border-b border-border bg-surface-2 px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                    {h || <span className="sr-only">Actions</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {secrets.map((secret, i) => {
+                const system = systemOfSecret(secret);
+                return (
+                  <tr key={secret.name} className="rise border-b border-border transition-colors last:border-b-0 hover:bg-surface-2/60" style={{ '--i': i } as React.CSSProperties}>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        {system ? (
+                          <SystemLogo system={system} tile size="sm" />
+                        ) : (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-subtle-foreground">
+                            <Icon name="key" className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground">{secret.label}</div>
+                          <div className="text-xs text-muted-foreground">{secret.description}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="font-mono text-xs text-muted-foreground">{secret.keys.join(', ')}</span>
+                    </td>
+                    <td className="num whitespace-nowrap px-5 py-3 text-muted-foreground">{formatDate(secret.last_modified)}</td>
+                    <td className="whitespace-nowrap px-5 py-3">
+                      {getStatusBadge(secret)}
+                      {secret.managed_by && <div className="mt-0.5 text-xs text-muted-foreground">{prettyConnector(secret.managed_by)}</div>}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {secret.managed_by ? (
+                        <Button variant="ghost" size="sm" onClick={() => openConnector(secret)}>
+                          Open connector <Icon name="arrow-right" className="h-3.5 w-3.5" />
+                        </Button>
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Button variant="outline" size="sm" onClick={() => handleEditSecret(secret.name)}>
+                          <Icon name="edit" className="h-3.5 w-3.5" /> {secret.exists ? 'Edit' : 'Set'}
+                        </Button>
                       )}
-                    </Button>
-                  </div>
-                </div>
-                {editState.secret?.values[key] && (
-                  <p className="text-xs text-muted-foreground">
-                    Current (masked): <code className="bg-muted px-1 rounded">{editState.secret.values[key]}</code>
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </TableShell>
+      ) : null}
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <DialogFooter>
+      {/* Edit secret */}
+      <DetailSheet
+        open={editState.isOpen}
+        onOpenChange={(open) => !open && handleCloseDialog()}
+        title={
+          <span className="flex items-center gap-2.5">
+            {editingSystem && <SystemLogo system={editingSystem} size="md" />}
+            {editing?.label || 'Secret'}
+          </span>
+        }
+        description="Enter new values. A field left empty keeps its stored value."
+        footer={
+          <>
             <Button variant="outline" onClick={handleCloseDialog} disabled={editState.isSaving}>
               Cancel
             </Button>
             <Button onClick={handleSaveSecret} disabled={editState.isSaving}>
-              {editState.isSaving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Secret
-                </>
-              )}
+              {editState.isSaving && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {editState.isSaving ? 'Saving' : 'Save secret'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          {editing?.description && <p className="text-sm text-muted-foreground">{editing.description}</p>}
+
+          {editing?.keys.map((key) => {
+            const id = `secret-${key}`;
+            const shown = !!editState.showValues[key];
+            const masked = editing.values[key];
+            return (
+              <Field
+                key={key}
+                label={key}
+                htmlFor={id}
+                hint={masked ? <>Stored value <span className="font-mono text-muted-foreground">{masked}</span></> : 'No value stored yet'}
+              >
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type={shown ? 'text' : 'password'}
+                    autoComplete="off"
+                    value={editState.values[key] || ''}
+                    onChange={(e) => handleValueChange(key, e.target.value)}
+                    placeholder="Enter the new value"
+                    className="pr-16 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleShowValue(key)}
+                    aria-pressed={shown}
+                    aria-label={shown ? `Hide ${key}` : `Show ${key}`}
+                    className="absolute right-1.5 top-1/2 h-6 -translate-y-1/2 rounded px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {shown ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </Field>
+            );
+          })}
+
+          {error && editState.isOpen && <InlineError>{error}</InlineError>}
+        </div>
+      </DetailSheet>
     </div>
   );
 };

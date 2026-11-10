@@ -12,7 +12,7 @@ const ChatbotEditorPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen flex flex-col">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Chatbot Editor</h1>
+          <h1 className="text-2xl font-semibold">Chatbot Editor</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Test AI assistant interactions with configured agent instructions
           </p>
