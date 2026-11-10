@@ -1,15 +1,15 @@
 /**
- * Log Level Settings Component
- * 
- * Allows administrators to view and change the backend log level at runtime.
- * Changes are persisted to AWS SSM Parameter Store and take effect immediately.
+ * Log level settings
+ *
+ * Administrators view and change how much the server writes to its logs.
+ * The change takes effect at once and can be kept across restarts.
+ * Rows follow the settings page language: what it is on the left, the
+ * control on the right, divided by hairlines.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, CheckCircle2, RefreshCw, Settings2, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -18,7 +18,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import { apiClient } from '@/services/apiClient';
 
 // Types
@@ -48,12 +50,28 @@ interface EnvironmentInfo {
 
 // Log level options with descriptions
 const LOG_LEVELS = [
-  { value: 'DEBUG', label: 'Debug', description: 'Most verbose - all messages', color: 'text-purple-600' },
-  { value: 'INFO', label: 'Info', description: 'Standard operational messages', color: 'text-blue-600' },
-  { value: 'WARNING', label: 'Warning', description: 'Warnings and above only', color: 'text-yellow-600' },
-  { value: 'ERROR', label: 'Error', description: 'Errors and critical only', color: 'text-red-600' },
-  { value: 'CRITICAL', label: 'Critical', description: 'Critical failures only', color: 'text-red-800' },
+  { value: 'DEBUG', label: 'Debug', description: 'Everything, the most detail' },
+  { value: 'INFO', label: 'Info', description: 'Normal day-to-day messages' },
+  { value: 'WARNING', label: 'Warning', description: 'Warnings and anything worse' },
+  { value: 'ERROR', label: 'Error', description: 'Errors and critical failures' },
+  { value: 'CRITICAL', label: 'Critical', description: 'Critical failures only' },
 ];
+
+const SOURCE_LABEL: Record<string, string> = {
+  ssm: 'the parameter store',
+  env: 'the server environment',
+  default: 'the built-in default',
+};
+
+const Row: React.FC<{ title: string; description?: React.ReactNode; htmlFor?: string; children: React.ReactNode }> = ({ title, description, htmlFor, children }) => (
+  <div className="grid gap-x-10 gap-y-3 border-b border-border py-5 last:border-b-0 xl:grid-cols-[240px_minmax(0,1fr)]">
+    <div>
+      <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">{title}</label>
+      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    </div>
+    <div className="min-w-0">{children}</div>
+  </div>
+);
 
 const LogLevelSettings: React.FC = () => {
   const [currentLevel, setCurrentLevel] = useState<LogLevelInfo | null>(null);
@@ -119,7 +137,7 @@ const LogLevelSettings: React.FC = () => {
         timestamp: result.timestamp,
       });
 
-      const ssmNote = result.ssm_updated ? ' and persisted to SSM' : '';
+      const ssmNote = result.ssm_updated ? ' and kept for future restarts' : '';
       setSuccess(
         `Log level changed from ${result.previous_level} to ${result.new_level}${ssmNote}. ` +
         `Updated ${result.loggers_updated} loggers.`
@@ -133,183 +151,108 @@ const LogLevelSettings: React.FC = () => {
   };
 
   const hasChanges = selectedLevel && selectedLevel !== currentLevel?.level;
-
-  // Get source badge color
-  const getSourceBadge = (source: string) => {
-    switch (source) {
-      case 'ssm':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300';
-      case 'env':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            Backend Log Level
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading configuration...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const current = LOG_LEVELS.find(l => l.value === currentLevel?.level);
+  const platform = environmentInfo
+    ? environmentInfo.is_localstack ? 'LocalStack' : environmentInfo.is_aws ? 'AWS ECS' : 'Local'
+    : null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings2 className="h-5 w-5" />
-          Backend Log Level
-        </CardTitle>
-        <CardDescription>
-          Control the verbosity of backend logs. Changes take effect immediately without restart.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Success Alert */}
-        {success && (
-          <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-            <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Environment Info */}
-        {environmentInfo && (
-          <div className="p-4 bg-muted rounded-lg border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Server className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm text-foreground">Environment</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div>
-                <span className="text-muted-foreground">Environment:</span>
-                <span className="ml-1 font-medium text-foreground">{environmentInfo.environment}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Region:</span>
-                <span className="ml-1 font-medium text-foreground">{environmentInfo.region}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Platform:</span>
-                <span className="ml-1 font-medium">
-                  {environmentInfo.is_localstack ? 'LocalStack' : environmentInfo.is_aws ? 'AWS ECS' : 'Local'}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Source:</span>
-                <span className={`ml-1 px-2 py-0.5 rounded text-xs font-medium ${getSourceBadge(currentLevel?.source || 'default')}`}>
-                  {currentLevel?.source?.toUpperCase() || 'DEFAULT'}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Current Level Display */}
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <div>
-            <Label className="text-base font-medium">Current Log Level</Label>
-            <p className="text-sm text-muted-foreground">
-              {LOG_LEVELS.find(l => l.value === currentLevel?.level)?.description || 'Unknown level'}
+    <section className="border-t border-border pt-6">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h3 className="text-md font-medium text-foreground">Server log level</h3>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            How much the server writes to its logs. A change takes effect at once, with no restart.
+          </p>
+          {environmentInfo && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{environmentInfo.environment}</span>
+              <span aria-hidden="true">·</span>
+              <span>{environmentInfo.region}</span>
+              <span aria-hidden="true">·</span>
+              <span>{platform}</span>
             </p>
-          </div>
-          <div className={`text-2xl font-bold ${LOG_LEVELS.find(l => l.value === currentLevel?.level)?.color || 'text-muted-foreground'}`}>
-            {currentLevel?.level || 'Unknown'}
-          </div>
+          )}
         </div>
+        <Button variant="outline" onClick={fetchLogLevel} disabled={loading || updating}>
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} /> Refresh
+        </Button>
+      </header>
 
-        {/* Level Selector */}
-        <div className="space-y-3">
-          <Label htmlFor="log-level">Select New Log Level</Label>
-          <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-            <SelectTrigger id="log-level" className="w-full">
-              <SelectValue placeholder="Select log level" />
-            </SelectTrigger>
-            <SelectContent>
-              {LOG_LEVELS.map((level) => (
-                <SelectItem key={level.value} value={level.value}>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-medium ${level.color}`}>{level.label}</span>
-                    <span className="text-muted-foreground">-</span>
-                    <span className="text-muted-foreground text-sm">{level.description}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {error && <InlineError className="mt-4" onRetry={currentLevel ? undefined : fetchLogLevel}>{error}</InlineError>}
+
+      {success && (
+        <p role="status" className="mt-4 flex items-start gap-2 text-sm text-foreground">
+          <Icon name="check-circle" className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+          {success}
+        </p>
+      )}
+
+      {loading && !currentLevel ? (
+        <div className="mt-5 space-y-4" aria-busy="true">
+          <Skeleton className="h-12 w-full max-w-2xl" />
+          <Skeleton className="h-12 w-full max-w-2xl" />
         </div>
-
-        {/* Persist to SSM Toggle */}
-        {environmentInfo?.is_aws && (
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div>
-              <Label htmlFor="persist-ssm" className="text-base font-medium">
-                Persist to SSM
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {persistToSSM 
-                  ? 'Change will be saved to SSM Parameter Store and persist across restarts' 
-                  : 'Change will only affect current session and reset on restart'}
-              </p>
-            </div>
-            <Switch
-              id="persist-ssm"
-              checked={persistToSSM}
-              onCheckedChange={setPersistToSSM}
-            />
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-2">
-          <Button
-            onClick={handleUpdateLogLevel}
-            disabled={!hasChanges || updating}
-            className="flex items-center gap-2"
+      ) : currentLevel ? (
+        <div className="mt-2">
+          <Row
+            title="Level"
+            htmlFor="log-level"
+            description={
+              <>
+                Now <span className="font-medium text-foreground">{current?.label || currentLevel.level || 'Unknown'}</span>
+                {current ? `: ${current.description.charAt(0).toLowerCase()}${current.description.slice(1)}.` : '.'}{' '}
+                Set by {SOURCE_LABEL[currentLevel.source] || SOURCE_LABEL.default}.
+              </>
+            }
           >
-            {updating && <RefreshCw className="h-4 w-4 animate-spin" />}
-            {updating ? 'Updating...' : 'Apply Log Level'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={fetchLogLevel}
-            disabled={loading || updating}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+              <SelectTrigger id="log-level" className="w-full sm:max-w-md">
+                <SelectValue placeholder="Select log level" />
+              </SelectTrigger>
+              <SelectContent>
+                {LOG_LEVELS.map((level) => (
+                  <SelectItem key={level.value} value={level.value}>
+                    <span className="font-medium text-foreground">{level.label}</span>
+                    <span className="ml-2 text-muted-foreground">{level.description}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Row>
 
-        {/* Last Update Info */}
-        {lastUpdate && (
-          <div className="text-xs text-muted-foreground pt-2">
-            Last updated: {new Date(lastUpdate.timestamp).toLocaleString()}
-            {lastUpdate.ssm_updated && ' (persisted to SSM)'}
+          {/* Keep across restarts */}
+          {environmentInfo?.is_aws && (
+            <Row
+              title="Keep after a restart"
+              htmlFor="persist-ssm"
+              description={persistToSSM
+                ? 'The level is saved to the parameter store and stays after the server restarts.'
+                : 'The level applies until the server restarts, then goes back to the saved one.'}
+            >
+              <div className="flex h-9 items-center gap-2.5">
+                <Switch id="persist-ssm" checked={persistToSSM} onCheckedChange={setPersistToSSM} />
+                <span className="text-sm text-muted-foreground">{persistToSSM ? 'On' : 'Off'}</span>
+              </div>
+            </Row>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 pt-5">
+            <Button onClick={handleUpdateLogLevel} disabled={!hasChanges || updating}>
+              {updating && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+              {updating ? 'Applying' : 'Apply log level'}
+            </Button>
+            {hasChanges && !updating && <span className="text-sm text-muted-foreground">Unsaved change</span>}
+            {lastUpdate && !hasChanges && (
+              <span className="num text-xs text-muted-foreground">
+                Last changed {new Date(lastUpdate.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {lastUpdate.ssm_updated && ', kept after a restart'}
+              </span>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : null}
+    </section>
   );
 };
 

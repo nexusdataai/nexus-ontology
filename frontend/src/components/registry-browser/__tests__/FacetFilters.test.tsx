@@ -32,7 +32,7 @@ describe('FacetFilters', () => {
   });
 
   it('toggles a single option within a facet', () => {
-    const onChange = vi.fn<(s: FacetState) => void>();
+    const onChange = vi.fn<[FacetState], void>();
     render(<FacetFilters facets={facets} state={{}} onChange={onChange} />);
 
     fireEvent.click(screen.getByText('o2c'));
@@ -43,7 +43,7 @@ describe('FacetFilters', () => {
 
   it('supports multiple selections within the same facet (OR)', () => {
     const state: FacetState = { group: new Set(['o2c']) };
-    const onChange = vi.fn<(s: FacetState) => void>();
+    const onChange = vi.fn<[FacetState], void>();
     render(<FacetFilters facets={facets} state={state} onChange={onChange} />);
 
     fireEvent.click(screen.getByText('c360'));
@@ -54,7 +54,7 @@ describe('FacetFilters', () => {
 
   it('removes the facet key entirely once the last option is unchecked', () => {
     const state: FacetState = { group: new Set(['o2c']) };
-    const onChange = vi.fn<(s: FacetState) => void>();
+    const onChange = vi.fn<[FacetState], void>();
     render(<FacetFilters facets={facets} state={state} onChange={onChange} />);
 
     fireEvent.click(screen.getByText('o2c'));
@@ -67,7 +67,7 @@ describe('FacetFilters', () => {
       group: new Set(['o2c']),
       risk_level: new Set(['high_risk_write']),
     };
-    const onChange = vi.fn<(s: FacetState) => void>();
+    const onChange = vi.fn<[FacetState], void>();
     render(<FacetFilters facets={facets} state={state} onChange={onChange} />);
 
     // Top-bar "Clear" (capital C). The per-facet links use lowercase "clear".

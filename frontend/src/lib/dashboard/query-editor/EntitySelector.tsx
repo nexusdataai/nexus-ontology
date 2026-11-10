@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Field } from '@/components/ds/kit';
 import type { VirtualEntitySummary } from '../types';
 import { getVDLDataSource } from '../datasources/vdl-datasource';
 
@@ -24,25 +24,37 @@ export function EntitySelector({ value, onChange }: Props) {
   }, []);
 
   return (
-    <div>
-      <Label className="text-xs text-muted-foreground">Virtual Entity</Label>
-      <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger className="h-8 text-xs mt-1">
-          {loading ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <SelectValue placeholder="Select entity..." />
-          )}
-        </SelectTrigger>
-        <SelectContent>
-          {entities.map((e) => (
-            <SelectItem key={e.virtual_entity} value={e.virtual_entity} className="text-xs">
-              <span>{e.virtual_entity}</span>
-              <span className="text-muted-foreground ml-2">({e.active_rules} rules)</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Field
+      label="Entity"
+      hint={
+        !loading && entities.length === 0
+          ? 'No entities are available from the virtual data layer right now.'
+          : 'The business object this panel reads from the virtual data layer.'
+      }
+    >
+      {loading ? (
+        <Skeleton className="h-9 w-full" />
+      ) : (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger aria-label="Entity" className="h-9">
+            <SelectValue placeholder="Choose an entity" />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Keep a saved entity selectable even if the list no longer has it. */}
+            {value && !entities.some((e) => e.virtual_entity === value) && (
+              <SelectItem value={value}>{value}</SelectItem>
+            )}
+            {entities.map((e) => (
+              <SelectItem key={e.virtual_entity} value={e.virtual_entity}>
+                <span>{e.virtual_entity}</span>
+                <span className="num ml-2 text-xs text-muted-foreground">
+                  {e.active_rules} {e.active_rules === 1 ? 'mapping rule' : 'mapping rules'}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </Field>
   );
 }

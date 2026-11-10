@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Loader2, Play, Database, Server,
-  ChevronDown, ChevronRight, RefreshCw, Activity,
-} from 'lucide-react';
+import { Loader2, Play, Database, Server, ChevronDown, ChevronRight, RefreshCw, Activity } from 'lucide-react';
 import { Section, StatusBadge, formatLatency } from './_shared';
 import {
   dashboardDiagnosticsService,
@@ -26,7 +23,7 @@ function PanelRow({ p }: { p: PanelDiagnostic }) {
         <span className="text-muted-foreground">[{p.panelType}]</span>
         <span className="text-muted-foreground">{p.entity}</span>
         {p.sourceType && (
-          <Badge variant="outline" className="text-[9px]">{p.sourceType}</Badge>
+          <Badge variant="outline" className="text-xs">{p.sourceType}</Badge>
         )}
       </div>
       <div className="text-muted-foreground flex items-center gap-3 flex-wrap">
@@ -35,12 +32,12 @@ function PanelRow({ p }: { p: PanelDiagnostic }) {
         <span>latency: {formatLatency(p.latencyMs)}</span>
       </div>
       {p.suggestion && (
-        <div className="text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+        <div className="text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1">
           {p.suggestion}
         </div>
       )}
       {p.errorMessage && (
-        <div className="text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1 font-mono break-all">
+        <div className="text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1 font-mono break-all">
           {p.errorMessage}
         </div>
       )}
@@ -75,25 +72,25 @@ function DashboardRow({
   return (
     <div className="border-b border-border/40 last:border-b-0">
       <div
-        className={`flex items-center gap-3 px-3 py-2 text-xs ${expandable ? 'cursor-pointer hover:bg-muted/30' : ''}`}
+        className={`flex items-center gap-3 px-3 py-2 text-xs ${expandable ? 'cursor-pointer hover:bg-surface-2/60' : ''}`}
         onClick={() => expandable && setOpen(!open)}
       >
         <div className="w-4 flex-shrink-0">
           {expandable ? (open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />) : null}
         </div>
         <div className="w-24 flex-shrink-0">
-          {result ? <StatusBadge status={status} /> : <Badge variant="outline" className="text-[10px] text-muted-foreground">unrun</Badge>}
+          {result ? <StatusBadge status={status} /> : <Badge variant="outline" className="text-xs text-muted-foreground">unrun</Badge>}
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{entry.title}</div>
-          <div className="text-[10px] text-muted-foreground truncate">{entry.uid}</div>
+          <div className="text-xs text-muted-foreground truncate">{entry.uid}</div>
         </div>
         <div className="w-16 flex-shrink-0 text-right">
           <span className="font-mono">{entry.panelCount}p</span>
         </div>
         <div className="w-44 flex-shrink-0 flex flex-wrap gap-1">
           {entry.tags.slice(0, 3).map(t => (
-            <Badge key={t} variant="outline" className="text-[9px]">{t}</Badge>
+            <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
           ))}
         </div>
         <div className="w-20 flex-shrink-0 text-right text-muted-foreground">
@@ -103,7 +100,7 @@ function DashboardRow({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-[10px]"
+            className="h-7 text-xs"
             disabled={running}
             onClick={(e) => { e.stopPropagation(); onRun(); }}
           >
@@ -113,7 +110,7 @@ function DashboardRow({
       </div>
       {open && result && (
         <div className="px-6 pb-3 pt-1 space-y-2 bg-muted/10">
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {result.healthyCount} pass | {result.degradedCount} warn | {result.unhealthyCount} fail
             <span className="ml-2">scanned {new Date(result.scannedAt).toLocaleTimeString()}</span>
           </div>
@@ -220,11 +217,11 @@ export default function DashboardDiagnosticsPanel() {
   const overall = backends?.overall ?? 'healthy';
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px] mx-auto">
+    <div className="page space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold mb-1">Dashboard Diagnostics</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Dashboard Diagnostics</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Live checks for every saved dashboard - mapping rules, backend reachability, query execution, schema, and latency
           </p>
         </div>
@@ -233,13 +230,13 @@ export default function DashboardDiagnosticsPanel() {
             <RefreshCw className="h-4 w-4 mr-2" /> Reload
           </Button>
           <Button onClick={runAll} disabled={runAllRunning || index.length === 0}>
-            {runAllRunning ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running...</> : <><Play className="h-4 w-4 mr-2" /> Run All</>}
+            {runAllRunning ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running checks</> : <><Play className="h-4 w-4 mr-2" /> Run All</>}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+        <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">
           {error}
         </div>
       )}
@@ -250,7 +247,7 @@ export default function DashboardDiagnosticsPanel() {
         status={overall}
         defaultOpen={true}
         rightSlot={
-          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={(e) => { e.stopPropagation(); refreshBackends(); }}>
+          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={(e) => { e.stopPropagation(); refreshBackends(); }}>
             <RefreshCw className="h-3 w-3 mr-1" /> Recheck
           </Button>
         }
@@ -283,7 +280,7 @@ export default function DashboardDiagnosticsPanel() {
         }
         defaultOpen={true}
         rightSlot={
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span><Activity className="h-3 w-3 inline" /> {counts.healthy} pass | {counts.degraded} warn | {counts.unhealthy} fail | {counts.unrun} unrun</span>
           </div>
         }
@@ -294,7 +291,7 @@ export default function DashboardDiagnosticsPanel() {
               key={f}
               size="sm"
               variant={filter === f ? 'default' : 'outline'}
-              className="h-7 text-[10px] capitalize"
+              className="h-7 text-xs capitalize"
               onClick={() => setFilter(f)}
             >
               {f}
@@ -304,12 +301,12 @@ export default function DashboardDiagnosticsPanel() {
             placeholder="Search by title, uid, tag..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-7 text-[10px] flex-1 min-w-[200px]"
+            className="h-7 text-xs flex-1 min-w-[200px]"
           />
         </div>
 
         <div className="rounded border border-border/60 bg-muted/5">
-          <div className="flex items-center gap-3 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground border-b border-border/40">
+          <div className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border/40">
             <div className="w-4 flex-shrink-0" />
             <div className="w-24 flex-shrink-0">Status</div>
             <div className="flex-1 min-w-0">Dashboard</div>

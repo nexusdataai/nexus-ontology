@@ -1,31 +1,34 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Check, X, GripHorizontal } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { Field } from '@/components/ds/kit';
 import type { PanelModel } from '../model';
-import type { TimeRange } from '../types';
+import type { DataFrame, TimeRange } from '../types';
 import { QueryTab } from './QueryTab';
-import { VisualizationTab } from './VisualizationTab';
+import { PanelDisplayOptions, PanelTypePicker } from './VisualizationTab';
 import { PanelChrome } from '../components/PanelChrome';
+import { TimeRangePicker } from '../components/TimeRangePicker';
 
 interface Props {
   panel: PanelModel | null;
   open: boolean;
   timeRange?: TimeRange;
+  /** Shows the dashboard's time range control above the preview. */
+  onTimeRangeChange?: (range: TimeRange) => void;
   onSave: (panel: PanelModel) => void;
   onCancel: () => void;
 }
 
-const MIN_EDITOR_HEIGHT = 200;
-const DEFAULT_EDITOR_HEIGHT = 320;
-
-export function PanelEditor({ panel, open, timeRange, onSave, onCancel }: Props) {
+/**
+ * Panel editor: a large dialog with the live preview on the left and the
+ * settings on the right (Panel, Visualisation, Data, Display options).
+ * Nothing reaches the dashboard until "Apply changes".
+ */
+export function PanelEditor({ panel, open, timeRange, onTimeRangeChange, onSave, onCancel }: Props) {
   const [draft, setDraft] = useState<PanelModel | null>(null);
-  const [editorHeight, setEditorHeight] = useState(DEFAULT_EDITOR_HEIGHT);
-  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [frames, setFrames] = useState<DataFrame[]>([]);
 
   useEffect(() => {
     if (open && panel) {
@@ -53,99 +56,127 @@ export function PanelEditor({ panel, open, timeRange, onSave, onCancel }: Props)
     setDraft((prev) => ({ ...(prev ?? current!), ...patch }));
   };
 
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragRef.current = { startY: e.clientY, startH: editorHeight };
-
-    const handleMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      const delta = dragRef.current.startY - ev.clientY;
-      const newH = Math.max(MIN_EDITOR_HEIGHT, Math.min(dragRef.current.startH + delta, window.innerHeight - 200));
-      setEditorHeight(newH);
-    };
-
-    const handleUp = () => {
-      dragRef.current = null;
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', handleUp);
-    };
-
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleUp);
-  }, [editorHeight]);
-
   if (!open || !current) return null;
 
+  const changed = !!panel && !!draft && JSON.stringify(draft) !== JSON.stringify(panel);
+
   return (
-    <div ref={containerRef} className="flex flex-col h-full">
-      {/* Top: Panel preview area */}
-      <div className="flex-1 min-h-[200px] overflow-auto bg-muted/5 p-4 flex items-center justify-center">
-        <div className="w-full max-w-4xl h-full min-h-[200px] rounded-md overflow-hidden border bg-background">
-          <PanelChrome
-            panel={current}
-            width={800}
-            height={Math.max(300, window.innerHeight - editorHeight - 160)}
-            timeRange={timeRange}
-            isEditing={false}
-          />
-        </div>
-      </div>
-
-      {/* Resize handle */}
-      <div
-        className="h-2 flex items-center justify-center cursor-row-resize bg-border/50 hover:bg-primary/20 transition-colors flex-shrink-0"
-        onMouseDown={handleDragStart}
+    <Dialog open onOpenChange={(next) => { if (!next) handleClose(); }}>
+      <DialogContent
+        className="flex h-[calc(100dvh-2rem)] max-h-[880px] max-w-[1280px] flex-col gap-0 overflow-hidden p-0"
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <GripHorizontal className="h-3 w-3 text-muted-foreground" />
-      </div>
+        <div className="shrink-0 border-b border-border px-5 py-3.5 pr-12">
+          <DialogTitle className="text-lg font-medium leading-6">Edit panel</DialogTitle>
+          <DialogDescription className="mt-0.5 text-sm text-muted-foreground">
+            The preview updates as you change the settings. Apply to put the panel on the dashboard.
+          </DialogDescription>
+        </div>
 
-      {/* Bottom: Editor area */}
-      <div className="flex-shrink-0 border-t bg-background overflow-hidden" style={{ height: editorHeight }}>
-        {/* Editor toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 flex-shrink-0">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Label className="text-xs text-muted-foreground whitespace-nowrap">Title</Label>
-            <Input
-              className="h-7 text-xs max-w-xs"
-              value={current.title}
-              onChange={(e) => update({ title: e.target.value })}
-            />
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_460px] lg:overflow-hidden">
+          {/* Live preview */}
+          <div className="flex flex-col border-b border-border bg-surface-2/50 p-4 lg:min-h-0 lg:border-b-0 lg:border-r">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Preview</span>
+              {timeRange && onTimeRangeChange && <TimeRangePicker value={timeRange} onChange={onTimeRangeChange} />}
+            </div>
+            <PanelPreview onData={setFrames} panel={current} timeRange={timeRange} />
           </div>
-          <div className="flex gap-1.5">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleClose}>
-              <X className="h-3.5 w-3.5 mr-1" /> Discard
-            </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={handleSave}>
-              <Check className="h-3.5 w-3.5 mr-1" /> Apply
-            </Button>
+
+          {/* Settings */}
+          <div className="scroll-thin lg:min-h-0 lg:overflow-y-auto">
+            <EditorSection title="Panel" hint="The name shown at the top of the panel.">
+              <Field label="Title" htmlFor="panel-title">
+                <Input
+                  id="panel-title"
+                  className="h-9"
+                  value={current.title}
+                  onChange={(e) => update({ title: e.target.value })}
+                  placeholder="For example: Open orders by region"
+                />
+              </Field>
+            </EditorSection>
+
+            <EditorSection title="Visualisation" hint="How the data is drawn.">
+              <PanelTypePicker panelType={current.type} onTypeChange={(type) => update({ type, options: {} })} />
+            </EditorSection>
+
+            <EditorSection title="Data" hint="Which entity the panel reads, and which fields, filters and rows it uses.">
+              <QueryTab
+                targets={current.targets}
+                onChange={(targets) => update({ targets })}
+                onRunQuery={() => {}}
+                onPanelTypeChange={(type) => update({ type, options: {} })}
+                onTitleChange={(title) => update({ title })}
+              />
+            </EditorSection>
+
+            <EditorSection title="Display options" hint="Settings for this panel type.">
+              <PanelDisplayOptions
+                panelType={current.type}
+                options={current.options}
+                onOptionsChange={(options) => update({ options })}
+                data={frames}
+              />
+            </EditorSection>
           </div>
         </div>
 
-        {/* Tabbed content */}
-        <Tabs defaultValue="query" className="h-[calc(100%-44px)] flex flex-col">
-          <TabsList className="mx-4 mt-2 flex-shrink-0 w-fit">
-            <TabsTrigger value="query" className="text-xs">Query</TabsTrigger>
-            <TabsTrigger value="visualization" className="text-xs">Visualization</TabsTrigger>
-          </TabsList>
-          <TabsContent value="query" className="flex-1 overflow-auto px-4 pb-4 mt-2">
-            <QueryTab
-              targets={current.targets}
-              onChange={(targets) => update({ targets })}
-              onRunQuery={() => {}}
-              onPanelTypeChange={(type) => update({ type, options: {} })}
-              onTitleChange={(title) => update({ title })}
-            />
-          </TabsContent>
-          <TabsContent value="visualization" className="flex-1 overflow-auto px-4 pb-4 mt-2">
-            <VisualizationTab
-              panelType={current.type}
-              options={current.options}
-              onTypeChange={(type) => update({ type, options: {} })}
-              onOptionsChange={(options) => update({ options })}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
+          <span className="text-xs text-muted-foreground" aria-live="polite">
+            {changed ? 'Changes not applied yet' : 'No changes'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleClose}>
+              Discard
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              <Icon name="check" className="h-3.5 w-3.5" /> Apply changes
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditorSection({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section className="border-b border-border px-5 py-5 last:border-b-0">
+      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+      <div className="mt-3.5">{children}</div>
+    </section>
+  );
+}
+
+/** The panel at the size of its box, with the same chrome it has on the dashboard. */
+function PanelPreview({ panel, timeRange, onData }: { panel: PanelModel; timeRange?: TimeRange; onData?: (frames: DataFrame[]) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setSize({ width: Math.round(el.clientWidth), height: Math.round(el.clientHeight) });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="h-64 min-h-0 w-full lg:h-auto lg:max-h-[560px] lg:flex-1">
+      {size.height > 0 && (
+        <PanelChrome
+          panel={panel}
+          width={size.width}
+          height={size.height}
+          timeRange={timeRange}
+          isEditing={false}
+          onData={onData}
+        />
+      )}
     </div>
   );
 }

@@ -7,12 +7,12 @@ interface Props {
 }
 
 const STATE_COLOR: Record<string, string> = {
-  pending: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
-  in_progress: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
-  awaiting_step_approval: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
-  completed: 'bg-green-500/15 text-green-500 border-green-500/30',
-  failed: 'bg-red-500/15 text-red-500 border-red-500/30',
-  rejected: 'bg-red-500/15 text-red-500 border-red-500/30',
+  pending: 'bg-warning/15 text-warning border-warning/30',
+  in_progress: 'bg-primary/15 text-primary border-primary/30',
+  awaiting_step_approval: 'bg-warning/15 text-warning border-warning/30',
+  completed: 'bg-success/15 text-success border-success/30',
+  failed: 'bg-destructive/15 text-destructive border-destructive/30',
+  rejected: 'bg-destructive/15 text-destructive border-destructive/30',
   cancelled: 'bg-muted text-muted-foreground border-muted-foreground/30',
 };
 
@@ -32,18 +32,18 @@ export function TimelineSection({ section }: Props) {
         <div className="space-y-1.5 max-h-64 overflow-auto">
           {events.map((e, i) => (
             <div key={i} className="flex items-center gap-2 text-xs border-b last:border-b-0 py-1">
-              <span className="text-[10px] font-mono text-muted-foreground w-40 shrink-0">
+              <span className="text-xs font-mono text-muted-foreground w-40 shrink-0">
                 {(e.timestamp || '').slice(0, 19).replace('T', ' ')}
               </span>
-              <Badge variant="outline" className={`text-[9px] ${STATE_COLOR[e.fromState || ''] || ''}`}>
+              <Badge variant="outline" className={`text-xs ${STATE_COLOR[e.fromState || ''] || ''}`}>
                 {e.fromState || '--'}
               </Badge>
               <span className="text-muted-foreground">-&gt;</span>
-              <Badge variant="outline" className={`text-[9px] ${STATE_COLOR[e.toState || ''] || ''}`}>
+              <Badge variant="outline" className={`text-xs ${STATE_COLOR[e.toState || ''] || ''}`}>
                 {e.toState || '--'}
               </Badge>
               {e.stepId && (
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   step:{e.stepId}
                 </span>
               )}

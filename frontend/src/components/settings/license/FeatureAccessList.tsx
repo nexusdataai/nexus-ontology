@@ -1,47 +1,27 @@
 /**
  * FeatureAccessList Component
- * 
- * Displays features with tier requirements.
- * Shows accessible vs inaccessible features based on current tier.
- * 
+ *
+ * Features against the current plan: what is included and what is not.
+ * A plain list with a check or a dash, grouped, divided by hairlines.
+ *
  * Requirements: 6.1, 6.2, 6.3, 6.4
  */
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Sparkles,
-  CheckCircle,
-  Lock,
-  ArrowUpCircle,
-  Loader2
-} from 'lucide-react';
-import { 
-  FeatureAccessListProps, 
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import {
+  FeatureAccessListProps,
   FeatureAccessItem,
   LicenseTier,
   TIER_LABELS,
-  TIER_LEVELS,
   compareTiers
 } from '@/types/license';
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-function getTierBadgeColor(tier: LicenseTier): string {
-  switch (tier) {
-    case 'basic':
-      return 'bg-gray-100 text-gray-700 border-gray-200';
-    case 'professional':
-      return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'enterprise':
-      return 'bg-purple-100 text-purple-700 border-purple-200';
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-}
 
 function getTierLabel(tier: LicenseTier): string {
   return TIER_LABELS[tier] || tier;
@@ -54,59 +34,59 @@ function getTierLabel(tier: LicenseTier): string {
 interface FeatureItemProps {
   feature: FeatureAccessItem;
   currentTier: LicenseTier | null;
+  index: number;
 }
 
-function FeatureItem({ feature, currentTier }: FeatureItemProps) {
+function FeatureItem({ feature, currentTier, index }: FeatureItemProps) {
   const isAccessible = compareTiers(currentTier, feature.required_tier);
-  
+
   return (
-    <div 
-      className={`p-4 rounded-lg border ${
-        isAccessible 
-          ? 'bg-green-50 border-green-200' 
-          : 'bg-gray-50 border-gray-200'
-      }`}
+    <li
+      className="rise flex items-start gap-3 border-b border-border py-3.5"
+      style={{ '--i': index } as React.CSSProperties}
       data-testid={`feature-item-${feature.feature_id}`}
       data-accessible={isAccessible}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            {isAccessible ? (
-              <CheckCircle className="h-5 w-5 text-green-600" data-testid="accessible-icon" />
-            ) : (
-              <Lock className="h-5 w-5 text-gray-400" data-testid="locked-icon" />
-            )}
-            <h4 className={`font-medium ${isAccessible ? 'text-green-900' : 'text-gray-600'}`}>
-              {feature.feature_name}
-            </h4>
-          </div>
-          <p className={`text-sm ${isAccessible ? 'text-green-700' : 'text-gray-500'}`}>
-            {feature.description}
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+        {isAccessible ? (
+          <Icon name="check" label="Included" className="h-4 w-4 text-success" data-testid="accessible-icon" />
+        ) : (
+          <Icon name="minus" label="Not included" className="h-4 w-4 text-subtle-foreground" data-testid="locked-icon" />
+        )}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h4 className={`text-sm font-medium ${isAccessible ? 'text-foreground' : 'text-muted-foreground'}`}>
+          {feature.feature_name}
+        </h4>
+        <p className="mt-0.5 text-sm text-muted-foreground">{feature.description}</p>
+        {!isAccessible && (
+          <p className="mt-1 text-xs text-primary dark:text-brand-hi" data-testid="upgrade-message">
+            Upgrade to {getTierLabel(feature.required_tier)} to unlock
           </p>
-          
-          {/* Upgrade message for inaccessible features */}
-          {!isAccessible && (
-            <div 
-              className="flex items-center gap-1 mt-2 text-xs text-blue-600"
-              data-testid="upgrade-message"
-            >
-              <ArrowUpCircle className="h-3 w-3" />
-              <span>Upgrade to {getTierLabel(feature.required_tier)} to unlock</span>
-            </div>
-          )}
-        </div>
-        
-        {/* Required Tier Badge */}
-        <Badge 
-          variant="outline" 
-          className={getTierBadgeColor(feature.required_tier)}
-          data-testid="tier-badge"
-        >
-          {getTierLabel(feature.required_tier)}
-        </Badge>
+        )}
       </div>
-    </div>
+      <span className="shrink-0 whitespace-nowrap pt-0.5 text-xs text-muted-foreground" data-testid="tier-badge">
+        {getTierLabel(feature.required_tier)}
+      </span>
+    </li>
+  );
+}
+
+function Group({ title, count, features, currentTier }: { title: string; count: number; features: FeatureAccessItem[]; currentTier: LicenseTier | null }) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+        <h3 className="text-sm font-medium text-foreground">
+          {title} <span className="num font-normal text-muted-foreground">({count})</span>
+        </h3>
+        <span className="text-xs text-muted-foreground">From plan</span>
+      </div>
+      <ul>
+        {features.map((feature, i) => (
+          <FeatureItem key={feature.feature_id} feature={feature} currentTier={currentTier} index={i} />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -124,89 +104,39 @@ export function FeatureAccessList({
   const lockedFeatures = features.filter(f => !compareTiers(currentTier, f.required_tier));
 
   return (
-    <Card data-testid="feature-access-list">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          Feature Access
-        </CardTitle>
-        <CardDescription>
-          Features available with your current license tier
-          {currentTier && (
-            <Badge 
-              variant="outline" 
-              className={`ml-2 ${getTierBadgeColor(currentTier)}`}
-            >
-              {getTierLabel(currentTier)}
-            </Badge>
+    <div className="max-w-3xl" data-testid="feature-access-list">
+      <p className="text-sm text-muted-foreground">
+        {currentTier
+          ? <>What the <span className="font-medium text-foreground">{getTierLabel(currentTier)}</span> plan includes, and what a higher plan would add.</>
+          : 'What each plan includes.'}
+      </p>
+
+      {isLoading ? (
+        <div className="mt-5 space-y-3" aria-busy="true">
+          {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : features.length === 0 ? (
+        <EmptyState className="mt-5" icon="list" title="No features to show" description="This installation does not list any licensed features." />
+      ) : (
+        <div className="mt-6 space-y-8">
+          {/* No tier message */}
+          {!currentTier && (
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" />
+              Activate a license to unlock features.
+            </p>
           )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
-        ) : features.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Sparkles className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No features available</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Accessible Features */}
-            {accessibleFeatures.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Available Features ({accessibleFeatures.length})
-                </h3>
-                <div className="space-y-3">
-                  {accessibleFeatures.map((feature) => (
-                    <FeatureItem 
-                      key={feature.feature_id} 
-                      feature={feature} 
-                      currentTier={currentTier} 
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Locked Features */}
-            {lockedFeatures.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-gray-400" />
-                  Locked Features ({lockedFeatures.length})
-                </h3>
-                <div className="space-y-3">
-                  {lockedFeatures.map((feature) => (
-                    <FeatureItem 
-                      key={feature.feature_id} 
-                      feature={feature} 
-                      currentTier={currentTier} 
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+          {accessibleFeatures.length > 0 && (
+            <Group title="Included in your plan" count={accessibleFeatures.length} features={accessibleFeatures} currentTier={currentTier} />
+          )}
 
-            {/* No tier message */}
-            {!currentTier && features.length > 0 && (
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <ArrowUpCircle className="h-5 w-5" />
-                  <p className="text-sm">
-                    Activate a license to unlock features
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {lockedFeatures.length > 0 && (
+            <Group title="Not included" count={lockedFeatures.length} features={lockedFeatures} currentTier={currentTier} />
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

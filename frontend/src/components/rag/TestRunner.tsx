@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Icon } from '@/components/ds/Icon';
+import { Meter, MetricStrip, StatusPill, TableShell } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import { ontoApi } from '@/services/ontoApi';
+import { typeLabel } from './ragMeta';
 
 const TEST_SCENARIOS = [
   'Which system is the source of truth for customer credit limit?',
@@ -37,15 +38,34 @@ interface TestResult {
   score: number;
 }
 
+/** What every question is expected to bring back. A test passes with four of five. */
+const EXPECTED = [
+  { key: 'schema', label: 'Schema' },
+  { key: 'policy', label: 'Policy' },
+  { key: 'workflow', label: 'Workflow' },
+  { key: 'integration', label: 'Integration' },
+  { key: 'graph', label: 'Graph links' },
+];
+const PASS_SCORE = 4;
+
+const found = (r: TestResult, key: string) => (key === 'graph' ? r.graphHits > 0 : r.categories.some(c => c.includes(key)));
+
+/**
+ * Retrieval test suite: runs a fixed set of questions through hybrid search
+ * and reports, per question, which kinds of context came back.
+ */
 const TestRunner: React.FC = () => {
   const [results, setResults] = useState<TestResult[]>([]);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
+  // Rows the user opened or closed by hand. Failed rows are open by default.
+  const [toggled, setToggled] = useState<Record<number, boolean>>({});
 
   const runTests = async () => {
     setRunning(true);
     setResults([]);
     setProgress(0);
+    setToggled({});
 
     const testResults: TestResult[] = [];
 
@@ -86,68 +106,141 @@ const TestRunner: React.FC = () => {
     setRunning(false);
   };
 
+  const total = TEST_SCENARIOS.length;
   const avgScore = results.length > 0
     ? (results.reduce((s, r) => s + r.score, 0) / results.length).toFixed(1)
     : '0';
-  const passed = results.filter((r) => r.score >= 4).length;
+  const passed = results.filter((r) => r.score >= PASS_SCORE).length;
+  const failed = results.length - passed;
+  const avgHits = results.length > 0 ? Math.round(results.reduce((s, r) => s + r.total, 0) / results.length) : 0;
+  const done = !running && results.length > 0;
+
+  const verdict = running
+    ? `Running question ${Math.min(progress, total)} of ${total}.`
+    : done
+      ? failed === 0
+        ? `All ${results.length} questions retrieved enough context.`
+        : `${failed} of ${results.length} questions did not retrieve enough context.`
+      : `${total} questions check that retrieval brings back schema, policy, workflow and integration context, with links from the graph.`;
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Black-Box Test Suite</CardTitle>
-          <Button onClick={runTests} disabled={running} size="sm">
-            {running ? (
-              <><Loader2 className="h-3 w-3 animate-spin mr-1" /> {progress}/{TEST_SCENARIOS.length}</>
-            ) : (
-              <><Play className="h-3 w-3 mr-1" /> Run Tests</>
-            )}
-          </Button>
+    <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-md font-medium text-foreground">Retrieval test suite</h3>
+            {running && <StatusPill status="running">Running</StatusPill>}
+            {done && <StatusPill status={failed === 0 ? 'passed' : 'warning'}>{failed === 0 ? 'Passed' : 'Needs attention'}</StatusPill>}
+          </div>
+          <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground" aria-live="polite">{verdict}</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {results.length > 0 && (
-          <div className="flex gap-3 mb-4 text-sm">
-            <Badge variant="secondary">Avg: {avgScore}/5</Badge>
-            <Badge variant={Number(avgScore) >= 4 ? 'default' : 'destructive'}>
-              {passed}/{results.length} passed
-            </Badge>
-          </div>
-        )}
+        <Button onClick={runTests} disabled={running} className="shrink-0">
+          <Icon name={running ? 'spinner' : 'play'} className={cn(running && 'animate-spin')} />
+          {running ? `Running ${Math.min(progress, total)} of ${total}` : done ? 'Run all again' : 'Run all'}
+        </Button>
+      </div>
 
-        <ScrollArea className="h-[400px]">
-          <div className="space-y-2 pr-3">
-            {results.map((r, i) => (
-              <div key={i} className="flex items-start gap-2 border rounded-md p-2 text-sm">
-                {r.score >= 4 ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs truncate">{r.question}</div>
-                  <div className="flex gap-1 mt-1">
-                    <Badge variant="outline" className="text-xs">{r.score}/5</Badge>
-                    <Badge variant="outline" className="text-xs">{r.total} hits</Badge>
-                    {r.categories.map((c) => (
-                      <Badge key={c} variant="secondary" className="text-xs capitalize">
-                        {c.replace('onto_', '')}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
+      {running && <Meter value={results.length} max={total} label="Test progress" className="mt-4" />}
 
-            {results.length === 0 && !running && (
-              <div className="text-center text-muted-foreground py-8">
-                Click "Run Tests" to execute the 10 black-box test scenarios
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+      {results.length > 0 && (
+        <MetricStrip
+          className="mt-4"
+          items={[
+            { label: 'Passed', value: passed, hint: `of ${results.length} run`, tone: 'success' },
+            { label: 'Failed', value: failed, hint: failed ? 'Fewer than 4 of 5 kinds of context' : 'None', tone: failed ? 'danger' : 'neutral' },
+            { label: 'Average score', value: `${avgScore} / 5`, hint: 'Pass mark is 4' },
+            { label: 'Average results', value: avgHits, hint: 'Documents per question' },
+          ]}
+        />
+      )}
+
+      <TableShell className="mt-4">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-10 text-right">#</TableHead>
+              <TableHead>Question</TableHead>
+              <TableHead className="w-32">Status</TableHead>
+              <TableHead className="hidden w-20 text-right sm:table-cell">Score</TableHead>
+              <TableHead className="hidden w-20 text-right md:table-cell">Results</TableHead>
+              <TableHead className="w-10"><span className="sr-only">Details</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {TEST_SCENARIOS.map((question, i) => {
+              const r = results[i];
+              const isRunning = running && i === results.length;
+              const ok = !!r && r.score >= PASS_SCORE;
+              const open = !!r && (toggled[i] ?? !ok);
+              return (
+                <React.Fragment key={i}>
+                  <TableRow
+                    className={cn('hover:bg-surface-2/60', r && 'cursor-pointer', open && 'border-b-0')}
+                    onClick={r ? () => setToggled(prev => ({ ...prev, [i]: !open })) : undefined}
+                  >
+                    <TableCell className="num text-right text-xs text-subtle-foreground">{i + 1}</TableCell>
+                    <TableCell className={cn('text-sm', r || isRunning ? 'text-foreground' : 'text-muted-foreground')}>{question}</TableCell>
+                    <TableCell>
+                      {r ? <StatusPill status={ok ? 'passed' : 'failed'} />
+                        : isRunning ? <StatusPill status="running" />
+                        : <span className="text-xs text-subtle-foreground">{running ? 'Queued' : 'Not run'}</span>}
+                    </TableCell>
+                    <TableCell className="num hidden text-right text-sm sm:table-cell">{r ? `${r.score} / 5` : ''}</TableCell>
+                    <TableCell className="num hidden text-right text-sm text-muted-foreground md:table-cell">{r ? r.total : ''}</TableCell>
+                    <TableCell className="pl-0">
+                      {r && (
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={open ? 'Hide expected and actual' : 'Show expected and actual'}
+                          onClick={(e) => { e.stopPropagation(); setToggled(prev => ({ ...prev, [i]: !open })); }}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Icon name="chevron-down" className={cn('h-3.5 w-3.5 transition-transform duration-200', open && 'rotate-180')} />
+                        </button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  {open && r && (
+                    <TableRow className="bg-surface-2/40 hover:bg-surface-2/40">
+                      <TableCell />
+                      <TableCell colSpan={5} className="pb-4 pt-0">
+                        <div className="grid animate-fade-in gap-x-10 gap-y-3 text-sm md:grid-cols-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Expected</p>
+                            <p className="mt-1 text-foreground">{EXPECTED.map(e => e.label).join(', ')}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Actual</p>
+                            <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                              {EXPECTED.map(e => {
+                                const hit = found(r, e.key);
+                                return (
+                                  <li key={e.key} className="inline-flex items-center gap-1.5">
+                                    <Icon name={hit ? 'check' : 'close'} className={cn('h-3 w-3', hit ? 'text-success' : 'text-destructive')} />
+                                    <span className={hit ? 'text-foreground' : 'text-muted-foreground'}>{e.label}</span>
+                                    <span className="sr-only">{hit ? 'retrieved' : 'missing'}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <p className="mt-1.5 text-xs text-muted-foreground">
+                              {r.total === 0
+                                ? 'The search returned nothing or failed.'
+                                : <><span className="num">{r.vectorHits}</span> by vector search, <span className="num">{r.graphHits}</span> through the graph{r.categories.length > 0 && <>. Types found: {r.categories.map(c => typeLabel(c)).join(', ')}</>}.</>}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableShell>
+    </div>
   );
 };
 

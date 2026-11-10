@@ -1,8 +1,6 @@
-
 import { useState } from "react";
-import { LogOut, Settings, User } from "lucide-react";
+import { Icon } from "@/components/ds/Icon";
 import { useNavigate } from "react-router-dom";
-import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,79 +9,86 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import UserAvatar from "./UserAvatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import { Badge } from "./ui/badge";
 import { useEnterpriseAuth } from "@/context/EnterpriseAuthContext";
 
+const initialsOf = (name?: string | null, email?: string | null) => {
+  const src = (name || email || "").trim();
+  if (!src) return "U";
+  const parts = src.split(/[\s._@-]+/).filter(Boolean);
+  return ((parts[0]?.[0] || "") + (parts.length > 1 ? parts[1][0] : "")).toUpperCase() || "U";
+};
+
 const UserMenu = () => {
-  const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, profile, signOutUser, loading } = useEnterpriseAuth();
-
-  const handleProfile = () => {
-    setOpen(false);
-    alert("Profile page - Coming soon! This would show user profile settings and information.");
-  };
-
-  const handleSettings = () => {
-    setOpen(false);
-    navigate('/settings');
-  };
+  const { profile, signOutUser, loading } = useEnterpriseAuth();
 
   const handleSignOut = async () => {
-    setOpen(false);
-    const confirmLogout = confirm("Are you sure you want to log out?");
-    if (confirmLogout) {
-      try {
-        await signOutUser();
-      } catch (error) {
-        console.error("Logout error:", error);
-      }
+    try {
+      await signOutUser();
+    } catch (error) {
+      console.error("Logout error:", error);
     }
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          className="relative h-10 w-10 rounded-full p-0 border-none hover:bg-accent"
-          aria-label="Open user menu"
-        >
-          <UserAvatar />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        className="w-56 mt-2 bg-popover" 
-        align="end" 
-        sideOffset={15}
-        forceMount
-      >
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {profile?.full_name || "User"}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {profile?.email || "Loading..."}
-            </p>
-            {profile?.role && (
-              <p className="text-xs leading-none text-muted-foreground font-medium">
-                Role: {profile.role}
-              </p>
-            )}
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={handleSignOut} 
-          className="cursor-pointer hover:bg-accent"
-          disabled={loading}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{loading ? "Logging out..." : "Log out"}</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Open user menu"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-xs font-medium text-foreground transition-colors duration-200 hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {initialsOf(profile?.full_name, profile?.email)}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-60" align="end" sideOffset={8}>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col gap-1">
+              <p className="truncate text-sm font-medium leading-none">{profile?.full_name || "User"}</p>
+              <p className="truncate text-xs leading-none text-muted-foreground">{profile?.email || "Loading…"}</p>
+              {profile?.role && (
+                <Badge variant="neutral" className="mt-1.5 w-fit">{profile.role}</Badge>
+              )}
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
+            <Icon name="settings" className="mr-2" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setConfirmOpen(true)} className="cursor-pointer" disabled={loading}>
+            <Icon name="logout" className="mr-2" />
+            <span>{loading ? "Logging out…" : "Log out"}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out of Nexus AI?</AlertDialogTitle>
+            <AlertDialogDescription>You will need to sign in again to continue.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut}>Log out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

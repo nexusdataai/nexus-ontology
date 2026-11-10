@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -8,22 +8,27 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { ArrowLeft, Loader2, Save, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { EditorHeader, NameInput, SaveState } from '@/components/analytics/EditorHeader';
 import { toast } from 'sonner';
 import { viewService } from '@/services/viewService';
-import type { View } from '@/lib/foundry/model';
+import type { View, ViewTab } from '@/lib/foundry/model';
 import type { DashboardListItem } from '@/services/dashboardService';
 import { DashboardPalette } from '@/components/views/DashboardPalette';
 import { TabStrip } from '@/components/views/TabStrip';
 import { TabInspector } from '@/components/views/TabInspector';
 import { type DraftTab, tabsFromServer } from '@/components/views/ViewBuilderTypes';
-import { ViewRuntime } from '@/components/views/ViewRuntime';
+import { DashboardSkeleton, ViewRuntime, ViewTabPanel } from '@/components/views/ViewRuntime';
 import { ViewSolutionsPicker } from '@/components/views/ViewSolutionsPicker';
+
+const LIBRARY = '/ai-analytics?tab=views';
 
 function newDraftTab(label: string, dashboardId: string): DraftTab {
   return {
@@ -41,19 +46,21 @@ export default function ViewBuilderPage() {
   const { viewId } = useParams<{ viewId: string }>();
   const navigate = useNavigate();
 
-  const [name, setName] = useState('New View');
+  const [name, setName] = useState('New view');
   const [description, setDescription] = useState('');
   const [view, setView] = useState<View | null>(null);
   const [tabs, setTabs] = useState<DraftTab[]>([]);
   const [removedServerTabIds, setRemovedServerTabIds] = useState<string[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!viewId);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!viewId) return;
     setLoading(true);
+    setLoadFailed(false);
     viewService
       .get(viewId)
       .then((v) => {
@@ -63,9 +70,16 @@ export default function ViewBuilderPage() {
         setTabs(tabsFromServer(v.tabs));
         setActiveTabId(v.defaultTabId || v.tabs[0]?.tabId);
       })
-      .catch(() => toast.error('Failed to load view'))
+      .catch(() => {
+        setLoadFailed(true);
+        toast.error('Failed to load view');
+      })
       .finally(() => setLoading(false));
   }, [viewId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -122,9 +136,16 @@ export default function ViewBuilderPage() {
   };
 
   const handleAddBlankTab = () => {
-    const blank = newDraftTab('New Tab', '');
+    const blank = newDraftTab('New tab', '');
     setTabs((prev) => [...prev, blank]);
     setActiveTabId(blank.tabId);
+  };
+
+  /** Same result as dropping a dashboard on "Add tab", without dragging. */
+  const handleAddFromPalette = (dashboard: DashboardListItem) => {
+    const newTab = newDraftTab(dashboard.title, dashboard.uid);
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.tabId);
   };
 
   const handleRemoveTab = (tabId: string) => {
@@ -146,6 +167,50 @@ export default function ViewBuilderPage() {
   const handleTabChange = (next: DraftTab) => {
     setTabs((prev) => prev.map((t) => (t.tabId === next.tabId ? next : t)));
   };
+
+  const handleRenameTab = (tabId: string, label: string) => {
+    setTabs((prev) => prev.map((t) => (t.tabId === tabId ? { ...t, label, isDirty: true } : t)));
+  };
+
+  const activeIndex = tabs.findIndex((t) => t.tabId === activeTabId);
+  const handleMoveActive = (direction: -1 | 1) => {
+    const target = activeIndex + direction;
+    if (activeIndex < 0 || target < 0 || target >= tabs.length) return;
+    const ids = tabs.map((t) => t.tabId);
+    [ids[activeIndex], ids[target]] = [ids[target], ids[activeIndex]];
+    handleReorder(ids);
+  };
+
+  // Live preview of the selected tab. A new tab or dashboard shows at once;
+  // typing a time range waits until the typing stops. The label is left out
+  // on purpose, so renaming a tab does not reload its dashboard.
+  const [previewTab, setPreviewTab] = useState<ViewTab | null>(null);
+  const previewKey = useRef('');
+  const activeFrom = activeTab?.timeOverride?.from;
+  const activeTo = activeTab?.timeOverride?.to;
+  useEffect(() => {
+    if (!activeTab?.dashboardId) {
+      previewKey.current = '';
+      setPreviewTab(null);
+      return;
+    }
+    const key = `${activeTab.tabId}|${activeTab.dashboardId}`;
+    const next: ViewTab = {
+      tabId: activeTab.tabId,
+      order: 0,
+      label: activeTab.label,
+      dashboardId: activeTab.dashboardId,
+      simulatorRefs: activeTab.simulatorRefs,
+      timeOverride: activeTab.timeOverride,
+    };
+    const delay = previewKey.current === key ? 600 : 0;
+    const handle = window.setTimeout(() => {
+      previewKey.current = key;
+      setPreviewTab(next);
+    }, delay);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab?.tabId, activeTab?.dashboardId, activeFrom, activeTo]);
 
   const buildPreviewView = (): View => {
     return {
@@ -255,11 +320,44 @@ export default function ViewBuilderPage() {
     }
   };
 
-  if (loading) {
+  // Whole-view preview: rebuilt only when what it shows changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const previewView = useMemo(() => (previewing ? buildPreviewView() : null), [previewing, view, name, description, tabs]);
+
+  const serverOrder = view ? [...view.tabs].sort((a, b) => a.order - b.order).map((t) => t.tabId) : [];
+  const dirty =
+    !view ||
+    name !== view.name ||
+    description !== (view.description || '') ||
+    removedServerTabIds.length > 0 ||
+    tabs.some((t) => t.isNew || t.isDirty) ||
+    tabs.map((t) => t.tabId).join('|') !== serverOrder.join('|');
+  const missingDashboard = tabs.filter((t) => !t.dashboardId).length;
+
+  if (loading || loadFailed) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="flex flex-col">
+          <EditorHeader
+            backLabel="AI Analytics"
+            onBack={() => navigate(LIBRARY)}
+            title={loading ? <Skeleton className="h-7 w-56" /> : <h1 className="text-lg font-medium tracking-tight text-foreground">View</h1>}
+          />
+          <div className="p-4 sm:p-6">
+            {loading ? (
+              <div aria-busy="true" aria-label="Loading view">
+                <div className="flex gap-5 border-b border-border pb-3">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <DashboardSkeleton className="mt-4" />
+              </div>
+            ) : (
+              <InlineError onRetry={load}>
+                This view could not be loaded. It may have been deleted, or the server did not answer.
+              </InlineError>
+            )}
+          </div>
         </div>
       </Layout>
     );
@@ -267,53 +365,79 @@ export default function ViewBuilderPage() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between gap-3 p-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate('/views')}>
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Input
+      <div className="flex flex-col">
+        <EditorHeader
+          backLabel="AI Analytics"
+          onBack={() => navigate(LIBRARY)}
+          title={
+            <NameInput
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="View name"
-              className="h-8 text-sm font-medium max-w-xs"
+              aria-label="View name"
             />
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              className="h-8 min-h-8 text-xs flex-1 max-w-md py-1.5 resize-none"
+          }
+          meta={
+            <SaveState
+              state={saving ? 'saving' : !view ? 'new' : dirty ? 'dirty' : 'saved'}
+              detail={
+                missingDashboard > 0
+                  ? `${missingDashboard} ${missingDashboard === 1 ? 'tab needs' : 'tabs need'} a dashboard`
+                  : `${tabs.length} ${tabs.length === 1 ? 'tab' : 'tabs'}`
+              }
             />
-          </div>
+          }
+          actions={
+            <>
+              <ViewSolutionsPicker viewId={view?.viewId} />
+              <Button variant="outline" size="sm" onClick={() => setPreviewing((p) => !p)}>
+                <Icon name={previewing ? 'edit' : 'eye'} className="h-3.5 w-3.5" />
+                {previewing ? 'Back to editing' : 'Preview view'}
+              </Button>
+              <Button size="sm" variant={tabs.length === 0 ? 'outline' : 'default'} onClick={handleSave} disabled={saving}>
+                {saving && <Icon name="spinner" className="h-3.5 w-3.5 animate-spin" />}
+                {saving ? 'Saving' : 'Save view'}
+              </Button>
+            </>
+          }
+        >
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add a short description (optional)"
+            aria-label="Description"
+            className="-ml-2 mt-1 h-8 max-w-2xl border-transparent bg-transparent px-2 text-sm text-muted-foreground shadow-none hover:border-border focus:border-border-strong focus:bg-card focus:text-foreground"
+          />
+        </EditorHeader>
 
-          <div className="flex items-center gap-2">
-            <ViewSolutionsPicker viewId={view?.viewId} />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setPreviewing((p) => !p)}
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              {previewing ? 'Edit' : 'Preview'}
-            </Button>
-            <Button size="sm" className="h-8" onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-              Save
-            </Button>
-          </div>
-        </div>
-
-        {previewing ? (
-          <div className="flex-1 min-h-0">
-            <ViewRuntime view={buildPreviewView()} />
+        {previewing && previewView ? (
+          <div className="min-h-0 flex-1">
+            <ViewRuntime view={previewView} />
           </div>
         ) : (
-          <DndContext sensors={sensors} onDragEnd={handlePaletteDrop}>
-            <div className="flex-1 grid grid-cols-[260px_minmax(0,1fr)_320px] min-h-0">
-              <DashboardPalette />
-              <div className="flex flex-col min-w-0">
+          <DndContext
+            sensors={sensors}
+            onDragEnd={handlePaletteDrop}
+            accessibility={{
+              screenReaderInstructions: { draggable: 'Use the add button next to a dashboard to add it as a tab without dragging.' },
+              announcements: {
+                onDragStart: () => 'Picked up a dashboard.',
+                onDragOver: ({ over }) => (over ? 'Over a place where the dashboard can be dropped.' : 'Not over a drop place.'),
+                onDragEnd: ({ over }) => (over ? 'Dashboard dropped.' : 'Dashboard put back.'),
+                onDragCancel: () => 'Cancelled.',
+              },
+            }}
+          >
+            <p className="border-b border-border bg-surface-2/60 px-4 py-2 text-xs text-muted-foreground lg:hidden">
+              Building a view works best on a larger screen. Here you can still add tabs and choose a dashboard for each one in the tab settings.
+            </p>
+            <div className="lg:grid lg:h-pane lg:grid-cols-[272px_minmax(0,1fr)] lg:overflow-hidden">
+              <DashboardPalette
+                className="hidden lg:flex"
+                onAdd={handleAddFromPalette}
+                usedIds={tabs.map((t) => t.dashboardId).filter(Boolean)}
+              />
+              <div className="scroll-thin flex min-w-0 flex-col lg:min-h-0 lg:overflow-y-auto">
                 <TabStrip
                   tabs={tabs}
                   activeTabId={activeTabId}
@@ -321,36 +445,45 @@ export default function ViewBuilderPage() {
                   onRemove={handleRemoveTab}
                   onReorder={handleReorder}
                   onAddBlankTab={handleAddBlankTab}
+                  onRename={handleRenameTab}
                 />
-                <div className="flex-1 overflow-auto p-4">
-                  {activeTab ? (
+                {activeTab ? (
+                  <>
+                    <TabInspector
+                      tab={activeTab}
+                      onChange={handleTabChange}
+                      onRemove={() => handleRemoveTab(activeTab.tabId)}
+                      onMove={handleMoveActive}
+                      canMoveLeft={activeIndex > 0}
+                      canMoveRight={activeIndex >= 0 && activeIndex < tabs.length - 1}
+                    />
                     <ActiveTabDropZone>
-                      <div className="text-xs text-muted-foreground mb-2">
-                        Editing <span className="font-medium text-foreground">{activeTab.label}</span>
-                        {activeTab.dashboardId ? (
-                          <>
-                            {' '}— bound to dashboard{' '}
-                            <span className="font-mono text-[11px]">{activeTab.dashboardId}</span>
-                          </>
-                        ) : (
-                          ' — drop a dashboard from the palette to bind one'
-                        )}
+                      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <h2 className="text-sm font-medium text-foreground">Preview</h2>
+                        <p className="text-xs text-muted-foreground">
+                          How this tab looks to people, read only.
+                          <span className="hidden lg:inline"> Drop a dashboard here to use it for this tab.</span>
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Use the inspector on the right to configure this tab. Drop a dashboard here
-                        to rebind, or switch to Preview to render the bound dashboard.
-                      </p>
+                      {activeTab.dashboardId ? (
+                        previewTab && previewTab.tabId === activeTab.tabId && previewTab.dashboardId === activeTab.dashboardId ? (
+                          <ViewTabPanel key={`${previewTab.tabId}|${previewTab.dashboardId}`} tab={previewTab} />
+                        ) : (
+                          <DashboardSkeleton />
+                        )
+                      ) : (
+                        <EmptyState
+                          icon="dashboard"
+                          title="Choose a dashboard for this tab"
+                          description="Pick one under Dashboard in the tab settings. On a larger screen you can also drag one in from the list."
+                        />
+                      )}
                     </ActiveTabDropZone>
-                  ) : (
-                    <EmptyDropZone />
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <EmptyDropZone onAdd={handleAddBlankTab} hasTabs={tabs.length > 0} />
+                )}
               </div>
-              <TabInspector
-                tab={activeTab}
-                onChange={handleTabChange}
-                onRemove={() => activeTab && handleRemoveTab(activeTab.tabId)}
-              />
             </div>
           </DndContext>
         )}
@@ -359,20 +492,21 @@ export default function ViewBuilderPage() {
   );
 }
 
-function EmptyDropZone() {
+function EmptyDropZone({ onAdd, hasTabs }: { onAdd: () => void; hasTabs: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'view-builder-empty-area' });
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'border-2 border-dashed rounded-lg p-12 text-center text-sm transition-colors',
-        isOver
-          ? 'border-primary bg-primary/5 text-primary'
-          : 'border-border text-muted-foreground',
-      )}
-    >
-      No tabs yet. Drag a dashboard from the left into this area or the tab strip,
-      or click "Add tab" to start.
+    <div ref={setNodeRef} className="p-4 sm:p-6">
+      <EmptyState
+        icon="layers"
+        title={isOver ? 'Drop to add it as a tab' : hasTabs ? 'Select a tab to edit it' : 'Add the first tab'}
+        description="A view is a set of tabs, and each tab shows one dashboard. Attach the view to a solution and it appears in that solution's side menu (Monitor, Diagnose, Predict, Outcomes)."
+        action={
+          <Button onClick={onAdd}>
+            <Icon name="plus" className="h-3.5 w-3.5" /> Add a tab
+          </Button>
+        }
+        className={cn('mx-auto mt-4 max-w-2xl py-16 transition-colors', isOver && 'border-brand/60 bg-brand/5')}
+      />
     </div>
   );
 }
@@ -383,8 +517,8 @@ function ActiveTabDropZone({ children }: { children: React.ReactNode }) {
     <div
       ref={setNodeRef}
       className={cn(
-        'border rounded-lg p-4 bg-card transition-colors',
-        isOver && 'ring-1 ring-primary border-primary',
+        'flex-1 p-3 transition-colors sm:p-4',
+        isOver && 'bg-brand/5 ring-1 ring-inset ring-brand/50',
       )}
     >
       {children}

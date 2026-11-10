@@ -25,10 +25,10 @@ const STATUS_ICON: Record<string, any> = {
 };
 
 const STATUS_TINT: Record<string, string> = {
-  approved: 'text-green-600 bg-green-500/10',
-  pending: 'text-amber-600 bg-amber-500/10',
-  rejected: 'text-red-600 bg-red-500/10',
-  escalated: 'text-orange-600 bg-orange-500/10',
+  approved: 'text-success bg-success/10',
+  pending: 'text-warning bg-warning/10',
+  rejected: 'text-destructive bg-destructive/10',
+  escalated: 'text-warning bg-warning/10',
 };
 
 // Renders the approval chain JSON stored on Quote_Header /
@@ -77,11 +77,11 @@ export function ApprovalTimelineWidget({ widget, data, loading }: Props) {
                   <div className="flex items-center gap-2">
                     <User className="h-3 w-3 text-muted-foreground" />
                     <span className="text-sm font-medium">{step.role || 'Approver'}</span>
-                    <Badge variant="outline" className="text-[9px]">{step.approver_id || '—'}</Badge>
-                    <Badge className={`text-[9px] ${tint}`}>{status}</Badge>
+                    <Badge variant="outline" className="text-xs">{step.approver_id || '—'}</Badge>
+                    <Badge className={`text-xs ${tint}`}>{status}</Badge>
                   </div>
                   {(step.at || step.due_at) && (
-                    <div className="text-[10px] text-muted-foreground mt-1 font-mono">
+                    <div className="text-xs text-muted-foreground mt-1 font-mono">
                       {step.at ? `acted ${step.at}` : `due ${step.due_at}`}
                     </div>
                   )}

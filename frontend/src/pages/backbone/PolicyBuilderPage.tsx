@@ -16,7 +16,7 @@ const PolicyBuilderPage: React.FC = () => {
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold">Policy Builder</h1>
+            <h1 className="text-2xl font-semibold">Policy Builder</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Define and manage business policies that govern AI operations
             </p>
@@ -45,7 +45,7 @@ const PolicyBuilderPage: React.FC = () => {
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon">
-                      <Trash2 className="h-4 w-4 text-red-400" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </li>

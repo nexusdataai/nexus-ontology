@@ -263,15 +263,15 @@ const BSSStudioConnector: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
-        return <Wifi className="h-4 w-4 text-green-500" />;
+        return <Wifi className="h-4 w-4 text-success" />;
       case 'disconnected':
-        return <WifiOff className="h-4 w-4 text-gray-400" />;
+        return <WifiOff className="h-4 w-4 text-muted-foreground" />;
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'testing':
-        return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
+        return <RefreshCw className="h-4 w-4 text-primary animate-spin" />;
       default:
-        return <WifiOff className="h-4 w-4 text-gray-400" />;
+        return <WifiOff className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -290,11 +290,11 @@ const BSSStudioConnector: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-violet-600 rounded-lg flex items-center justify-center">
+          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
             <Timer className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Langflow Connector</h1>
+            <h1 className="text-3xl font-semibold text-foreground">Langflow Connector</h1>
             <p className="text-muted-foreground">Schedule BSS Flow jobs and monitor executions</p>
           </div>
         </div>
@@ -302,10 +302,10 @@ const BSSStudioConnector: React.FC = () => {
         <div className="flex items-center gap-3">
           {getStatusIcon(connectionStatus.status)}
           <span className={`text-sm font-medium ${
-            connectionStatus.status === 'connected' ? 'text-green-600' :
-            connectionStatus.status === 'error' ? 'text-red-600' :
-            connectionStatus.status === 'testing' ? 'text-blue-600' :
-            'text-gray-500'
+            connectionStatus.status === 'connected' ? 'text-success' :
+            connectionStatus.status === 'error' ? 'text-destructive' :
+            connectionStatus.status === 'testing' ? 'text-primary' :
+            'text-muted-foreground'
           }`}>
             {getStatusText(connectionStatus.status)}
           </span>
@@ -447,10 +447,10 @@ const BSSStudioConnector: React.FC = () => {
                     placeholder='{"Content-Type": "application/json", "X-Custom-Header": "value"}'
                     value={lambdaConfig.apiHeaders}
                     onChange={(e) => handleLambdaConfigChange('apiHeaders', e.target.value)}
-                    className={!validateJSON(lambdaConfig.apiHeaders) ? 'border-red-500' : ''}
+                    className={!validateJSON(lambdaConfig.apiHeaders) ? 'border-destructive/40' : ''}
                   />
                   {!validateJSON(lambdaConfig.apiHeaders) && (
-                    <p className="text-sm text-red-500">Invalid JSON format</p>
+                    <p className="text-sm text-destructive">Invalid JSON format</p>
                   )}
                 </div>
 
@@ -462,10 +462,10 @@ const BSSStudioConnector: React.FC = () => {
                       placeholder='{"key": "value", "data": "payload"}'
                       value={lambdaConfig.apiPayload}
                       onChange={(e) => handleLambdaConfigChange('apiPayload', e.target.value)}
-                      className={!validateJSON(lambdaConfig.apiPayload) ? 'border-red-500' : ''}
+                      className={!validateJSON(lambdaConfig.apiPayload) ? 'border-destructive/40' : ''}
                     />
                     {!validateJSON(lambdaConfig.apiPayload) && (
-                      <p className="text-sm text-red-500">Invalid JSON format</p>
+                      <p className="text-sm text-destructive">Invalid JSON format</p>
                     )}
                   </div>
                 )}
@@ -583,18 +583,18 @@ const BSSStudioConnector: React.FC = () => {
                     </Select>
                   </div>
 
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="p-4 bg-primary/10 border border-primary/25 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+                      <Info className="h-5 w-5 text-primary mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-blue-900">Schedule Information</p>
-                        <p className="text-sm text-blue-700 mt-1">
+                        <p className="text-sm font-medium text-primary">Schedule Information</p>
+                        <p className="text-sm text-primary mt-1">
                           Next execution: {scheduleConfig.preset === '5min' ? 'Every 5 minutes' : 
                           scheduleConfig.preset === '10min' ? 'Every 10 minutes' :
                           scheduleConfig.preset === 'custom' ? 'Based on custom expression' :
                           cronPresets.find(p => p.value === scheduleConfig.preset)?.label}
                         </p>
-                        <p className="text-sm text-blue-700">
+                        <p className="text-sm text-primary">
                           Timezone: {scheduleConfig.timezone}
                         </p>
                       </div>
@@ -654,18 +654,18 @@ const BSSStudioConnector: React.FC = () => {
 
               {testResult && (
                 <div className={`p-4 border rounded-lg ${
-                  testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                  testResult.success ? 'bg-success/10 border-success/25' : 'bg-destructive/10 border-destructive/25'
                 }`}>
                   <div className="flex items-start gap-2">
                     {testResult.success ? (
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                      <CheckCircle className="h-5 w-5 text-success mt-0.5" />
                     ) : (
-                      <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
                     )}
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <p className={`font-medium ${
-                          testResult.success ? 'text-green-900' : 'text-red-900'
+                          testResult.success ? 'text-success' : 'text-destructive'
                         }`}>
                           {testResult.success ? 'Test Successful' : 'Test Failed'}
                         </p>
@@ -676,17 +676,17 @@ const BSSStudioConnector: React.FC = () => {
                       
                       {testResult.success && (
                         <div className="mt-2 space-y-1">
-                          <p className="text-sm text-green-700">
+                          <p className="text-sm text-success">
                             Status Code: {testResult.statusCode}
                           </p>
-                          <p className="text-sm text-green-700">
+                          <p className="text-sm text-success">
                             Response Time: {formatDuration(testResult.responseTime!)}
                           </p>
                         </div>
                       )}
                       
                       {testResult.error && (
-                        <p className="text-sm text-red-700 mt-2">{testResult.error}</p>
+                        <p className="text-sm text-destructive mt-2">{testResult.error}</p>
                       )}
                       
                       {testResult.response && (
@@ -694,7 +694,7 @@ const BSSStudioConnector: React.FC = () => {
                           <summary className="text-sm font-medium cursor-pointer">
                             View Response
                           </summary>
-                          <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                          <pre className="mt-2 p-2 bg-surface-2 rounded text-xs overflow-auto">
                             {JSON.stringify(testResult.response, null, 2)}
                           </pre>
                         </details>
@@ -726,7 +726,7 @@ const BSSStudioConnector: React.FC = () => {
                     <span className="text-sm font-medium">Connection Status</span>
                     {getStatusIcon(connectionStatus.status)}
                   </div>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-2xl font-semibold mt-2">
                     {getStatusText(connectionStatus.status)}
                   </p>
                   {connectionStatus.lastTest && (
@@ -740,12 +740,12 @@ const BSSStudioConnector: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Schedule Status</span>
                     {scheduleConfig.enabled ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     ) : (
-                      <PauseCircle className="h-4 w-4 text-gray-400" />
+                      <PauseCircle className="h-4 w-4 text-muted-foreground" />
                     )}
                   </div>
-                  <p className="text-2xl font-bold mt-2">
+                  <p className="text-2xl font-semibold mt-2">
                     {scheduleConfig.enabled ? 'Active' : 'Inactive'}
                   </p>
                   {scheduleConfig.enabled && (
@@ -803,11 +803,11 @@ const BSSStudioConnector: React.FC = () => {
                   <div key={execution.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       {execution.status === 'success' ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : execution.status === 'failed' ? (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+                        <RefreshCw className="h-4 w-4 text-primary animate-spin" />
                       )}
                       
                       <div>
@@ -815,7 +815,7 @@ const BSSStudioConnector: React.FC = () => {
                           {execution.timestamp.toLocaleString()}
                         </p>
                         {execution.error && (
-                          <p className="text-sm text-red-600">{execution.error}</p>
+                          <p className="text-sm text-destructive">{execution.error}</p>
                         )}
                       </div>
                     </div>

@@ -10,14 +10,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { 
-  Key, 
-  RefreshCw, 
-  History, 
-  Sparkles,
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { cn } from '@/lib/utils';
 import { licenseService } from '@/services/licenseService';
 import { 
   LicenseStatusData, 
@@ -255,15 +249,12 @@ export function LicensePage() {
 
   return (
     <div className="space-y-6" data-testid="license-page">
-      {/* Header with Refresh */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Key className="h-6 w-6" />
-            License Management
-          </h2>
-          <p className="text-gray-500 mt-1">
-            Manage your software license and view feature access
+      {/* Heading */}
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">License</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            The plan this installation runs on, when it ends and what it includes.
           </p>
         </div>
         <Button
@@ -272,76 +263,30 @@ export function LicensePage() {
           disabled={isLoadingStatus}
           data-testid="refresh-button"
         >
-          {isLoadingStatus ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
+          <Icon name="refresh" className={cn('h-3.5 w-3.5', isLoadingStatus && 'animate-spin')} />
           Refresh
         </Button>
-      </div>
+      </header>
 
-      {/* Network Error Banner */}
-      {statusError && (
-        <div 
-          className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200"
-          data-testid="network-error-banner"
-        >
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            <div>
-              <p className="font-medium text-red-800">Connection Error</p>
-              <p className="text-sm text-red-600">{statusError}</p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchStatus}
-            data-testid="retry-button"
-          >
-            Retry
-          </Button>
-        </div>
-      )}
+      {/* Summary. Also shows the connection error, with retry, when the status cannot be read. */}
+      <LicenseStatusCard
+        status={status}
+        isLoading={isLoadingStatus}
+        error={statusError}
+        onRefresh={fetchStatus}
+      />
 
-      {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="status" className="flex items-center gap-2">
-            <Key className="h-4 w-4" />
-            Status & Actions
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            Audit Log
-          </TabsTrigger>
-          <TabsTrigger value="features" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Features
-          </TabsTrigger>
+        <TabsList variant="line">
+          <TabsTrigger value="status">Overview</TabsTrigger>
+          <TabsTrigger value="features">Features</TabsTrigger>
+          <TabsTrigger value="audit">History</TabsTrigger>
         </TabsList>
 
-        {/* Status & Actions Tab */}
-        <TabsContent value="status" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Status Card */}
-            <LicenseStatusCard
-              status={status}
-              isLoading={isLoadingStatus}
-              error={statusError}
-              onRefresh={fetchStatus}
-            />
-
-            {/* Activation or Renewal Form */}
-            <div className="space-y-6">
-              <LicenseActivationForm
-                onActivate={handleActivate}
-                isActivating={isActivating}
-                error={activationError}
-                isLicenseActive={isLicenseActive}
-              />
-
+        {/* Overview: renew, activate, deactivate */}
+        <TabsContent value="status" className="mt-0">
+          {isLicenseActive && (
+            <Block title="Renew" description="Extend the current license with a renewal key from your account manager.">
               <LicenseRenewalForm
                 onRenew={handleRenew}
                 isRenewing={isRenewing}
@@ -349,25 +294,48 @@ export function LicensePage() {
                 currentExpiration={status?.expires_at || null}
                 isLicenseActive={isLicenseActive}
               />
-            </div>
-          </div>
+            </Block>
+          )}
 
-          {/* Deactivate Button */}
-          {isLicenseActive && (
-            <div className="flex justify-end">
+          {isLicenseActive ? (
+            <Block title="Deactivate or replace" description="Take the license off this installation, for example to move it or to activate a different one.">
+              <LicenseActivationForm
+                onActivate={handleActivate}
+                isActivating={isActivating}
+                error={activationError}
+                isLicenseActive={isLicenseActive}
+              />
               <Button
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="mt-4 text-destructive hover:text-destructive"
                 onClick={() => setShowDeactivateDialog(true)}
                 data-testid="deactivate-button"
               >
-                Deactivate License
+                Deactivate license
               </Button>
-            </div>
+            </Block>
+          ) : (
+            <Block title="Activate" description="Enter the license key you received to switch on the licensed features.">
+              <LicenseActivationForm
+                onActivate={handleActivate}
+                isActivating={isActivating}
+                error={activationError}
+                isLicenseActive={isLicenseActive}
+              />
+            </Block>
           )}
         </TabsContent>
 
-        {/* Audit Log Tab */}
+        {/* Features */}
+        <TabsContent value="features" className="mt-6">
+          <FeatureAccessList
+            currentTier={status?.tier || null}
+            features={features}
+            isLoading={isLoadingFeatures}
+          />
+        </TabsContent>
+
+        {/* History */}
         <TabsContent value="audit" className="mt-6">
           <AuditLogTable
             logs={auditLogs}
@@ -377,15 +345,6 @@ export function LicensePage() {
             currentPage={currentPage}
             onPageChange={handlePageChange}
             onDateRangeChange={handleDateRangeChange}
-          />
-        </TabsContent>
-
-        {/* Features Tab */}
-        <TabsContent value="features" className="mt-6">
-          <FeatureAccessList
-            currentTier={status?.tier || null}
-            features={features}
-            isLoading={isLoadingFeatures}
           />
         </TabsContent>
       </Tabs>
@@ -399,6 +358,19 @@ export function LicensePage() {
         licenseId={status?.license_id || null}
       />
     </div>
+  );
+}
+
+/** One section of the overview: what it is on the left, the controls on the right. */
+function Block({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-x-10 gap-y-4 border-b border-border py-7 last:border-b-0 xl:grid-cols-[240px_minmax(0,1fr)]">
+      <div>
+        <h3 className="text-md font-medium text-foreground">{title}</h3>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </section>
   );
 }
 

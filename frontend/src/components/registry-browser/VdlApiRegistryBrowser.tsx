@@ -1,3 +1,4 @@
+import { ModalOverlay, ModalPanel } from '@/components/ds/Modal';
 /**
  * Virtual Data API Registry browser (Data Plane, Phase 2).
  *
@@ -26,17 +27,17 @@ import { Input } from '@/components/ui/input';
 import { vdlApiService, VdlApiSpec, InvokeResult } from '@/services/vdlApiService';
 
 const VERB_TINT: Record<string, string> = {
-  read: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  write: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  upsert: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  delete: 'bg-red-500/15 text-red-300 border-red-500/30',
-  aggregate: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+  read: 'bg-primary/15 text-primary border-primary/30',
+  write: 'bg-warning/15 text-warning border-warning/30',
+  upsert: 'bg-warning/15 text-warning border-warning/30',
+  delete: 'bg-destructive/15 text-destructive border-destructive/30',
+  aggregate: 'bg-primary/15 text-primary border-primary/30',
 };
 
 const RISK_TINT: Record<string, string> = {
-  read_only: 'bg-green-500/15 text-green-300',
-  low_risk_write: 'bg-amber-500/15 text-amber-300',
-  high_risk_write: 'bg-red-500/15 text-red-300',
+  read_only: 'bg-success/15 text-success',
+  low_risk_write: 'bg-warning/15 text-warning',
+  high_risk_write: 'bg-destructive/15 text-destructive',
 };
 
 function matches(spec: VdlApiSpec, q: string): boolean {
@@ -135,7 +136,7 @@ export default function VdlApiRegistryBrowser() {
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Zap className="h-5 w-5" /> Virtual Data API Registry
-            <Badge variant="outline" className="text-[10px] ml-2">
+            <Badge variant="outline" className="text-xs ml-2">
               {rows.length} registered
             </Badge>
           </h2>
@@ -161,13 +162,13 @@ export default function VdlApiRegistryBrowser() {
       </div>
 
       {error && (
-        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded p-2">
+        <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded p-2">
           {error}
         </div>
       )}
 
       <div className="rounded border">
-        <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b bg-muted/30 text-xs text-muted-foreground">
           <div className="col-span-4">API</div>
           <div className="col-span-1">Verb</div>
           <div className="col-span-2">Virtual Entity</div>
@@ -195,20 +196,20 @@ export default function VdlApiRegistryBrowser() {
               >
                 <div className="col-span-4 min-w-0">
                   <div className="font-mono text-xs truncate">{r.api_id}</div>
-                  <div className="text-[10px] text-muted-foreground truncate">{r.description}</div>
+                  <div className="text-xs text-muted-foreground truncate">{r.description}</div>
                 </div>
                 <div className="col-span-1">
-                  <Badge variant="outline" className={`text-[10px] ${VERB_TINT[r.verb] || ''}`}>
+                  <Badge variant="outline" className={`text-xs ${VERB_TINT[r.verb] || ''}`}>
                     {r.verb}
                   </Badge>
                 </div>
                 <div className="col-span-2 text-xs font-medium truncate">{r.virtual_entity}</div>
                 <div className="col-span-2">
-                  <Badge variant="outline" className={`text-[10px] ${RISK_TINT[r.risk_level] || ''}`}>
+                  <Badge variant="outline" className={`text-xs ${RISK_TINT[r.risk_level] || ''}`}>
                     {r.risk_level.replace(/_/g, ' ')}
                   </Badge>
                 </div>
-                <div className="col-span-2 text-[10px] text-muted-foreground">
+                <div className="col-span-2 text-xs text-muted-foreground">
                   {r.direct_sql ? 'direct_sql' : ''}
                   {r.direct_sql && r.impl.length > 0 ? ' · ' : ''}
                   {r.impl.length > 0 ? `${r.impl.length} connector${r.impl.length === 1 ? '' : 's'}` : ''}
@@ -224,24 +225,18 @@ export default function VdlApiRegistryBrowser() {
       </div>
 
       {selected && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4"
-          onClick={closeDrawer}
-        >
-          <div
-            className="bg-card border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay onClose={closeDrawer}>
+          <ModalPanel label={selected.api_id} className="max-w-3xl">
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div className="min-w-0">
                 <h3 className="text-sm font-mono font-semibold">{selected.api_id}</h3>
                 <p className="text-xs text-muted-foreground truncate">{selected.description}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className={`text-[10px] ${VERB_TINT[selected.verb] || ''}`}>
+                <Badge variant="outline" className={`text-xs ${VERB_TINT[selected.verb] || ''}`}>
                   {selected.verb}
                 </Badge>
-                <Badge variant="outline" className={`text-[10px] ${RISK_TINT[selected.risk_level] || ''}`}>
+                <Badge variant="outline" className={`text-xs ${RISK_TINT[selected.risk_level] || ''}`}>
                   <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
                   {selected.risk_level.replace(/_/g, ' ')}
                 </Badge>
@@ -253,7 +248,7 @@ export default function VdlApiRegistryBrowser() {
 
             <div className="flex-1 min-h-0 overflow-auto p-4 space-y-4">
               <section>
-                <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                <h4 className="text-xs text-muted-foreground mb-2">
                   Target virtual entity
                 </h4>
                 <div className="flex items-center gap-2">
@@ -264,10 +259,10 @@ export default function VdlApiRegistryBrowser() {
 
               {selected.direct_sql && (
                 <section>
-                  <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                  <h4 className="text-xs text-muted-foreground mb-2">
                     Direct SQL read path
                   </h4>
-                  <pre className="text-[11px] font-mono bg-muted/40 rounded p-2 overflow-auto">
+                  <pre className="text-xs font-mono bg-muted/40 rounded p-2 overflow-auto">
                     {JSON.stringify(selected.direct_sql, null, 2)}
                   </pre>
                 </section>
@@ -275,7 +270,7 @@ export default function VdlApiRegistryBrowser() {
 
               {selected.impl.length > 0 && (
                 <section>
-                  <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                  <h4 className="text-xs text-muted-foreground mb-2">
                     Connector API implementations ({selected.impl.length})
                   </h4>
                   <div className="space-y-2">
@@ -283,7 +278,7 @@ export default function VdlApiRegistryBrowser() {
                       <div key={i} className="rounded border p-2 bg-muted/20">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <button
-                            className="font-mono text-xs text-blue-300 hover:underline text-left truncate"
+                            className="font-mono text-xs text-primary hover:underline text-left truncate"
                             onClick={() =>
                               navigate(
                                 `/ai-stack/data-plane?tab=connector-registry&focus=${encodeURIComponent(b.connector_api_id)}`,
@@ -292,12 +287,12 @@ export default function VdlApiRegistryBrowser() {
                           >
                             {b.connector_api_id}
                           </button>
-                          <Badge variant="outline" className="text-[9px]">
+                          <Badge variant="outline" className="text-xs">
                             step {i + 1}
                           </Badge>
                         </div>
                         {b.arg_mapping && Object.keys(b.arg_mapping).length > 0 && (
-                          <div className="text-[10px] font-mono space-y-0.5 mt-1">
+                          <div className="text-xs font-mono space-y-0.5 mt-1">
                             {Object.entries(b.arg_mapping).map(([k, v]) => (
                               <div key={k} className="flex justify-between gap-2">
                                 <span className="text-muted-foreground">{k}</span>
@@ -314,10 +309,10 @@ export default function VdlApiRegistryBrowser() {
 
               {selected.tags.length > 0 && (
                 <section>
-                  <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Tags</h4>
+                  <h4 className="text-xs text-muted-foreground mb-2">Tags</h4>
                   <div className="flex flex-wrap gap-1">
                     {selected.tags.map((t) => (
-                      <Badge key={t} variant="outline" className="text-[10px]">
+                      <Badge key={t} variant="outline" className="text-xs">
                         {t}
                       </Badge>
                     ))}
@@ -326,11 +321,11 @@ export default function VdlApiRegistryBrowser() {
               )}
 
               <section>
-                <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                <h4 className="text-xs text-muted-foreground mb-2">
                   Invoke (test)
                 </h4>
                 <textarea
-                  className="w-full text-[11px] font-mono bg-muted/40 rounded p-2 min-h-[80px]"
+                  className="w-full text-xs font-mono bg-muted/40 rounded p-2 min-h-[80px]"
                   value={invokeArgs}
                   onChange={(e) => setInvokeArgs(e.target.value)}
                   placeholder='{"customer_id": "..."}'
@@ -350,30 +345,30 @@ export default function VdlApiRegistryBrowser() {
                     <div className="flex items-center gap-2 mb-1">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] ${
+                        className={`text-xs ${
                           invokeResult.ok
-                            ? 'bg-green-500/15 text-green-300'
-                            : 'bg-red-500/15 text-red-300'
+                            ? 'bg-success/15 text-success'
+                            : 'bg-destructive/15 text-destructive'
                         }`}
                       >
                         {invokeResult.ok ? 'ok' : 'failed'}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {invokeResult.duration_ms}ms
                       </span>
                     </div>
                     {invokeResult.error && (
-                      <div className="text-[10px] text-red-300 mb-1">{invokeResult.error}</div>
+                      <div className="text-xs text-destructive mb-1">{invokeResult.error}</div>
                     )}
-                    <pre className="text-[11px] font-mono max-h-40 overflow-auto whitespace-pre-wrap break-words">
+                    <pre className="text-xs font-mono max-h-40 overflow-auto whitespace-pre-wrap break-words">
                       {JSON.stringify(invokeResult, null, 2)}
                     </pre>
                   </div>
                 )}
               </section>
             </div>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   );

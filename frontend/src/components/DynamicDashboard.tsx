@@ -112,7 +112,7 @@ const DynamicDashboard: React.FC<DynamicDashboardProps> = ({
       {/* Header with refresh button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-semibold">
             {dashboardData.chartTitle || "Dynamic Analytics Dashboard"}
           </h2>
           <p className="text-muted-foreground">
@@ -144,7 +144,7 @@ const DynamicDashboard: React.FC<DynamicDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Sales</p>
-                <h2 className="text-2xl font-bold mt-1">{todayTotalSales}</h2>
+                <h2 className="text-2xl font-semibold mt-1">{todayTotalSales}</h2>
                 <p className="text-sm text-muted-foreground mt-1">Today's orders</p>
               </div>
               <div className={cn(
@@ -165,7 +165,7 @@ const DynamicDashboard: React.FC<DynamicDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Revenue</p>
-                <h2 className="text-2xl font-bold mt-1">₹{todayTotalRevenue.toLocaleString()}</h2>
+                <h2 className="text-2xl font-semibold mt-1">₹{todayTotalRevenue.toLocaleString()}</h2>
                 <p className="text-sm text-muted-foreground mt-1">Today's earnings</p>
               </div>
               <div className={cn(
@@ -186,7 +186,7 @@ const DynamicDashboard: React.FC<DynamicDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Average Order</p>
-                <h2 className="text-2xl font-bold mt-1">₹{averageOrderSize.toFixed(2)}</h2>
+                <h2 className="text-2xl font-semibold mt-1">₹{averageOrderSize.toFixed(2)}</h2>
                 <p className="text-sm text-muted-foreground mt-1">Per transaction</p>
               </div>
               <div className={cn(
@@ -207,7 +207,7 @@ const DynamicDashboard: React.FC<DynamicDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Growth</p>
-                <h2 className="text-2xl font-bold mt-1">{growthRate}</h2>
+                <h2 className="text-2xl font-semibold mt-1">{growthRate}</h2>
                 <p className="text-sm text-muted-foreground mt-1">vs last month</p>
               </div>
               <div className={cn(

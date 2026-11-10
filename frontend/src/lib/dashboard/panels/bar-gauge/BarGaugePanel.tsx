@@ -1,18 +1,17 @@
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { PanelState } from '../_shared';
 
 const DEFAULT_THRESHOLDS = [
-  { value: 0, color: '#22c55e' },
-  { value: 70, color: '#f59e0b' },
-  { value: 90, color: '#ef4444' },
+  { value: 0, color: 'hsl(var(--success))' },
+  { value: 70, color: 'hsl(var(--warning))' },
+  { value: 90, color: 'hsl(var(--destructive))' },
 ];
 
 export function BarGaugePanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 
@@ -33,7 +32,7 @@ export function BarGaugePanel({ data, options, width, height, loading }: PanelPr
   }));
 
   const getColor = (value: number): string => {
-    let color = thresholds[0]?.color || '#22c55e';
+    let color = thresholds[0]?.color || 'hsl(var(--success))';
     for (const t of thresholds) {
       if (value >= t.value) color = t.color;
     }
@@ -52,7 +51,7 @@ export function BarGaugePanel({ data, options, width, height, loading }: PanelPr
           const barHeight = Math.max((height - 60) * pct, 2);
           return (
             <div key={i} className="flex flex-col items-center gap-1" style={{ width: barWidth }}>
-              <span className="text-[10px] font-medium tabular-nums">{item.value.toFixed(1)}</span>
+              <span className="text-xs font-medium tabular-nums">{item.value.toFixed(1)}</span>
               <div
                 className="relative rounded-t-sm w-full"
                 style={{ height: height - 60 }}
@@ -65,12 +64,12 @@ export function BarGaugePanel({ data, options, width, height, loading }: PanelPr
                   style={{
                     height: barHeight,
                     background: displayMode === 'gradient'
-                      ? `linear-gradient(to top, ${color}cc, ${color})`
+                      ? `linear-gradient(to top, color-mix(in srgb, ${color} 80%, transparent), ${color})`
                       : color,
                   }}
                 />
               </div>
-              <span className="text-[9px] text-muted-foreground truncate w-full text-center">
+              <span className="text-xs text-muted-foreground truncate w-full text-center">
                 {item.name}
               </span>
             </div>
@@ -89,7 +88,7 @@ export function BarGaugePanel({ data, options, width, height, loading }: PanelPr
         const color = getColor(item.value);
         return (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground w-20 truncate text-right flex-shrink-0">
+            <span className="text-xs text-muted-foreground w-20 truncate text-right flex-shrink-0">
               {item.name}
             </span>
             <div
@@ -104,14 +103,14 @@ export function BarGaugePanel({ data, options, width, height, loading }: PanelPr
                 style={{
                   width: `${pct * 100}%`,
                   background: displayMode === 'gradient'
-                    ? `linear-gradient(to right, ${color}cc, ${color})`
+                    ? `linear-gradient(to right, color-mix(in srgb, ${color} 80%, transparent), ${color})`
                     : displayMode === 'lcd'
                       ? `repeating-linear-gradient(to right, ${color} 0px, ${color} 4px, transparent 4px, transparent 6px)`
                       : color,
                 }}
               />
             </div>
-            <span className="text-[10px] font-medium tabular-nums w-12 flex-shrink-0">
+            <span className="text-xs font-medium tabular-nums w-12 flex-shrink-0">
               {item.value.toFixed(1)}
             </span>
           </div>

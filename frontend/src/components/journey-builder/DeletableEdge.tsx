@@ -3,7 +3,7 @@ import {
   BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow,
   type EdgeProps,
 } from '@xyflow/react';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
 
 /**
  * Custom edge that exposes a tiny "x" delete button at its midpoint.
@@ -35,18 +35,19 @@ export function DeletableEdge(props: EdgeProps) {
 
   const visible = hover || selected;
 
-  // Pin the stroke to a clear primary blue regardless of theme /
-  // React-Flow's selected colour palette so the animated dashes are
-  // never mistaken for an error indicator.
+  // Links are neutral hairlines. A link lights up in the brand blue,
+  // with a flow line on top, only while it is hovered or selected.
   const mergedStyle: React.CSSProperties = {
-    stroke: 'hsl(217 91% 60%)',
-    strokeWidth: selected ? 2.5 : 1.75,
     ...style,
+    stroke: visible ? 'hsl(var(--brand-hi))' : 'hsl(var(--border-strong))',
+    strokeOpacity: visible ? 0.45 : 1,
+    strokeWidth: 1.5,
   };
 
   return (
     <>
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={mergedStyle} />
+      {visible && <path d={edgePath} fill="none" stroke="hsl(var(--brand-hi))" strokeWidth={1.5} className="flow-line pointer-events-none" />}
       {/* Invisible-but-fat hit area so the user can mouse over the edge
           without having to land exactly on the 1.75 px stroke. */}
       <path
@@ -70,20 +71,20 @@ export function DeletableEdge(props: EdgeProps) {
         >
           <button
             type="button"
-            aria-label="Delete edge"
-            title="Delete this chain (Backspace also works)"
+            aria-label="Remove connection"
+            title="Remove this connection (Backspace also works)"
             onClick={(e) => {
               e.stopPropagation();
               setEdges((curr) => curr.filter((edge) => edge.id !== id));
             }}
             className={[
-              'rounded-full w-5 h-5 flex items-center justify-center',
-              'border border-card bg-red-500 text-white shadow',
-              'hover:bg-red-400 transition-opacity',
+              'flex h-5 w-5 items-center justify-center rounded-full',
+              'border border-border-strong bg-popover text-muted-foreground shadow-sm',
+              'transition-[opacity,color,border-color] hover:border-destructive/50 hover:text-destructive',
               visible ? 'opacity-100' : 'opacity-0',
             ].join(' ')}
           >
-            <X className="h-3 w-3" />
+            <Icon name="close" className="h-2.5 w-2.5" />
           </button>
         </div>
       </EdgeLabelRenderer>

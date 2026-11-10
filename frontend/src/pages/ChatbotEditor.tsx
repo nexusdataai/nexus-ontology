@@ -190,7 +190,7 @@ export default function ChatbotEditor({ onNavigate }: ChatbotEditorProps) {
         <div className="flex items-center gap-3">
           <MessageCircle className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Chatbot Editor</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Chatbot Editor</h1>
             <p className="text-muted-foreground">Test your AI assistant with MCP tool integration</p>
           </div>
         </div>
@@ -333,13 +333,13 @@ export default function ChatbotEditor({ onNavigate }: ChatbotEditorProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+      <Card className="border-success/25 bg-success/50 dark:border-success/25 dark:bg-success/20">
         <CardHeader>
-          <CardTitle className="text-lg text-green-900 dark:text-green-100">
+          <CardTitle className="text-lg text-success dark:text-success">
             💡 Testing Tips
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm space-y-2 text-green-800 dark:text-green-200">
+        <CardContent className="text-sm space-y-2 text-success dark:text-success">
           <div>• <strong>Navigation:</strong> "Show me the Interactive Graph" or "Take me to analytics"</div>
           <div>• <strong>MCP Tools:</strong> "How is site CZA0021 performing?" or "Compare network sites"</div>
           <div>• <strong>Context:</strong> The assistant knows your current page and can provide relevant help</div>

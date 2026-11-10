@@ -29,7 +29,7 @@ const SemanticLayerPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Semantic Layer</h1>
+          <h1 className="text-2xl font-semibold">Semantic Layer</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Unified view of your enterprise knowledge graph, vector embeddings, and entity relationships
           </p>
@@ -43,7 +43,7 @@ const SemanticLayerPage: React.FC = () => {
                 <s.icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{s.value}</div>
+                <div className="text-2xl font-semibold">{s.value}</div>
               </CardContent>
             </Card>
           ))}

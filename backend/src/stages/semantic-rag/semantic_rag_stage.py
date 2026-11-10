@@ -178,9 +178,14 @@ class SemanticRagStage(BaseStage):
                         ) if k in summary},
                         "success": True,
                     }
-                    _asyncio.get_event_loop().create_task(
-                        get_knowledge_pipeline_service().record_run("semantic_rag", run_row)
-                    )
+                    # The stage runs in a worker thread with no running event
+                    # loop, so create_task() on get_event_loop() never ran the
+                    # write and /runs stayed empty. Run it to completion there.
+                    _coro = get_knowledge_pipeline_service().record_run("semantic_rag", run_row)
+                    try:
+                        _asyncio.get_running_loop().create_task(_coro)
+                    except RuntimeError:
+                        _asyncio.run(_coro)
                 except Exception as _kpe:
                     self.stage_log('WARNING', f"KP run persist failed: {_kpe}", step_id)
 

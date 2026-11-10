@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ds/kit';
+import { CreateJourneyShell } from './studio/CreateJourneyShell';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2 } from 'lucide-react';
 import { CallProcessingJourney } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
@@ -89,78 +87,55 @@ export function CreateSemanticRagDialog({ open, onClose, onCreated }: CreateSema
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Create Semantic RAG Journey</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Build enterprise knowledge graph from FDW metadata, policies, workflows, and integration mappings.
-          </p>
-        </DialogHeader>
+    <CreateJourneyShell
+      open={open}
+      onClose={handleClose}
+      title="New knowledge pipeline"
+      description="Builds the enterprise knowledge graph from source metadata, policies, workflows and integration mappings."
+      name={name}
+      onNameChange={setName}
+      namePlaceholder="Enterprise knowledge build"
+      error={error}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit}
+    >
+      <Field label="Policy documents (optional)" htmlFor="policyPath" hint="A local path or an S3 prefix.">
+        <Input
+          id="policyPath"
+          placeholder="src/stages/semantic-rag/sample-data/policies"
+          value={policyPath}
+          onChange={(e) => setPolicyPath(e.target.value)}
+          className="font-mono text-xs"
+        />
+      </Field>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Journey Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g. Enterprise Knowledge Build"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+      <Field label="Workflow definitions (optional)" htmlFor="workflowPath">
+        <Input
+          id="workflowPath"
+          placeholder="src/stages/semantic-rag/sample-data/workflows"
+          value={workflowPath}
+          onChange={(e) => setWorkflowPath(e.target.value)}
+          className="font-mono text-xs"
+        />
+      </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="policyPath">Policy Documents Path (optional)</Label>
-            <Input
-              id="policyPath"
-              placeholder="e.g. src/stages/semantic-rag/sample-data/policies"
-              value={policyPath}
-              onChange={(e) => setPolicyPath(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">Local path or S3 prefix for policy docs</p>
-          </div>
+      <Field label="Integration mappings (optional)" htmlFor="integrationPath">
+        <Input
+          id="integrationPath"
+          placeholder="src/stages/semantic-rag/sample-data/integrations"
+          value={integrationPath}
+          onChange={(e) => setIntegrationPath(e.target.value)}
+          className="font-mono text-xs"
+        />
+      </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="workflowPath">Workflow Definitions Path (optional)</Label>
-            <Input
-              id="workflowPath"
-              placeholder="e.g. src/stages/semantic-rag/sample-data/workflows"
-              value={workflowPath}
-              onChange={(e) => setWorkflowPath(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="integrationPath">Integration Mappings Path (optional)</Label>
-            <Input
-              id="integrationPath"
-              placeholder="e.g. src/stages/semantic-rag/sample-data/integrations"
-              value={integrationPath}
-              onChange={(e) => setIntegrationPath(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>LLM Enrichment</Label>
-              <p className="text-xs text-muted-foreground">Use GPT to generate semantic descriptions</p>
-            </div>
-            <Switch checked={enrichWithLlm} onCheckedChange={setEnrichWithLlm} />
-          </div>
-
-          {error && (
-            <div className="text-sm text-destructive bg-destructive/10 rounded p-2">{error}</div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-            Create Journey
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+        <label htmlFor="enrichWithLlm" className="min-w-0 cursor-pointer">
+          <span className="block text-sm font-medium text-foreground">Describe entities with AI</span>
+          <span className="block text-xs text-muted-foreground">A language model writes a plain description for each entity.</span>
+        </label>
+        <Switch id="enrichWithLlm" checked={enrichWithLlm} onCheckedChange={setEnrichWithLlm} />
+      </div>
+    </CreateJourneyShell>
   );
 }

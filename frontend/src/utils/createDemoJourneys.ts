@@ -5,12 +5,12 @@
  */
 
 import { transformationJourneyService } from '@/services/transformationJourneyService';
-import { CreateJourneyRequest } from '@/types/transformationJourney';
+import { CreateJourneyRequest, TransformationJourney } from '@/types/transformationJourney';
 
 /**
  * Create demo transformation journeys for testing
  */
-export const createDemoJourneys = () => {
+export const createDemoJourneys = async () => {
   const demoJourneys: CreateJourneyRequest[] = [
     {
       name: 'MTN SA Customer Database Transformation',
@@ -185,11 +185,13 @@ export const createDemoJourneys = () => {
   ];
 
   // Create all demo journeys
-  const createdJourneys = demoJourneys.map(journeyRequest => {
-    const journey = transformationJourneyService.createJourney(journeyRequest);
+  // createJourney is async: create sequentially to keep the original order
+  const createdJourneys: TransformationJourney[] = [];
+  for (const journeyRequest of demoJourneys) {
+    const journey = await transformationJourneyService.createJourney(journeyRequest);
     console.log(`🌟 Created demo journey: ${journey.name} (${journey.id})`);
-    return journey;
-  });
+    createdJourneys.push(journey);
+  }
 
   // Start some journeys and put some in different states
   
@@ -212,8 +214,8 @@ export const createDemoJourneys = () => {
     });
 
     // Manually advance this journey to stage 2 to test resume functionality
-    setTimeout(() => {
-      const journey = transformationJourneyService.getJourney(createdJourneys[1].id);
+    setTimeout(async () => {
+      const journey = await transformationJourneyService.getJourney(createdJourneys[1].id);
       if (journey) {
         // Complete stage 1
         journey.stages[0].status = 'completed';
@@ -257,8 +259,8 @@ export const createDemoJourneys = () => {
     });
 
     // Advance this journey to stage 3 to test different resume points
-    setTimeout(() => {
-      const journey = transformationJourneyService.getJourney(createdJourneys[2].id);
+    setTimeout(async () => {
+      const journey = await transformationJourneyService.getJourney(createdJourneys[2].id);
       if (journey) {
         // Complete stages 1 and 2
         for (let i = 0; i < 2; i++) {

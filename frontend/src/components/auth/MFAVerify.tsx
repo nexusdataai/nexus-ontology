@@ -57,8 +57,8 @@ const MFAVerify: React.FC<MFAVerifyProps> = ({ email, cognitoSession, onVerified
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-          <Shield className="h-6 w-6 text-blue-600" />
+        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+          <Shield className="h-6 w-6 text-primary" />
         </div>
         <CardTitle>Two-Factor Authentication</CardTitle>
         <p className="text-sm text-muted-foreground mt-1">

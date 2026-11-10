@@ -118,11 +118,11 @@ export function SolutionViewPicker({
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">{v.name}</div>
                       {v.description && (
-                        <div className="text-[10px] text-muted-foreground truncate">
+                        <div className="text-xs text-muted-foreground truncate">
                           {v.description}
                         </div>
                       )}
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {v.tabCount} tabs
                         {isAttached && ' · already attached'}
                       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Icon } from '@/components/ds/Icon';
 import type { BuilderNode, OutputHint, ToolOutputHints } from './builderState';
 
 interface Props {
@@ -37,65 +37,61 @@ export function OutputHintMenu({
   if (sources.length === 0) {
     return (
       <Button
-        variant="ghost" size="sm" className="h-6 px-1 text-[10px] text-muted-foreground"
+        variant="ghost" size="sm" className="h-7 gap-1 px-1.5 text-xs text-muted-foreground"
         title="No prior steps to reference"
         disabled
       >
-        <Link2 className="h-3 w-3 mr-1" /> reference
+        <Icon name="link" className="h-3 w-3" /> Reference
       </Button>
     );
   }
 
   return (
-    <div className="relative inline-block">
-      <Button
-        variant="ghost" size="sm" className="h-6 px-1 text-[10px]"
-        onClick={() => setOpen((o) => !o)}
-        title={`Insert a reference to a prior step's output into '${consumerParam}'`}
-      >
-        <Link2 className="h-3 w-3 mr-1" /> reference
-        <ChevronDown className="h-3 w-3 ml-0.5" />
-      </Button>
-      {open && (
-        <div
-          className={cn(
-            'absolute z-50 mt-1 left-0 w-64 max-h-72 overflow-auto rounded-md border',
-            'bg-card shadow-md p-1 text-[11px]',
-          )}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost" size="sm" className="h-7 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+          title={`Insert a reference to a prior step's output into '${consumerParam}'`}
         >
-          {sources.map((src) => {
-            const tool = src.data.toolDef;
-            const hints: OutputHint[] = (tool && outputHints[tool.name]) || outputHints[src.data.tool] || [];
-            return (
-              <div key={src.id} className="mb-1 last:mb-0">
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground font-medium border-b">
-                  {src.data.name || src.data.tool} <span className="font-mono text-[10px] text-muted-foreground/70">{src.id}</span>
-                </div>
-                {hints.length === 0 && (
-                  <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
-                    no hints; type a key manually
-                  </div>
-                )}
-                {hints.map((h) => (
-                  <button
-                    key={h.key}
-                    className="w-full text-left px-2 py-1 hover:bg-muted/40 rounded"
-                    onClick={() => {
-                      onPick(`\${steps.${src.id}.${h.key}}`);
-                      setOpen(false);
-                    }}
-                    title={`${h.kind} - ${h.desc}`}
-                  >
-                    <span className="font-mono">{h.key}</span>
-                    <span className="ml-1 text-[10px] text-muted-foreground">{h.kind}</span>
-                  </button>
-                ))}
+          <Icon name="link" className="h-3 w-3" /> Reference
+          <Icon name="chevron-down" className="h-3 w-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="scroll-thin max-h-72 w-64 overflow-auto p-1">
+        {sources.map((src) => {
+          const tool = src.data.toolDef;
+          const hints: OutputHint[] = (tool && outputHints[tool.name]) || outputHints[src.data.tool] || [];
+          return (
+            <div key={src.id} className="mb-1 last:mb-0">
+              <div className="flex items-baseline gap-1.5 border-b border-border px-2 py-1.5 text-xs font-medium text-foreground">
+                <span className="min-w-0 truncate">{src.data.name || src.data.tool}</span>
+                <span className="shrink-0 font-mono font-normal text-subtle-foreground">{src.id}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+              {hints.length === 0 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  No known outputs. Type a key by hand.
+                </div>
+              )}
+              {hints.map((h) => (
+                <button
+                  key={h.key}
+                  type="button"
+                  className="flex w-full items-baseline gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                  onClick={() => {
+                    onPick(`\${steps.${src.id}.${h.key}}`);
+                    setOpen(false);
+                  }}
+                  title={`${h.kind} - ${h.desc}`}
+                >
+                  <span className="min-w-0 truncate font-mono text-foreground">{h.key}</span>
+                  <span className="ml-auto shrink-0 text-muted-foreground">{h.kind}</span>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
 

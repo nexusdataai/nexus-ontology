@@ -76,7 +76,7 @@ const METRICS: MetricCard[] = [
 ];
 
 const statusColor = (s: string) =>
-  s === 'healthy' ? 'bg-green-600' : s === 'warning' ? 'bg-yellow-600' : 'bg-red-600';
+  s === 'healthy' ? 'bg-success' : s === 'warning' ? 'bg-warning' : 'bg-destructive';
 
 export function MonitoringSection() {
   return (
@@ -101,7 +101,7 @@ export function MonitoringSection() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-3">
+              <div className="text-3xl font-semibold mb-3">
                 {m.value}<span className="text-lg text-muted-foreground">{m.unit}</span>
               </div>
               <div className="space-y-1">

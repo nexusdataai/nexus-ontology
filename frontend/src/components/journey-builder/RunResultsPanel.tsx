@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronRight, MinusCircle, XCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useState, type CSSProperties } from 'react';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, StatusPill } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
 
 interface RunEnvelope {
@@ -15,18 +15,6 @@ interface RunEnvelope {
 interface Props {
   envelope: RunEnvelope | null;
   className?: string;
-}
-
-const STATUS_PILL: Record<string, string> = {
-  completed: 'bg-green-500/15 text-green-300 border-green-500/30',
-  awaiting_step_approval: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  failed: 'bg-red-500/15 text-red-300 border-red-500/30',
-};
-
-function statusIcon(status?: string) {
-  if (status === 'completed') return <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />;
-  if (status === 'failed') return <XCircle className="h-3.5 w-3.5 text-red-300" />;
-  return <MinusCircle className="h-3.5 w-3.5 text-amber-300" />;
 }
 
 /**
@@ -53,55 +41,50 @@ export function RunResultsPanel({ envelope, className }: Props) {
   };
 
   return (
-    <div className={cn('rounded-md border bg-card/40 p-2 space-y-2', className)}>
-      <div className="flex items-center gap-2 px-1">
-        {statusIcon(status)}
-        <span className="text-xs font-medium">Run results</span>
+    <div className={cn('overflow-hidden rounded-xl border border-border bg-card', className)}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-2.5">
+        <span className="text-sm font-medium text-foreground">Run results</span>
         {run_id && (
-          <span className="text-[10px] font-mono text-muted-foreground">{run_id}</span>
+          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground" title={run_id}>{run_id}</span>
         )}
-        {status && (
-          <Badge variant="outline" className={cn('text-[10px] ml-auto', STATUS_PILL[status] || '')}>
-            {status}
-          </Badge>
-        )}
+        {status && <StatusPill status={status} className="ml-auto" />}
       </div>
-      {error && (
-        <div className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2">
-          {error}
-        </div>
-      )}
+      {error && <InlineError className="m-3">{error}</InlineError>}
       {stepEntries.length === 0 && !error && (
-        <div className="text-[11px] text-muted-foreground px-1">No step results yet.</div>
+        <div className="px-3 py-3 text-sm text-muted-foreground">No step results yet.</div>
       )}
-      <div className="space-y-1">
-        {stepEntries.map(([stepId, result]) => {
-          const isOpen = expanded.has(stepId);
-          const completed = (completed_steps || []).includes(stepId);
-          const errored = result && typeof result === 'object' && 'error' in (result as any);
-          return (
-            <div key={stepId} className="border rounded">
-              <button
-                className="w-full flex items-center gap-2 px-2 py-1 text-left hover:bg-muted/30"
-                onClick={() => toggle(stepId)}
-              >
-                {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                {errored
-                  ? <XCircle className="h-3 w-3 text-red-300" />
-                  : completed
-                    ? <CheckCircle2 className="h-3 w-3 text-green-300" />
-                    : <MinusCircle className="h-3 w-3 text-amber-300" />}
-                <span className="font-mono text-[11px] truncate flex-1">{stepId}</span>
-              </button>
-              {isOpen && (
-                <pre className="text-[10px] font-mono bg-muted/30 p-2 max-h-48 overflow-auto whitespace-pre-wrap">
+      {stepEntries.length > 0 && (
+        <ul>
+          {stepEntries.map(([stepId, result], i) => {
+            const isOpen = expanded.has(stepId);
+            const completed = (completed_steps || []).includes(stepId);
+            const errored = result && typeof result === 'object' && 'error' in (result as any);
+            return (
+              <li key={stepId} className="rise border-b border-border last:border-b-0" style={{ '--i': i } as CSSProperties}>
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-2/60 focus-visible:bg-surface-2/60 focus-visible:outline-none"
+                  onClick={() => toggle(stepId)}
+                >
+                  <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} className="h-3 w-3 shrink-0 text-subtle-foreground" />
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{stepId}</span>
+                  {errored
+                    ? <StatusPill tone="danger">Failed</StatusPill>
+                    : completed
+                      ? <StatusPill tone="success">Done</StatusPill>
+                      : <StatusPill tone="warning">Waiting</StatusPill>}
+                </button>
+                {isOpen && (
+                  <pre className="scroll-thin max-h-48 overflow-auto whitespace-pre-wrap border-t border-border bg-surface-2/70 p-3 font-mono text-xs leading-5 text-foreground">
 {JSON.stringify(result, null, 2)}
-                </pre>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  </pre>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

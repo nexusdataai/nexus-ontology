@@ -9,7 +9,7 @@
 // Core Types
 // ============================================================================
 
-export type JourneyType = 'call-processing' | 'operation-management' | 'semantic-rag' | 'demand-forecasting' | 'inventory-optimization' | 'procurement-analytics' | 'production-quality' | 'supply-chain-risk' | 'customer-360' | 'esg-sustainability';
+export type JourneyType = 'call-processing' | 'operation-management' | 'semantic-rag' | 'order-to-cash' | 'demand-forecasting' | 'inventory-optimization' | 'procurement-analytics' | 'production-quality' | 'supply-chain-risk' | 'customer-360' | 'esg-sustainability';
 
 export type JourneyStatus = 
   | 'created'
@@ -118,7 +118,8 @@ export interface StageStep {
 export interface JobExecution {
   id: string;
   jobId?: string;  // Full job ID for API calls
-  journeyId: string;
+  job_id?: string; // Raw backend rows may still carry the snake_case id
+  journeyId?: string; // Not set by the job-history mapper in callProcessingJourneyService
   stageId: string;
   status: StageStatus;
   
@@ -128,7 +129,11 @@ export interface JobExecution {
   
   // Call processing metrics
   metrics: JobMetrics;
-  
+
+  // Item counters the job service maps from the backend row
+  itemsProcessed?: number;
+  itemsTotal?: number;
+
   // Report data
   report?: JobReport;
 
@@ -172,8 +177,9 @@ export interface LogEntry {
   level: LogLevel;
   message: string;
   stepId?: string;
-  stageId: string;
-  jobId: string;
+  // Optional: entries built from SSE log events carry no stage or job id.
+  stageId?: string;
+  jobId?: string;
 }
 
 // ============================================================================
@@ -221,10 +227,24 @@ export interface JourneyFilter {
 // Request/Response Types
 // ============================================================================
 
+export interface CreateJourneyStageRequest {
+  stageId: string;
+  name: string;
+  order: number;
+  description?: string;
+  steps?: unknown[];
+}
+
 export interface CreateJourneyRequest {
   name: string;
   type: JourneyType;
-  config: CallProcessingConfig;
+  // Call-processing journeys send the full CallProcessingConfig; solution
+  // journeys (O2C, semantic RAG, ...) send their own keys or an empty object.
+  config: Partial<CallProcessingConfig> & { [key: string]: unknown };
+  // Optional overrides the service forwards to the backend when present.
+  odaComponentType?: string;
+  stages?: CreateJourneyStageRequest[];
+  solutionId?: string;
 }
 
 export interface CreateJourneyFormData {

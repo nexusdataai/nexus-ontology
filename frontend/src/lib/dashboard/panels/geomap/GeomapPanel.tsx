@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { CHART_COLORS } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 interface MapPoint {
   lat: number;
@@ -11,7 +13,7 @@ interface MapPoint {
   size: number;
 }
 
-const POINT_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+const POINT_COLORS = CHART_COLORS;
 
 function mercatorX(lng: number, width: number): number {
   return ((lng + 180) / 360) * width;
@@ -26,9 +28,7 @@ function mercatorY(lat: number, height: number): number {
 export function GeomapPanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length < 2) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data (need latitude and longitude fields)'}
-      </div>
+      <PanelState loading={loading} text="No data (need latitude and longitude fields)" />
     );
   }
 

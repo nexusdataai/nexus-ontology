@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import {
-  ShoppingCart, BarChart3, Package, Factory, Truck, Users, Leaf, Shield, Search,
-  TrendingUp, AlertTriangle, FileText, ArrowRight, Clock, Zap,
-  Receipt, ClipboardList, Loader2, Sparkles,
-} from 'lucide-react';
+import { Skeleton } from './ui/skeleton';
+import { Icon, type IconName } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { SolutionCover } from '@/components/apps/SolutionCover';
 import { useNavigate } from 'react-router-dom';
 import {
   solutionsCatalogService,
@@ -21,17 +19,17 @@ import {
 // and Tailwind classes here so the DDB payload stays presentation-agnostic.
 // ---------------------------------------------------------------------------
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  ShoppingCart, TrendingUp, Package, FileText, Factory, Shield, Users, Leaf,
-  Truck, BarChart3, Receipt, ClipboardList, Sparkles,
+/** The API sends Lucide-style icon names; map them to the product icon set. */
+const ICON_MAP: Record<string, IconName> = {
+  ShoppingCart: 'shopping-cart', TrendingUp: 'trend-up', Package: 'box', FileText: 'document',
+  Factory: 'factory', Shield: 'shield-check', Users: 'users', Leaf: 'leaf', Truck: 'truck',
+  BarChart3: 'chart-bar', Receipt: 'receipt', ClipboardList: 'clipboard', Sparkles: 'sparkles',
 };
-
-const DEFAULT_COLOR = 'from-slate-500 to-slate-700';
 
 const CATEGORIES = ['All', 'Finance', 'Planning', 'Operations', 'Risk', 'Revenue', 'ESG', 'CPQ'];
 
-function resolveIcon(name?: string): React.ElementType {
-  return (name && ICON_MAP[name]) || Sparkles;
+function resolveIcon(name?: string): IconName {
+  return (name && ICON_MAP[name]) || 'apps';
 }
 
 // ---------------------------------------------------------------------------
@@ -101,162 +99,224 @@ export function AppCatalogue() {
       ]
     : filtered;
 
+  const GOALS = ['Reduce DSO', 'Stop stockouts', 'Cut maverick spend', 'Spot supplier risk early', 'Raise first-pass yield'];
+  const askGoal = async (goal: string) => {
+    setNlpQuery(goal);
+    setNlpBusy(true);
+    try {
+      const r = await solutionsCatalogService.search(goal, 3);
+      setNlpHits(r.items || []);
+    } catch {
+      setNlpHits([]);
+    } finally {
+      setNlpBusy(false);
+    }
+  };
+
+  const counts = CATEGORIES.reduce<Record<string, number>>((acc, c) => {
+    acc[c] = c === 'All' ? apps.length : apps.filter(a => a.category === c).length;
+    return acc;
+  }, {});
+  const liveCount = apps.filter(a => (a.status || 'available') === 'available').length;
+  const featured = !search && category === 'All' ? orderedForNlp.find(a => (a.status || 'available') === 'available') : undefined;
+  const rest = featured ? orderedForNlp.filter(a => a.solutionId !== featured.solutionId) : orderedForNlp;
+  const openApp = (a: SolutionCatalogEntry) => { if ((a.status || 'available') === 'available') nav(`/apps/${a.solutionId}`); };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
-            Supply Chain Solutions
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Enterprise AI solutions powered by the Semantic Ontology Layer
-            {loading ? '' : ` — ${apps.length} solutions`}
+    <div className="page">
+      {/* Hero: start from the outcome, not from a list */}
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 py-8 shadow-xs sm:px-10 sm:py-12">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-70 [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_70%)]"
+          style={{ backgroundImage: 'radial-gradient(hsl(var(--border-strong)) 1px, transparent 1px)', backgroundSize: '20px 20px' }}
+          aria-hidden="true"
+        />
+        <div className="relative max-w-3xl">
+          <p className="text-sm text-muted-foreground">
+            Solutions{!loading && <> · <span className="num text-foreground">{liveCount}</span> ready to run, <span className="num text-foreground">{apps.length}</span> in the catalogue</>}
           </p>
-        </div>
-      </div>
+          <h1 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">What do you want to improve?</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-md">
+            Each solution is a packaged business application that runs on your own data and knowledge graph. Describe the outcome and we will point you to the right one.
+          </p>
 
-      {/* NLP search bar (Phase 5) */}
-      <Card>
-        <CardContent className="p-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary shrink-0" />
-          <Input
-            value={nlpQuery}
-            onChange={(e) => setNlpQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') runNlpSearch(); }}
-            placeholder="Describe your goal — e.g. 'reduce DSO' or 'stop stockouts in EMEA'"
-            className="flex-1"
-          />
-          <Button size="sm" onClick={runNlpSearch} disabled={nlpBusy}>
-            {nlpBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Search className="h-3.5 w-3.5 mr-1" />}
-            NLP search
-          </Button>
-          {nlpHits.length > 0 && (
-            <Button size="sm" variant="ghost" onClick={() => { setNlpQuery(''); setNlpHits([]); }}>
-              Clear
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-border-strong bg-background p-1.5 pl-4 shadow-sm transition-[border-color,box-shadow] duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-ring/25">
+            <Icon name="sparkles" className="h-4 w-4 shrink-0 text-primary dark:text-brand-hi" />
+            <Input
+              value={nlpQuery}
+              onChange={(e) => setNlpQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runNlpSearch(); }}
+              placeholder="For example: reduce DSO, or stop stockouts in EMEA"
+              aria-label="Describe your goal"
+              className="h-10 flex-1 border-0 bg-transparent px-0 text-md shadow-none hover:border-0 focus-visible:border-0 focus-visible:ring-0"
+            />
+            {nlpHits.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => { setNlpQuery(''); setNlpHits([]); }}>Clear</Button>
+            )}
+            <Button onClick={runNlpSearch} disabled={nlpBusy}>
+              <Icon name={nlpBusy ? 'spinner' : 'search'} className={nlpBusy ? 'animate-spin' : undefined} />
+              <span className="hidden sm:inline">Find solutions</span>
             </Button>
-          )}
-        </CardContent>
-      </Card>
+          </div>
 
-      {nlpHits.length > 0 && (
-        <div className="text-xs text-muted-foreground">
-          Top matches (by similarity):
-          <span className="ml-2 space-x-1">
-            {nlpHits.map((h) => (
-              <Badge key={h.source_id} variant="outline" className="text-[10px]">
-                {h.source_id} ({Math.round((h.similarity || 0) * 100)}%)
-              </Badge>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Try</span>
+            {GOALS.map(g => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => askGoal(g)}
+                className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-brand/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {g}
+              </button>
             ))}
-          </span>
-        </div>
-      )}
+          </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name or description..." className="pl-9" />
+          {nlpHits.length > 0 && (
+            <p className="mt-4 animate-fade-up text-sm text-foreground">
+              <Icon name="check-circle" className="mr-1.5 inline h-4 w-4 text-success" />
+              {nlpHits.length} {nlpHits.length === 1 ? 'solution fits' : 'solutions fit'} that goal. They are marked and listed first.
+            </p>
+          )}
         </div>
-        <div className="flex gap-1 flex-wrap">
-          {CATEGORIES.map((c) => (
-            <Button key={c} variant={category === c ? 'default' : 'outline'} size="sm" onClick={() => setCategory(c)}>
-              {c}
-            </Button>
-          ))}
+      </section>
+
+      {/* Filters */}
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="scrollbar-hide -mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1" role="tablist" aria-label="Category">
+          {CATEGORIES.filter(c => c === 'All' || loading || counts[c] > 0).map((c) => {
+            const on = category === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setCategory(c)}
+                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  on ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground'
+                }`}
+              >
+                {c}
+                {!loading && <span className="num text-xs text-muted-foreground">{counts[c]}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name" aria-label="Filter by name" className="h-9 pl-9" />
         </div>
       </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading solutions catalog...
-        </div>
-      )}
 
       {error && (
-        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded p-2">
-          Failed to load solutions: {error}
+        <div role="alert" className="mt-4 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Could not load solutions: {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <Skeleton className="col-span-full h-56 rounded-2xl" />
+          {[0, 1, 2].map(i => <Skeleton key={i} className="h-72 rounded-2xl" />)}
         </div>
       )}
 
       {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {orderedForNlp.map((app) => {
-            const Icon = resolveIcon(app.icon);
-            const color = app.color || DEFAULT_COLOR;
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {/* Featured: the first ready solution, or the best match for the goal */}
+          {featured && (
+            <article
+              onClick={() => openApp(featured)}
+              className={`rise group col-span-full grid cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,transform] duration-300 ease-brand-out hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-lg lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] ${
+                nlpHitIds.has(featured.solutionId) ? 'border-brand/60 ring-1 ring-brand/30' : 'border-border'
+              }`}
+            >
+              <SolutionCover icon={resolveIcon(featured.icon)} tall className="border-b border-border lg:border-b-0 lg:border-r" />
+              <div className="flex flex-col p-6 sm:p-8">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <span className="dot-live text-success" aria-hidden="true" />
+                    {nlpHitIds.has(featured.solutionId) ? 'Best match for your goal' : 'Ready to run'}
+                  </span>
+                  {featured.category && <span>{featured.category}</span>}
+                  {featured.timeToValue && <span>Live in {featured.timeToValue}</span>}
+                </div>
+                <h2 className="mt-3 text-2xl font-medium tracking-tight text-foreground">{featured.title}</h2>
+                <p className="mt-2 max-w-xl text-sm text-muted-foreground">{featured.description}</p>
+                {(featured.kpis || []).length > 0 && (
+                  <ul className="mt-5 flex flex-wrap gap-2">
+                    {featured.kpis!.slice(0, 4).map(k => (
+                      <li key={k} className="num rounded-md border border-border bg-surface-2/70 px-2.5 py-1 text-xs text-foreground">{k}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="min-h-6 flex-1" />
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs text-muted-foreground">
+                    {(featured.entities || []).length > 0 && <>Runs on <span className="num text-foreground">{featured.entities!.length}</span> business entities</>}
+                  </span>
+                  <Button onClick={(e) => { e.stopPropagation(); openApp(featured); }}>
+                    Open solution <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                  </Button>
+                </div>
+              </div>
+            </article>
+          )}
+
+          {rest.map((app, i) => {
             const nlpMatch = nlpHitIds.has(app.solutionId);
-            const status = app.status || 'available';
+            const available = (app.status || 'available') === 'available';
             return (
-              <Card
+              <article
                 key={app.solutionId}
-                className={`group hover:border-primary/50 transition-all duration-200 hover:shadow-lg overflow-hidden ${
-                  nlpMatch ? 'border-primary/70 ring-1 ring-primary/50' : ''
-                }`}
+                style={{ '--i': Math.min(i + 1, 9) } as React.CSSProperties}
+                onClick={() => openApp(app)}
+                className={`rise group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,transform] duration-300 ease-brand-out ${
+                  available ? 'cursor-pointer hover:-translate-y-1 hover:border-brand/50 hover:shadow-lg' : ''
+                } ${nlpMatch ? 'border-brand/60 ring-1 ring-brand/30' : 'border-border'}`}
               >
-                <div className={`h-1.5 bg-gradient-to-r ${color}`} />
-                <CardContent className="pt-4 pb-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${color} bg-opacity-10`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {app.priority && <Badge variant="outline" className="text-[9px]">{app.priority}</Badge>}
-                      <Badge className={status === 'available' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}>
-                        {status === 'available' ? 'Available' : 'Coming Soon'}
-                      </Badge>
-                      {nlpMatch && (
-                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px]">
-                          <Sparkles className="h-2.5 w-2.5 mr-0.5" /> Match
-                        </Badge>
-                      )}
-                    </div>
+                <SolutionCover icon={resolveIcon(app.icon)} className={`border-b border-border ${available ? '' : 'opacity-50 grayscale'}`} />
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>{app.category || 'Solution'}</span>
+                    {nlpMatch ? <Badge variant="info">Matches your goal</Badge> : !available ? <Badge variant="neutral">Coming soon</Badge> : null}
                   </div>
-
-                  <div>
-                    <h3 className="font-semibold text-sm">{app.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{app.description}</p>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
-                    {app.timeToValue && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{app.timeToValue}</span>}
-                    {(app.entities || []).length > 0 && <span>{app.entities!.length} entities</span>}
-                    {app.category && <span>{app.category}</span>}
-                  </div>
+                  <h3 className="mt-2 text-lg font-medium tracking-tight text-foreground">{app.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{app.description}</p>
 
                   {(app.kpis || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {app.kpis!.map((kpi, i) => (
-                        <Badge key={i} variant="outline" className="text-[8px] font-mono">{kpi}</Badge>
+                    <ul className="mt-4 flex flex-wrap gap-1.5">
+                      {app.kpis!.slice(0, 3).map(k => (
+                        <li key={k} className="num rounded-md border border-border bg-surface-2/70 px-2 py-0.5 text-xs text-muted-foreground">{k}</li>
                       ))}
-                    </div>
+                    </ul>
                   )}
 
-                  {(app.entities || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1 border-t border-border/50">
-                      {app.entities!.slice(0, 3).map((e) => (
-                        <span key={e} className="text-[9px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">{e}</span>
-                      ))}
-                      {app.entities!.length > 3 && (
-                        <span className="text-[9px] px-1.5 py-0.5 text-muted-foreground">+{app.entities!.length - 3}</span>
-                      )}
-                    </div>
-                  )}
-
-                  {status === 'available' ? (
-                    <Button size="sm" className="w-full" onClick={() => nav(`/apps/${app.solutionId}`)}>
-                      <ArrowRight className="h-3.5 w-3.5 mr-1" /> Open App
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" className="w-full" disabled>
-                      <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Coming Soon
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                  <div className="min-h-5 flex-1" />
+                  <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-3">
+                      {app.timeToValue && <span className="inline-flex items-center gap-1"><Icon name="clock" className="h-3.5 w-3.5" />{app.timeToValue}</span>}
+                      {(app.entities || []).length > 0 && <span><span className="num">{app.entities!.length}</span> entities</span>}
+                    </span>
+                    {available && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openApp(app); }}
+                        className="inline-flex shrink-0 items-center gap-1 rounded text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        Open <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
             );
           })}
-          {orderedForNlp.length === 0 && (
-            <div className="col-span-full text-center text-sm text-muted-foreground py-8">
-              No solutions match the current filters.
+          {orderedForNlp.length === 0 && !error && (
+            <div className="col-span-full">
+              <EmptyState icon="apps" title="No solutions match" description="Try another category or clear the filter." />
             </div>
           )}
         </div>

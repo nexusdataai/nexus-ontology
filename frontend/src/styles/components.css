@@ -1,61 +1,208 @@
+/*
+ * Shared, token-driven component classes that are awkward to express as
+ * Tailwind utilities. Keep this file small: prefer components in
+ * src/components/ui and src/components/ds.
+ */
 
-/* Improved card styling for light mode */
-:root .card {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  border-color: rgba(0,0,0,0.08);
+@layer components {
+  /* Page scaffolding ------------------------------------------------------ */
+  .page {
+    @apply mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8;
+  }
+
+  /* Full-height working area below the top bar and a PageTabsBar.
+     Use on explorers, editors and canvases that scroll inside themselves. */
+  .h-pane {
+    height: calc(100dvh - var(--topbar-h) - var(--pagebar-h) - var(--tabbar-h));
+    min-height: 460px;
+  }
+  .h-pane-sub {
+    height: calc(100dvh - var(--topbar-h) - var(--pagebar-h) - var(--subbar-h) - var(--tabbar-h));
+    min-height: 460px;
+  }
+
+  /* Multi-pane tools (explorers, registries, editors) keep their desktop
+     layout and scroll sideways below the lg breakpoint. */
+  @media (max-width: 1023px) {
+    .pane-wide {
+      overflow-x: auto;
+    }
+    .pane-wide > * {
+      min-width: 940px;
+    }
+  }
+
+  /* Quiet label above a group of content */
+  .eyebrow {
+    @apply text-xs font-medium text-subtle-foreground;
+  }
+  /* Brand label in the website's bracket style. Use at most once per page. */
+  .eyebrow-brand {
+    @apply font-mono text-xs text-primary dark:text-brand-hi;
+  }
+  .eyebrow-brand::before { content: "{ "; }
+  .eyebrow-brand::after { content: " }"; }
+
+  /* Numbers: tabular figures in the text face so columns and counters do
+     not jitter. Use .mono-id for identifiers and code. */
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .mono-id {
+    @apply font-mono text-xs text-muted-foreground;
+  }
+
+  /* Dotted canvas background for diagrams, graphs and builders */
+  .canvas-dots {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--border-strong)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Hairline grid used behind hero diagrams */
+  .canvas-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Soft blue glow for the focal element of a diagram */
+  .glow-brand {
+    box-shadow:
+      0 0 0 1px hsl(var(--brand) / 0.35),
+      0 18px 50px -20px hsl(var(--brand) / 0.55);
+  }
+
+  /* Skeleton shimmer */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--surface-3));
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent);
+    animation: shimmer 1.6s var(--ease) infinite;
+  }
+
+  /* Live status dot */
+  .dot-live {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: currentColor;
+  }
+  .dot-live::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    border: 1px solid currentColor;
+    opacity: 0;
+    animation: ping-soft 2s var(--ease-out) infinite;
+  }
+
+  /* Animated connector line used in diagrams (SVG stroke) */
+  .flow-line {
+    stroke-dasharray: 4 8;
+    animation: flow 1.4s linear infinite;
+  }
+
+  /* Staggered entrance: set --i on each child */
+  .rise {
+    opacity: 0;
+    animation: fade-up var(--dur-slow) var(--ease-out) forwards;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+
+  /* Scrollbars ------------------------------------------------------------ */
+  .custom-scrollbar,
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar,
+  .scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb,
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chat-message-rounded {
+    border-radius: 0.75rem;
+  }
 }
 
-:root .bg-secondary\/50 {
-  background-color: rgba(240, 242, 245, 0.8);
+/* Markdown tables inside .prose blocks ------------------------------------ */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose th {
+  background-color: hsl(var(--surface-2));
+  font-weight: 600;
 }
 
-/* Light mode card improvements */
-:root .card {
-  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
-  border-color: rgba(0,0,0,0.04);
-  background: linear-gradient(to bottom right, #fff, #fafafa);
+/* React Flow (journey builder canvas) on design tokens ------------------- */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-background-pattern-dots-color: hsl(var(--border-strong));
+  --xy-edge-stroke: hsl(var(--border-strong));
+  --xy-edge-stroke-selected: hsl(var(--brand));
+  --xy-connectionline-stroke: hsl(var(--brand));
+  --xy-handle-background-color: hsl(var(--brand));
+  --xy-handle-border-color: hsl(var(--card));
+  --xy-controls-button-background-color: hsl(var(--card));
+  --xy-controls-button-background-color-hover: hsl(var(--accent));
+  --xy-controls-button-color: hsl(var(--muted-foreground));
+  --xy-controls-button-color-hover: hsl(var(--foreground));
+  --xy-controls-button-border-color: hsl(var(--border));
+  --xy-controls-box-shadow: var(--shadow-sm);
+  --xy-minimap-background-color: hsl(var(--card));
+  --xy-minimap-mask-background-color: hsl(var(--background) / 0.6);
+  --xy-minimap-node-background-color: hsl(var(--surface-3));
+  --xy-attribution-background-color: transparent;
+  --xy-selection-background-color: hsl(var(--brand) / 0.08);
+  --xy-selection-border: 1px dashed hsl(var(--brand) / 0.6);
+  font-family: var(--font-sans);
 }
-
-/* Better hover states for cards in light mode */
-:root .card:hover {
-  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-  transition: all 0.3s ease;
+.react-flow__controls {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
 }
-
-/* Light theme statistics card improvements */
-:root .bg-secondary\/50 {
-  background-color: rgba(250, 250, 255, 0.9);
-  border: 1px solid rgba(0,0,0,0.03);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+.react-flow__minimap {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
 }
-
-/* Apply rounded corners to cards, buttons, and other components */
-.card, 
-.bg-card, 
-.bg-secondary\/50,
-.bg-secondary,
-.bg-muted,
-.bg-accent {
-  @apply rounded-lg;
-}
-
-/* Apply rounded corners to category filters */
-.sticky.bottom-6 > div {
-  @apply rounded-full;
-}
-
-/* Apply slightly rounded corners to the header bar */
-.sticky.top-0 {
-  @apply rounded-b-lg;
-}
-
-/* Apply rounded corners to sidebar chat messages */
-/* Fix circular dependency by directly using the border radius value */
-.chat-message-rounded {
-  border-radius: 1rem;
-}
-
-/* Apply rounded corners to the sidebar */
-.md\:w-72 {
-  @apply rounded-r-xl;
+.react-flow__attribution {
+  display: none;
 }

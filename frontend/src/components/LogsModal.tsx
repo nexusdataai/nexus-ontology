@@ -337,34 +337,34 @@ export default function LogsModal({
   const getLevelIcon = (level: string) => {
     switch (level) {
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'warn':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+        return <AlertTriangle className="h-4 w-4 text-warning" />;
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case 'info':
-        return <Info className="h-4 w-4 text-blue-500" />;
+        return <Info className="h-4 w-4 text-primary" />;
       case 'debug':
-        return <Bug className="h-4 w-4 text-gray-500" />;
+        return <Bug className="h-4 w-4 text-muted-foreground" />;
       default:
-        return <Info className="h-4 w-4 text-gray-500" />;
+        return <Info className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   const getLevelColor = (level: string) => {
     switch (level) {
       case 'error':
-        return 'bg-red-50 border-red-200 text-red-800';
+        return 'bg-destructive/10 border-destructive/25 text-destructive';
       case 'warn':
-        return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+        return 'bg-warning/10 border-warning/25 text-warning';
       case 'success':
-        return 'bg-green-50 border-green-200 text-green-800';
+        return 'bg-success/10 border-success/25 text-success';
       case 'info':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-primary/10 border-primary/25 text-primary';
       case 'debug':
-        return 'bg-gray-50 border-gray-200 text-gray-800';
+        return 'bg-surface-2 border-border text-foreground';
       default:
-        return 'bg-gray-50 border-gray-200 text-gray-800';
+        return 'bg-surface-2 border-border text-foreground';
     }
   };
 

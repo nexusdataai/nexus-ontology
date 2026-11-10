@@ -33,7 +33,7 @@ export function TableSection({ section }: Props) {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.jobId || i} className="border-b last:border-b-0 hover:bg-muted/30">
-                  <td className="px-2 py-1 font-mono text-[11px]">{r.jobId || '--'}</td>
+                  <td className="px-2 py-1 font-mono text-xs">{r.jobId || '--'}</td>
                   {cols.map((c) => (
                     <td key={c.key} className="px-2 py-1">
                       {formatValue(r[c.key], c.format)}

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
 import type { PanelQuery } from '../types';
 import { VDLQueryEditor } from '../query-editor/VDLQueryEditor';
 import { NLQueryInput } from '../query-editor/NLQueryInput';
@@ -16,6 +16,7 @@ interface Props {
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+/** The "Data" section of the panel editor: one or more queries on virtual entities. */
 export function QueryTab({ targets, onChange, onRunQuery, onPanelTypeChange, onTitleChange }: Props) {
   const addQuery = () => {
     const nextRef = LETTERS[targets.length] || `Q${targets.length + 1}`;
@@ -64,35 +65,41 @@ export function QueryTab({ targets, onChange, onRunQuery, onPanelTypeChange, onT
     }
   }, [targets, onChange, onPanelTypeChange, onTitleChange]);
 
+  const many = targets.length > 1;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <NLQueryInput
         onQueryGenerated={handleNLQuery}
         currentEntity={targets[0]?.entity}
       />
 
       {targets.map((target, i) => (
-        <div key={target.refId} className="relative">
+        <div key={target.refId} className={many ? 'border-t border-border pt-4' : undefined}>
+          {many && (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">Query {target.refId}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-mr-2 h-7 px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => removeQuery(i)}
+                type="button"
+              >
+                <Icon name="trash" className="h-3 w-3" /> Remove query
+              </Button>
+            </div>
+          )}
           <VDLQueryEditor
             query={target}
             onChange={(q) => updateQuery(i, q)}
             onRunQuery={onRunQuery}
           />
-          {targets.length > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 right-14 h-6 text-[10px] text-destructive"
-              onClick={() => removeQuery(i)}
-              type="button"
-            >
-              Remove
-            </Button>
-          )}
         </div>
       ))}
-      <Button variant="outline" size="sm" className="h-7 text-xs w-full" onClick={addQuery} type="button">
-        <Plus className="h-3 w-3 mr-1" /> Add Query
+
+      <Button variant="ghost" size="sm" className="-ml-2 px-2" onClick={addQuery} type="button">
+        <Icon name="plus" className="h-3 w-3" /> Add another query
       </Button>
     </div>
   );

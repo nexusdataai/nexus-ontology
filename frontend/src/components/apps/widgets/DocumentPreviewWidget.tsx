@@ -34,12 +34,12 @@ export function DocumentPreviewWidget({ widget, data, loading }: Props) {
     <Card className="h-full">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <FileText className="h-4 w-4 text-fuchsia-500" />
+          <FileText className="h-4 w-4 text-primary" />
           {widget.title}
         </CardTitle>
         <div className="flex items-center gap-2">
           {generatedAt && (
-            <Badge variant="outline" className="text-[10px]">generated {String(generatedAt).slice(0, 19)}</Badge>
+            <Badge variant="outline" className="text-xs">generated {String(generatedAt).slice(0, 19)}</Badge>
           )}
           <Button size="sm" variant="outline" onClick={onCopy} disabled={!doc}>
             {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}

@@ -85,10 +85,10 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
     
     strength = checks.filter(Boolean).length;
     
-    if (strength <= 2) return { label: 'Weak', color: 'text-red-600', bgColor: 'bg-red-200' };
-    if (strength <= 3) return { label: 'Medium', color: 'text-yellow-600', bgColor: 'bg-yellow-200' };
-    if (strength <= 4) return { label: 'Strong', color: 'text-green-600', bgColor: 'bg-green-200' };
-    return { label: 'Very Strong', color: 'text-green-700', bgColor: 'bg-green-300' };
+    if (strength <= 2) return { label: 'Weak', color: 'text-destructive', bgColor: 'bg-destructive/10' };
+    if (strength <= 3) return { label: 'Medium', color: 'text-warning', bgColor: 'bg-warning/10' };
+    if (strength <= 4) return { label: 'Strong', color: 'text-success', bgColor: 'bg-success/10' };
+    return { label: 'Very Strong', color: 'text-success', bgColor: 'bg-success/20' };
   };
 
   const passwordStrength = getPasswordStrength(newPassword || '');
@@ -118,8 +118,8 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
           <form onSubmit={handleSubmit(handlePasswordSubmit)} className="space-y-4">
             {/* User Email Display */}
             <div>
-              <Label className="text-sm font-medium text-gray-600">Account</Label>
-              <div className="mt-1 p-2 bg-gray-50 rounded border text-sm">
+              <Label className="text-sm font-medium text-muted-foreground">Account</Label>
+              <div className="mt-1 p-2 bg-surface-2 rounded border text-sm">
                 {userEmail}
               </div>
             </div>
@@ -134,7 +134,7 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                   placeholder="Enter your new password"
                   disabled={isLoading}
                   {...register("newPassword")}
-                  className={errors.newPassword ? "border-red-500" : ""}
+                  className={errors.newPassword ? "border-destructive/40" : ""}
                 />
                 <Button
                   type="button"
@@ -151,7 +151,7 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                 </Button>
               </div>
               {errors.newPassword && (
-                <p className="text-red-500 text-xs mt-1">{errors.newPassword.message}</p>
+                <p className="text-destructive text-xs mt-1">{errors.newPassword.message}</p>
               )}
               
               {/* Password Strength Indicator */}
@@ -161,7 +161,7 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                     <span>Password Strength:</span>
                     <span className={passwordStrength.color}>{passwordStrength.label}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                  <div className="w-full bg-surface-3 rounded-full h-1 mt-1">
                     <div 
                       className={`h-1 rounded-full transition-all ${passwordStrength.bgColor}`}
                       style={{ width: `${(passwordStrength.label === 'Weak' ? 20 : 
@@ -183,7 +183,7 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                   placeholder="Confirm your new password"
                   disabled={isLoading}
                   {...register("confirmPassword")}
-                  className={errors.confirmPassword ? "border-red-500" : ""}
+                  className={errors.confirmPassword ? "border-destructive/40" : ""}
                 />
                 <Button
                   type="button"
@@ -200,7 +200,7 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                 </Button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
+                <p className="text-destructive text-xs mt-1">{errors.confirmPassword.message}</p>
               )}
             </div>
 
@@ -211,19 +211,19 @@ export const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
                 <div className="text-sm">
                   <p className="font-medium mb-2">Password Requirements:</p>
                   <ul className="space-y-1 text-xs">
-                    <li className={newPassword?.length >= 8 ? 'text-green-600' : 'text-gray-500'}>
+                    <li className={newPassword?.length >= 8 ? 'text-success' : 'text-muted-foreground'}>
                       • At least 8 characters
                     </li>
-                    <li className={/[A-Z]/.test(newPassword || '') ? 'text-green-600' : 'text-gray-500'}>
+                    <li className={/[A-Z]/.test(newPassword || '') ? 'text-success' : 'text-muted-foreground'}>
                       • One uppercase letter
                     </li>
-                    <li className={/[a-z]/.test(newPassword || '') ? 'text-green-600' : 'text-gray-500'}>
+                    <li className={/[a-z]/.test(newPassword || '') ? 'text-success' : 'text-muted-foreground'}>
                       • One lowercase letter
                     </li>
-                    <li className={/[0-9]/.test(newPassword || '') ? 'text-green-600' : 'text-gray-500'}>
+                    <li className={/[0-9]/.test(newPassword || '') ? 'text-success' : 'text-muted-foreground'}>
                       • One number
                     </li>
-                    <li className={/[^A-Za-z0-9]/.test(newPassword || '') ? 'text-green-600' : 'text-gray-500'}>
+                    <li className={/[^A-Za-z0-9]/.test(newPassword || '') ? 'text-success' : 'text-muted-foreground'}>
                       • One special character (!@#$%^&*)
                     </li>
                   </ul>

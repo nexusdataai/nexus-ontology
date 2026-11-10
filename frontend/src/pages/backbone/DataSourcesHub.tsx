@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const STRUCTURED_SOURCES = [
-  { letter: 'S', color: 'bg-blue-500/20 text-blue-400', name: 'Salesforce CRM', desc: 'Customer and sales data', records: '2.4M records' },
-  { letter: 'O', color: 'bg-amber-500/20 text-amber-400', name: 'Oracle ERP', desc: 'Finance and operations', records: '1.1M records' },
-  { letter: 'S', color: 'bg-emerald-500/20 text-emerald-400', name: 'SAP', desc: 'ERP and supply chain', records: '890K records' },
+  { letter: 'S', color: 'bg-primary/20 text-primary', name: 'Salesforce CRM', desc: 'Customer and sales data', records: '2.4M records' },
+  { letter: 'O', color: 'bg-warning/20 text-warning', name: 'Oracle ERP', desc: 'Finance and operations', records: '1.1M records' },
+  { letter: 'S', color: 'bg-success/20 text-success', name: 'SAP', desc: 'ERP and supply chain', records: '890K records' },
 ];
 
 const UNSTRUCTURED_SOURCES = [
-  { letter: 'G', color: 'bg-sky-500/20 text-sky-400', name: 'Google Drive', desc: 'Documents and sheets', records: '24.8K docs' },
-  { letter: 'F', color: 'bg-violet-500/20 text-violet-400', name: 'File Uploads', desc: 'Manual file ingestion', records: '1.2K files' },
-  { letter: 'S', color: 'bg-rose-500/20 text-rose-400', name: 'Social Listening', desc: 'Social media mentions', records: '12.6M mentions' },
+  { letter: 'G', color: 'bg-primary/20 text-primary', name: 'Google Drive', desc: 'Documents and sheets', records: '24.8K docs' },
+  { letter: 'F', color: 'bg-primary/20 text-primary', name: 'File Uploads', desc: 'Manual file ingestion', records: '1.2K files' },
+  { letter: 'S', color: 'bg-destructive/20 text-destructive', name: 'Social Listening', desc: 'Social media mentions', records: '12.6M mentions' },
 ];
 
 const DataSourcesHub: React.FC = () => {
@@ -24,7 +24,7 @@ const DataSourcesHub: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold">Data Sources Hub</h1>
+              <h1 className="text-2xl font-semibold">Data Sources Hub</h1>
               <Badge variant="secondary" className="border-border">0 / 6 sources connected</Badge>
             </div>
             <p className="text-sm text-muted-foreground">

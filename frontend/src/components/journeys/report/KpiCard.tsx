@@ -27,7 +27,7 @@ export function KpiCard({ kpi, compact = false }: Props) {
       <div className={cn('font-semibold', compact ? 'text-base' : 'text-lg', valueColour)}>
         {valueText}
       </div>
-      <div className={cn('text-muted-foreground', compact ? 'text-[10px]' : 'text-xs')}>
+      <div className={cn('text-muted-foreground', compact ? 'text-xs' : 'text-xs')}>
         {kpi.label}
       </div>
     </Card>

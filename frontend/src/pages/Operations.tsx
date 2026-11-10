@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React from 'react';
 import Layout from '@/components/Layout';
-import { Activity, Users, Shield, DollarSign, CalendarClock, ScrollText, FlaskConical } from 'lucide-react';
+import { PageTabsBar, useUrlTab, type TabSection } from '@/components/ds/PageTabs';
 import { AiHealthMonitoringPanel } from '@/components/operations/AiHealthMonitoringPanel';
 import { DiagnosticsAuditPanel } from '@/components/operations/DiagnosticsAuditPanel';
 import { EndUsageSection } from '@/components/operations/EndUsageSection';
@@ -10,47 +9,24 @@ import { CostSection } from '@/components/operations/CostSection';
 import { BatchSchedulesPanel } from '@/components/journeys/BatchSchedulesPanel';
 import { TestReportsPanel } from '@/components/operations/TestReportsPanel';
 
-interface TabConfig {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-}
-
-const OPERATIONS_TABS: TabConfig[] = [
-  { id: 'monitoring', label: 'Monitoring', icon: <Activity className="h-4 w-4" /> },
-  { id: 'jobs', label: 'Jobs', icon: <CalendarClock className="h-4 w-4" /> },
-  { id: 'audit', label: 'Audit Logs', icon: <ScrollText className="h-4 w-4" /> },
-  { id: 'end-usage', label: 'End Usage', icon: <Users className="h-4 w-4" /> },
-  { id: 'data-protection', label: 'Data Protection', icon: <Shield className="h-4 w-4" /> },
-  { id: 'cost', label: 'Cost', icon: <DollarSign className="h-4 w-4" /> },
-  { id: 'test-reports', label: 'Test Reports', icon: <FlaskConical className="h-4 w-4" /> },
+/** Tabs grouped into sections. Item values are the original ?tab= values. */
+const SECTIONS: TabSection[] = [
+  { label: 'Monitoring', icon: 'activity', items: [{ value: 'monitoring', label: 'Monitoring' }] },
+  { label: 'Jobs', icon: 'calendar', items: [{ value: 'jobs', label: 'Jobs' }] },
+  { label: 'Audit logs', icon: 'history', items: [{ value: 'audit', label: 'Audit logs' }] },
+  { label: 'Usage and cost', icon: 'coins', items: [
+    { value: 'end-usage', label: 'End usage' },
+    { value: 'data-protection', label: 'Data protection' },
+    { value: 'cost', label: 'Cost' },
+  ] },
+  { label: 'Test reports', icon: 'flask', items: [{ value: 'test-reports', label: 'Test reports' }] },
 ];
 
-// ============================================================================
-// Component
-// ============================================================================
-
 const Operations: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'monitoring');
-
-  // Sync tab state with URL
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && OPERATIONS_TABS.some(t => t.id === tab)) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    setSearchParams({ tab: tabId });
-  };
+  const [activeTab, setActiveTab] = useUrlTab('monitoring');
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'monitoring':
-        return <AiHealthMonitoringPanel />;
       case 'jobs':
         return <BatchSchedulesPanel />;
       case 'audit':
@@ -63,6 +39,7 @@ const Operations: React.FC = () => {
         return <CostSection />;
       case 'test-reports':
         return <TestReportsPanel />;
+      case 'monitoring':
       default:
         return <AiHealthMonitoringPanel />;
     }
@@ -70,33 +47,15 @@ const Operations: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
-        {/* Tab Navigation */}
-        <div className="border-b border-border px-6 pt-3">
-          <div className="flex gap-1 -mb-px overflow-x-auto">
-            {OPERATIONS_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`
-                  flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-t-md border-b-2 transition-colors whitespace-nowrap
-                  ${activeTab === tab.id
-                    ? 'bg-blue-600/20 text-blue-300 border-blue-400'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                  }
-                `}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="flex-1 overflow-auto p-6">
-          {renderContent()}
-        </div>
+      <PageTabsBar
+        title="Health"
+        description="Platform monitoring, scheduled jobs, audit history, usage and test reports."
+        sections={SECTIONS}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
+      <div key={activeTab} className="page animate-fade-in">
+        {renderContent()}
       </div>
     </Layout>
   );

@@ -15,16 +15,15 @@ import {
 } from '../OntosWorkspace';
 
 const ALL_TAB_IDS: OntosTabId[] = [
-  'dashboard',
-  'fdw-explorer',
-  'query-builder',
+  'tables',
+  'query',
 ];
 
 describe('OntosWorkspace', () => {
-  // Requirement 2.1: three tabs with correct labels
+  // Requirement 2.1: tabs with correct labels (the dashboard is now an overview strip above the tabs)
   describe('Tab configuration', () => {
-    it('should define exactly 3 tabs', () => {
-      expect(ONTOS_TAB_CONFIGS).toHaveLength(3);
+    it('should define exactly 2 tabs', () => {
+      expect(ONTOS_TAB_CONFIGS).toHaveLength(2);
     });
 
     it('should have the correct tab IDs in order', () => {
@@ -35,9 +34,8 @@ describe('OntosWorkspace', () => {
     it('should have the correct labels', () => {
       const labels = ONTOS_TAB_CONFIGS.map((t) => t.label);
       expect(labels).toEqual([
-        'Dashboard',
-        'FDW Explorer',
-        'Query Builder',
+        'Tables',
+        'Query',
       ]);
     });
 
@@ -58,10 +56,10 @@ describe('OntosWorkspace', () => {
     });
   });
 
-  // Requirement 2.3: default to Dashboard tab
+  // Requirement 2.3: default to the Tables tab
   describe('Default tab', () => {
-    it('should have dashboard as the first tab', () => {
-      expect(ONTOS_TAB_CONFIGS[0].id).toBe('dashboard');
+    it('should have tables as the first tab', () => {
+      expect(ONTOS_TAB_CONFIGS[0].id).toBe('tables');
     });
   });
 
@@ -72,7 +70,7 @@ describe('OntosWorkspace', () => {
         fc.property(
           fc.array(fc.constantFrom(...ALL_TAB_IDS), { minLength: 1, maxLength: 20 }),
           (tabSequence) => {
-            let activeTab: OntosTabId = 'dashboard';
+            let activeTab: OntosTabId = 'tables';
             tabSequence.forEach((t) => {
               activeTab = t;
             });

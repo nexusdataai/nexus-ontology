@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PageTabsBar, useUrlTab, type TabSection } from '@/components/ds/PageTabs';
+import { Icon, type IconName } from '@/components/ds/Icon';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Plus, Database, RefreshCw, ArrowDownUp, Settings2 } from 'lucide-react';
 import { dataPlaneService, DataPlane } from '@/services/dataPlaneService';
 import { etlPipelineService } from '@/services/etlPipelineService';
 import { dataSourceModeService, type Mode } from '@/services/dataSourceModeService';
@@ -18,14 +18,30 @@ import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWor
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
 import VdlApiRegistryBrowser from '@/components/registry-browser/VdlApiRegistryBrowser';
 
-const SOURCE_COLORS: Record<string, string> = {
-  FDW: 'from-blue-500 to-blue-600',
-  CDC: 'from-green-500 to-green-600',
-  ETL: 'from-orange-500 to-orange-600',
-  FILE_UPLOAD: 'from-purple-500 to-purple-600',
-  CLOUD_DRIVE: 'from-cyan-500 to-cyan-600',
-  SOCIAL_LISTENING: 'from-pink-500 to-pink-600',
+const SOURCE_ICONS: Record<string, IconName> = {
+  FDW: 'database',
+  CDC: 'refresh',
+  ETL: 'shuffle',
+  FILE_UPLOAD: 'upload',
+  CLOUD_DRIVE: 'folder',
+  SOCIAL_LISTENING: 'megaphone-or-rss',
 };
+
+/** Tabs grouped into sections. Item values are the original ?tab= values. */
+const DP_SECTIONS: TabSection[] = [
+  { label: 'Sources', icon: 'database', items: [{ value: 'sources', label: 'Data sources' }] },
+  { label: 'Virtual data', icon: 'cube', items: [
+    { value: 'virtualdata', label: 'Entities' },
+    { value: 'vdl-apis', label: 'API registry' },
+  ] },
+  { label: 'Mapping rules', icon: 'shuffle', items: [{ value: 'mappingrules', label: 'Mapping rules' }] },
+  { label: 'Pipelines', icon: 'route', items: [{ value: 'pipelines', label: 'Data pipelines' }] },
+  { label: 'Connectors', icon: 'plug', items: [
+    { value: 'connectors', label: 'Catalogue' },
+    { value: 'connector-registry', label: 'API registry' },
+    { value: 'connector-apis', label: 'Workbench' },
+  ] },
+];
 
 type Vertical = 'all' | 'supply_chain' | 'crm';
 
@@ -170,7 +186,9 @@ export default function DataPlanePage() {
   const getRecordLabel = (src: SourceDef) => {
     const stats = simStats[src.simulatorKey];
     if (stats) {
-      return `${stats.table_count} tables · ${stats.total_rows.toLocaleString()} rows`;
+      return stats.total_rows > 0
+        ? `${stats.table_count} tables · ${stats.total_rows.toLocaleString()} rows`
+        : `${stats.table_count} tables`;
     }
     return `${src.entities} entities`;
   };
@@ -187,213 +205,197 @@ export default function DataPlanePage() {
   const allSources = vertical === 'all' ? allSourcesRaw : allSourcesRaw.filter(s => s.verticals?.includes(vertical));
   const connectedCount = allSources.filter(s => s.status === 'connected').length;
   const totalCount = allSources.length;
-  const angleStep = (2 * Math.PI) / Math.max(totalCount, 1);
-  const hubRadius = 200;
-  const [searchParams] = useSearchParams();
-  const [dpTab, setDpTab] = useState(searchParams.get('tab') || 'sources');
+  const [dpTab, setDpTab] = useUrlTab('sources');
 
-  useEffect(() => {
-    const t = searchParams.get('tab');
-    if (t) setDpTab(t);
-  }, [searchParams]);
+  const openSource = (src: { id: string }) => {
+    const srcMode = getSourceMode(src.id);
+    nav(`/ai-stack/data-plane/${src.id}?mode=${srcMode}&source=${getSimulatorSource(src as SourceDef, srcMode)}`);
+  };
+
+  // Geometry of the source map: one row per source, all lines meet at the hub.
+  const ROW = 72;
+  const mapH = Math.max(totalCount, 1) * ROW;
 
   return (
     <Layout>
       <Tabs value={dpTab} onValueChange={setDpTab}>
-        <div className="sticky top-0 z-20 border-b border-border px-6 pt-3 bg-background">
-          <TabsList className="bg-transparent gap-1 h-auto p-0">
-            {[
-              { value: 'sources', label: 'Data Sources' },
-              { value: 'virtualdata', label: 'Virtual Data' },
-              { value: 'vdl-apis', label: 'Virtual Data API Registry' },
-              { value: 'mappingrules', label: 'Mapping Rules' },
-              { value: 'pipelines', label: 'Data Pipelines' },
-              { value: 'connectors', label: 'Connectors' },
-              { value: 'connector-apis', label: 'Connector Workbench' },
-              { value: 'connector-registry', label: 'Connector Registry' },
-            ].map(t => (
-              <TabsTrigger key={t.value} value={t.value}
-                className="data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300 gap-1.5 text-xs px-3 py-1.5 rounded-t-md rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-400">
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <PageTabsBar
+          title="Data Plane"
+          description="Connect enterprise systems, model them as virtual entities, and expose them through governed APIs."
+          sections={DP_SECTIONS}
+          value={dpTab}
+          onChange={setDpTab}
+          actions={dpTab === 'sources' ? (
+            <>
+              <Button variant="outline" size="sm" onClick={loadPlanes} disabled={loading}>
+                <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
+              </Button>
+              <Button size="sm" onClick={() => nav('/ai-stack/data-plane/create')}>
+                <Icon name="plus" /> Add data source
+              </Button>
+            </>
+          ) : undefined}
+        />
 
-          <TabsContent value="virtualdata" className="mt-0 h-[calc(100vh-6rem)]">
-            <EntityExplorer />
-          </TabsContent>
-          <TabsContent value="vdl-apis" className="mt-0 h-[calc(100vh-6rem)]">
-            <VdlApiRegistryBrowser />
-          </TabsContent>
-          <TabsContent value="mappingrules" className="mt-0 h-[calc(100vh-6rem)]">
-            <MappingRulesEditor />
-          </TabsContent>
-          <TabsContent value="pipelines" className="mt-0">
-            <DataPipelinesTab />
-          </TabsContent>
-          <TabsContent value="connectors" className="mt-0">
-            <ConnectorsTab />
-          </TabsContent>
-          <TabsContent value="connector-apis" className="mt-0">
-            <ConnectorApiWorkbenchPanel />
-          </TabsContent>
-          <TabsContent value="connector-registry" className="mt-0 h-[calc(100vh-6rem)]">
-            <ConnectorApisRegistryBrowser />
-          </TabsContent>
-          <TabsContent value="sources" className="mt-0">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold">Data Sources</h1>
-            <p className="text-sm text-muted-foreground mt-1">Connect and manage your enterprise data ecosystem</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <select value={vertical} onChange={e => setVertical(e.target.value as Vertical)} className="text-xs px-2 py-1 rounded-md border bg-background">
-              {VERTICALS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
-            <button
-              onClick={openSettingsForMode}
-              className="flex items-center gap-2 rounded-lg border px-3 py-1 text-xs hover:bg-muted/40 transition-colors"
-              title="Open Settings to change per-source mode"
-            >
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-300 border-amber-500/30 text-[10px]">
-                {modeSummary.simulator} sim
-              </Badge>
-              <Badge variant="outline" className="bg-green-500/10 text-green-300 border-green-500/30 text-[10px]">
-                {modeSummary.real} real
-              </Badge>
-              <Settings2 className="h-3 w-3 text-muted-foreground" />
-            </button>
-            <Badge variant="outline" className="text-xs px-3 py-1">{connectedCount} / {totalCount} connected</Badge>
-            <Button variant="outline" size="sm" onClick={loadPlanes} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button size="sm" onClick={() => nav('/ai-stack/data-plane/create')}>
-              <Plus className="h-4 w-4 mr-1.5" /> Add Data Source
-            </Button>
-          </div>
-        </div>
+        <TabsContent value="virtualdata" className="mt-0 h-pane-sub">
+          <EntityExplorer />
+        </TabsContent>
+        <TabsContent value="vdl-apis" className="pane-wide mt-0 h-pane-sub">
+          <VdlApiRegistryBrowser />
+        </TabsContent>
+        <TabsContent value="mappingrules" className="mt-0 h-pane">
+          <MappingRulesEditor />
+        </TabsContent>
+        <TabsContent value="pipelines" className="mt-0">
+          <DataPipelinesTab />
+        </TabsContent>
+        <TabsContent value="connectors" className="mt-0">
+          <ConnectorsTab />
+        </TabsContent>
+        <TabsContent value="connector-apis" className="mt-0">
+          <ConnectorApiWorkbenchPanel />
+        </TabsContent>
+        <TabsContent value="connector-registry" className="pane-wide mt-0 h-pane-sub">
+          <ConnectorApisRegistryBrowser />
+        </TabsContent>
 
-        {/* Hub-Spoke */}
-        <div className="relative mx-auto mb-10" style={{ width: hubRadius * 2 + 280, height: hubRadius * 2 + 280 }}>
-          <div className="absolute rounded-full border-2 border-primary/30 flex flex-col items-center justify-center bg-card shadow-lg shadow-primary/5"
-            style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-            <Database className="h-6 w-6 text-primary mb-1" />
-            <span className="text-[11px] font-semibold">Data Plane</span>
-            <span className="text-[9px] text-muted-foreground">{connectedCount} active</span>
-          </div>
+        <TabsContent value="sources" className="mt-0">
+          <div className="page">
+            {/* Filters and summary */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <Select value={vertical} onValueChange={v => setVertical(v as Vertical)}>
+                <SelectTrigger className="h-8 w-[170px]" aria-label="Filter by vertical"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {VERTICALS.map(v => <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">
+                <span className="num font-medium text-foreground">{connectedCount}</span> of <span className="num">{totalCount}</span> connected
+              </span>
+              <button
+                type="button"
+                onClick={openSettingsForMode}
+                title="Source modes are changed in Settings"
+                className="group inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                <span><span className="num font-medium text-foreground">{modeSummary.simulator}</span> simulator</span>
+                <span aria-hidden="true">·</span>
+                <span><span className="num font-medium text-foreground">{modeSummary.real}</span> real</span>
+                <Icon name="sliders" className="h-3.5 w-3.5 text-subtle-foreground group-hover:text-foreground" />
+              </button>
+            </div>
 
-          {allSources.map((src, i) => {
-            const angle = angleStep * i - Math.PI / 2;
-            const x = Math.cos(angle) * hubRadius;
-            const y = Math.sin(angle) * hubRadius;
-            const cx = hubRadius + 140;
-            const cy = hubRadius + 140;
-            const colors = SOURCE_COLORS[src.type] || 'from-slate-500 to-slate-600';
-            const srcMode = getSourceMode(src.id);
-            const simSource = getSimulatorSource(src as SourceDef, srcMode);
+            {/* Source map */}
+            <section className="mt-5 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              <div className="canvas-dots grid gap-0 lg:grid-cols-[minmax(0,400px)_minmax(80px,1fr)_250px]">
+                {/* sources */}
+                <ul className="min-w-0 py-3 pl-3 pr-3 lg:pr-0">
+                  {allSources.map((src, i) => {
+                    const srcMode = getSourceMode(src.id);
+                    const pipe = pipelinesBySource[src.id];
+                    const connected = src.status === 'connected';
+                    return (
+                      <li key={src.id} style={{ height: ROW, '--i': i } as React.CSSProperties} className="rise flex items-center">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openSource(src)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSource(src); } }}
+                          title={`Open ${src.name} explorer`}
+                          className="group flex h-[60px] w-full cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-3 shadow-xs transition-[border-color,transform,box-shadow] duration-200 ease-brand hover:-translate-y-px hover:border-brand/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-muted-foreground transition-colors group-hover:border-brand/40 group-hover:text-primary dark:group-hover:text-brand-hi">
+                            <Icon name={SOURCE_ICONS[src.type] || 'database'} className="h-[18px] w-[18px]" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium text-foreground">{src.name}</span>
+                              <span className={connected ? 'dot-live text-success' : 'inline-block h-2 w-2 rounded-full bg-subtle-foreground'} title={src.status} />
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">{getRecordLabel(src as SourceDef)} · {src.desc}</span>
+                          </span>
+                          <span className="flex shrink-0 flex-col items-end gap-1">
+                            <button
+                              type="button"
+                              onClick={openSettingsForMode}
+                              title="Open Settings to change mode"
+                              className="rounded-sm text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                            >
+                              {srcMode === 'simulator' ? 'Simulator' : 'Real FDW'}
+                            </button>
+                            {pipe && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDpTab('pipelines'); }}
+                                title="View ETL pipeline"
+                                className={`rounded-sm text-xs underline-offset-2 hover:underline ${
+                                  pipe.status === 'completed' ? 'text-success' : pipe.status === 'running' ? 'text-primary dark:text-brand-hi' : pipe.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'
+                                }`}
+                              >
+                                ETL {pipe.status}
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
 
-            return (
-              <div key={src.id}>
-                <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }}>
-                  <line x1={cx} y1={cy} x2={cx + x} y2={cy + y}
-                    stroke={src.status === 'connected' ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
-                    strokeWidth={src.status === 'connected' ? 2 : 1}
-                    strokeDasharray={src.status === 'connected' ? '' : '4 4'} opacity={0.4} />
-                </svg>
-                <div className="absolute flex flex-col items-center gap-0.5"
-                  style={{ left: cx + x - 55, top: cy + y - 40, width: 110 }}>
-                  <button
-                    onClick={() => nav(`/ai-stack/data-plane/${src.id}?mode=${srcMode}&source=${simSource}`)}
-                    className="transition-transform hover:scale-110 cursor-pointer"
-                    title={`Open ${src.name} explorer`}>
-                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colors} flex items-center justify-center text-white text-sm font-bold shadow-md mx-auto`}>
-                      {src.name.charAt(0)}
+                {/* links */}
+                <div className="relative hidden lg:block" style={{ height: mapH + 24 }} aria-hidden="true">
+                  <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${mapH + 24}`} preserveAspectRatio="none">
+                    {allSources.map((src, i) => {
+                      const y = 12 + i * ROW + ROW / 2;
+                      const yc = 12 + mapH / 2;
+                      const d = `M0,${y} C55,${y} 45,${yc} 100,${yc}`;
+                      const connected = src.status === 'connected';
+                      return (
+                        <g key={src.id} fill="none">
+                          <path d={d} stroke="hsl(var(--border-strong))" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray={connected ? undefined : '3 4'} />
+                          {connected && <path d={d} stroke="hsl(var(--brand))" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="flow-line" />}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+
+                {/* hub */}
+                <div className="flex items-center border-t border-border p-4 lg:border-t-0 lg:py-3 lg:pl-0 lg:pr-5">
+                  <div className="glow-brand w-full rounded-lg border border-brand/40 bg-card p-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                        <Icon name="layers" className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground">Virtual data layer</div>
+                        <div className="text-xs text-muted-foreground"><span className="num">{connectedCount}</span> active sources</div>
+                      </div>
                     </div>
-                  </button>
-                  <span className="text-[10px] font-medium text-center leading-tight truncate max-w-[100px]">{src.name}</span>
-                  <span className="text-[9px] text-muted-foreground text-center">{getRecordLabel(src as SourceDef)}</span>
-                  <button onClick={openSettingsForMode}
-                    className={`text-[8px] px-1.5 py-0.5 rounded-full border transition-colors ${
-                      srcMode === 'simulator' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-green-500/20 text-green-300 border-green-500/30'
-                    }`} title="Open Settings to change mode">
-                    {srcMode === 'simulator' ? 'Simulator' : 'Real FDW'}
-                  </button>
-                  {pipelinesBySource[src.id] && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDpTab('pipelines'); }}
-                      className={`text-[8px] px-1.5 py-0.5 rounded-full border flex items-center gap-0.5 transition-colors ${
-                        pipelinesBySource[src.id].status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
-                        pipelinesBySource[src.id].status === 'running' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
-                        pipelinesBySource[src.id].status === 'failed' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
-                        'bg-muted text-muted-foreground border-border'
-                      }`}
-                      title="View ETL pipeline"
-                    >
-                      <ArrowDownUp className="h-2 w-2" /> ETL
-                    </button>
-                  )}
+                    <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
+                      <button type="button" onClick={() => setDpTab('virtualdata')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
+                        Virtual entities <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                      </button>
+                      <button type="button" onClick={() => setDpTab('mappingrules')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
+                        Mapping rules <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                      </button>
+                      <button type="button" onClick={() => setDpTab('pipelines')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
+                        Pipelines <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Cards Grid */}
-        <h2 className="text-lg font-semibold mb-4">All Data Sources</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allSources.map(src => {
-            const colors = SOURCE_COLORS[src.type] || 'from-slate-500 to-slate-600';
-            const srcMode = getSourceMode(src.id);
-            const simSource = getSimulatorSource(src as SourceDef, srcMode);
-            return (
-              <Card key={src.id} className="p-4 flex items-start gap-4 cursor-pointer hover:border-primary/30 transition-colors"
-                onClick={() => nav(`/ai-stack/data-plane/${src.id}?mode=${srcMode}&source=${simSource}`)}>
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
-                  {src.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{src.name}</span>
-                    <button onClick={openSettingsForMode}
-                      title="Open Settings to change mode"
-                      className={`text-[9px] px-1.5 py-0.5 rounded-full border ml-auto shrink-0 ${
-                        srcMode === 'simulator' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-green-500/20 text-green-300 border-green-500/30'
-                      }`}>{srcMode === 'simulator' ? 'Simulator' : 'Real FDW'}</button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{src.desc}</p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <Badge variant="secondary" className="text-[10px]">{src.type}</Badge>
-                    <span className="text-[10px] text-muted-foreground">{getRecordLabel(src as SourceDef)}</span>
-                    {pipelinesBySource[src.id] && (
-                      <Badge
-                        className={`text-[9px] cursor-pointer ${
-                          pipelinesBySource[src.id].status === 'completed' ? 'bg-green-500/20 text-green-300' :
-                          pipelinesBySource[src.id].status === 'running' ? 'bg-blue-500/20 text-blue-300' :
-                          pipelinesBySource[src.id].status === 'failed' ? 'bg-red-500/20 text-red-300' :
-                          'bg-muted text-muted-foreground'
-                        }`}
-                        onClick={(e) => { e.stopPropagation(); setDpTab('pipelines'); }}
-                      >
-                        <ArrowDownUp className="h-2.5 w-2.5 mr-0.5" /> ETL {pipelinesBySource[src.id].status}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-          <Card className="p-4 flex items-center justify-center border-dashed cursor-pointer hover:border-primary/30 transition-colors min-h-[100px]"
-            onClick={() => nav('/ai-stack/data-plane/create')}>
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Plus className="h-6 w-6" />
-              <span className="text-xs font-medium">Add Data Source</span>
-            </div>
-          </Card>
-        </div>
-      </div>
-          </TabsContent>
+              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
+                <p className="text-xs text-muted-foreground">Select a source to browse its tables and run queries.</p>
+                <button type="button" onClick={() => nav('/ai-stack/data-plane/create')} className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline">
+                  <Icon name="plus" className="h-3.5 w-3.5" /> Add data source
+                </button>
+              </div>
+            </section>
+          </div>
+        </TabsContent>
       </Tabs>
     </Layout>
   );

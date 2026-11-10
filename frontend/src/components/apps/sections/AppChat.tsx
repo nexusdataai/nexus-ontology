@@ -55,8 +55,8 @@ export function AppChat({ app }: Props) {
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-bold">AI Assistant</h2>
-        <Badge variant="outline" className="text-[9px]">{app.shortName} scoped</Badge>
+        <h2 className="text-lg font-semibold">AI Assistant</h2>
+        <Badge variant="outline" className="text-xs">{app.shortName} scoped</Badge>
       </div>
 
       <Card className="flex-1 flex flex-col min-h-0">

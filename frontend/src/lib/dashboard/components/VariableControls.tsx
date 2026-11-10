@@ -16,24 +16,24 @@ export function VariableControls({ variables, values, onChange }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {variables.map((v) => {
         const label = v.label || v.name;
 
         if (v.type === 'custom' && v.options?.length) {
           return (
-            <div key={v.name} className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground">{label}:</span>
+            <div key={v.name} className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <Select value={values[v.name] || v.current?.value || ''} onValueChange={(val) => handleChange(v.name, val)}>
-                <SelectTrigger className="h-7 text-[10px] w-auto min-w-[100px]">
+                <SelectTrigger className="h-8 w-auto min-w-[120px] text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {v.includeAll && (
-                    <SelectItem value="$__all" className="text-[10px]">All</SelectItem>
+                    <SelectItem value="$__all">All</SelectItem>
                   )}
                   {v.options.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[10px]">
+                    <SelectItem key={opt.value} value={opt.value}>
                       {opt.text}
                     </SelectItem>
                   ))}
@@ -45,10 +45,10 @@ export function VariableControls({ variables, values, onChange }: Props) {
 
         if (v.type === 'textbox' || v.type === 'constant') {
           return (
-            <div key={v.name} className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground">{label}:</span>
+            <div key={v.name} className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <Input
-                className="h-7 text-[10px] w-[120px]"
+                className="h-8 w-36 text-sm"
                 value={values[v.name] || v.current?.value || ''}
                 onChange={(e) => handleChange(v.name, e.target.value)}
                 readOnly={v.type === 'constant'}

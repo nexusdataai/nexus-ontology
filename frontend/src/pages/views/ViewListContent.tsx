@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { humanize } from '@/components/journeys/studio/format';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Plus, Search, AppWindow, MoreVertical, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { Icon } from '@/components/ds/Icon';
+import { Chips, SearchInput, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
+import { confirmDialog } from '@/components/ds/confirm';
+import { LibraryCard } from '@/components/analytics/LibraryCard';
 import { viewService } from '@/services/viewService';
 import type { ViewSummary } from '@/lib/foundry/model';
 
@@ -24,6 +21,7 @@ export function ViewListContent({ hideHeading = false }: ViewListContentProps) {
   const [views, setViews] = useState<ViewSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [tag, setTag] = useState<string>('all');
 
   const load = () => {
     setLoading(true);
@@ -48,122 +46,79 @@ export function ViewListContent({ hideHeading = false }: ViewListContentProps) {
     }
   };
 
+  const tags = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of views) for (const t of it.tags || []) m.set(t, (m.get(t) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [views]);
+  const shown = tag === 'all' ? views : views.filter(it => (it.tags || []).includes(tag));
+
+  const confirmDelete = async (id: string, name: string) => {
+    const ok = await confirmDialog({ title: `Delete "${name}"?`, description: 'This cannot be undone.', destructive: true, confirmLabel: 'Delete' });
+    if (ok) handleDelete(id);
+  };
+
   return (
-    <div className={hideHeading ? '' : 'p-6 max-w-6xl mx-auto'}>
-      <div className="flex items-center justify-between mb-6">
-        {!hideHeading ? (
-          <div>
-            <h1 className="text-lg font-semibold">Views</h1>
-            <p className="text-xs text-muted-foreground">
-              Tabbed collections of dashboards. Build with the visual View Builder and surface
-              them inside Solutions.
-            </p>
-          </div>
-        ) : (
-          <div />
-        )}
-        <Button size="sm" className="h-8" onClick={() => navigate('/views/builder')}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> New View
-        </Button>
-      </div>
-
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          className="h-8 pl-9 text-xs"
-          placeholder="Search views..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : views.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-border rounded-lg">
-          <AppWindow className="h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-3">No views yet</p>
-          <Button size="sm" variant="outline" onClick={() => navigate('/views/builder')}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Create your first view
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {views.map((v) => (
-            <Card
-              key={v.viewId}
-              className="hover:shadow-md transition-shadow cursor-pointer group"
-              onClick={() => navigate(`/views/${v.viewId}`)}
-            >
-              <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
-                <div className="min-w-0 flex-1">
-                  <CardTitle className="text-sm truncate">{v.name}</CardTitle>
-                  {v.description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                      {v.description}
-                    </p>
-                  )}
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="text-xs"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <DropdownMenuItem
-                      onClick={() => navigate(`/views/${v.viewId}`)}
-                      className="text-xs"
-                    >
-                      <Eye className="h-3 w-3 mr-2" /> Open
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate(`/views/builder/${v.viewId}`)}
-                      className="text-xs"
-                    >
-                      <Pencil className="h-3 w-3 mr-2" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDelete(v.viewId)}
-                      className="text-xs text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3 mr-2" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span>{v.tabCount} tabs</span>
-                  <span>|</span>
-                  <span>
-                    {v.updatedAt ? new Date(v.updatedAt).toLocaleDateString() : 'Never saved'}
-                  </span>
-                </div>
-                {v.tags.length > 0 && (
-                  <div className="flex gap-1 mt-2">
-                    {v.tags.map((t) => (
-                      <Badge key={t} variant="outline" className="text-[9px]">
-                        {t}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+    <div className={hideHeading ? '' : 'page'}>
+      {!hideHeading && (
+        <div className="mb-6">
+          <h1 className="text-2xl font-medium tracking-tight text-foreground">Views</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Tabbed collections of dashboards that you can attach to a solution.</p>
         </div>
       )}
+
+      <Toolbar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search views" className="w-full sm:w-72" />
+        {tags.length > 0 && (
+          <Chips
+            label="Filter by tag"
+            value={tag}
+            onChange={setTag}
+            options={[{ value: 'all', label: 'All', count: views.length }, ...tags.map(([t, n]) => ({ value: t, label: humanize(t), count: n }))]}
+          />
+        )}
+        <ToolbarSpacer />
+        <Button onClick={() => navigate('/views/builder')}>
+          <Icon name="plus" className="h-3.5 w-3.5" /> New view
+        </Button>
+      </Toolbar>
+
+      <div className="mt-5">
+        {loading && views.length === 0 ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+            {[0, 1, 2].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
+          </div>
+        ) : shown.length === 0 ? (
+          <EmptyState
+            icon="layers"
+            title={search || tag !== 'all' ? 'Nothing matches' : 'No views yet'}
+            description={search || tag !== 'all' ? 'Try another search or clear the filter.' : 'Group dashboards into tabs and attach the view to a solution.'}
+            action={!search && tag === 'all' ? <Button onClick={() => navigate('/views/builder')}><Icon name="plus" className="h-3.5 w-3.5" /> Create the first view</Button> : undefined}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {shown.map((it, i) => (
+              <LibraryCard
+                key={it.viewId}
+                id={it.viewId}
+                kind="view"
+                title={it.name}
+                description={it.description}
+                count={it.tabCount}
+                updatedAt={it.updatedAt}
+                tags={it.tags}
+                index={i}
+                onOpen={() => navigate(`/views/${it.viewId}`)}
+                actions={[
+                  { label: 'Open', icon: 'eye', onSelect: () => navigate(`/views/${it.viewId}`) },
+                  { label: 'Edit', icon: 'edit', onSelect: () => navigate(`/views/builder/${it.viewId}`) },
+                  { label: 'Delete', icon: 'trash', destructive: true, onSelect: () => confirmDelete(it.viewId, it.name) },
+                ]}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

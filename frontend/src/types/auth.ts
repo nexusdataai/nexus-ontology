@@ -30,6 +30,7 @@ export enum Permission {
   MANAGE_USERS = 'manage_users',
   MANAGE_TEAM = 'manage_team',
   MANAGE_SYSTEM = 'manage_system',
+  MANAGE_RBAC = 'manage_rbac',
   INVITE_USERS = 'invite_users',
   VIEW_COMPLIANCE = 'view_compliance',
   ACCESS_AI_TOOLS = 'access_ai_tools',

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Loader2, Play, X, XCircle, MinusCircle } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, DetailSheet, InlineError, StatusPill, SubHeading } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
 import { reactToolsDiagnosticsService, type ExecuteResult } from '@/services/reactToolsDiagnosticsService';
 import {
@@ -107,34 +108,6 @@ export function adapterFromConnectorApi(args: {
 // Component
 // ---------------------------------------------------------------------------
 
-function statusBadge(status: string) {
-  if (status === 'pass') {
-    return (
-      <Badge variant="outline" className="bg-green-500/15 text-green-300 border-green-500/30 gap-1">
-        <CheckCircle2 className="h-3 w-3" /> pass
-      </Badge>
-    );
-  }
-  if (status === 'fail') {
-    return (
-      <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/30 gap-1">
-        <XCircle className="h-3 w-3" /> fail
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="bg-amber-500/15 text-amber-300 border-amber-500/30 gap-1">
-      <MinusCircle className="h-3 w-3" /> {status}
-    </Badge>
-  );
-}
-
-const RISK_BADGE: Record<string, string> = {
-  read_only: 'bg-green-500/15 text-green-300 border-green-500/30',
-  low_risk_write: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  high_risk_write: 'bg-red-500/15 text-red-300 border-red-500/30',
-};
-
 /**
  * Unified execute drawer for both tools and connector APIs.
  *
@@ -170,7 +143,7 @@ export function ExecuteDrawer({ adapter, onClose }: ExecuteDrawerProps) {
     try {
       parsed = payload.trim() ? JSON.parse(payload) : {};
     } catch (e: any) {
-      setError(`payload JSON parse error: ${e.message || e}`);
+      setError(`The payload is not valid JSON. Parse error: ${e.message || e}`);
       return;
     }
     setRunning(true);
@@ -190,119 +163,93 @@ export function ExecuteDrawer({ adapter, onClose }: ExecuteDrawerProps) {
   const hasVerification = !!extras?.verification;
   const hasRequestBlock = !!extras?.request;
   const isConnector = adapter?.kind === 'connector_api';
+  const json = (v: unknown) => JSON.stringify(v, null, 2) ?? 'null';
 
   return (
-    <Sheet open={!!adapter} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="p-0 w-full sm:max-w-2xl flex flex-col">
-        <SheetHeader className="p-4 pb-3 border-b">
-          <SheetTitle className="text-base flex items-center gap-2 flex-wrap">
-            <Play className="h-4 w-4 text-primary" />
-            <span className="font-mono">{adapter?.id}</span>
-            {adapter?.riskLevel && (
-              <Badge variant="outline" className={cn('text-[10px]', RISK_BADGE[adapter.riskLevel] || RISK_BADGE.low_risk_write)}>
-                {adapter.riskLevel.replace(/_/g, ' ')}
-              </Badge>
-            )}
-            <Badge variant="outline" className="text-[10px] bg-muted/40">
-              {adapter?.kind === 'tool' ? 'tool' : 'connector api'}
-            </Badge>
-          </SheetTitle>
-          <SheetDescription className="text-xs text-muted-foreground">
-            {adapter?.kind === 'tool'
-              ? 'Dispatch through /api/v1/diagnostics/react-tools/{tool}/execute'
-              : 'Dispatch through /api/v1/connector-apis/{api_id}/invoke'}
-            {adapter?.connectorApi ? ` -> ${adapter.connectorApi}` : ''}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="p-4 space-y-3 flex-1 overflow-auto">
-          {requiredKeys.length > 0 && (
-            <div className="text-[11px] text-muted-foreground">
-              Required:{' '}
-              {requiredKeys.map((k) => (
-                <code key={k} className="bg-muted/40 px-1 rounded mr-1">{k}</code>
-              ))}
-            </div>
-          )}
-
-          <div>
-            <div className="text-[11px] font-medium text-muted-foreground mb-1">Payload (JSON)</div>
-            <textarea
-              value={payload}
-              onChange={(e) => setPayload(e.target.value)}
-              spellCheck={false}
-              className={cn(
-                'w-full font-mono text-[12px] p-2 rounded border bg-card/30',
-                'min-h-[140px] resize-y',
-              )}
-            />
-          </div>
-
-          {error && (
-            <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2">
-              {error}
-            </div>
-          )}
-
-          {envelope && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {statusBadge(envelope.status)}
-                {envelope.duration_ms != null && (
-                  <span>{envelope.duration_ms} ms</span>
-                )}
-                {envelope.result_preview && (
-                  <span className="font-mono text-[11px] text-muted-foreground/80">
-                    {envelope.result_preview}
-                  </span>
-                )}
-              </div>
-
-              <Tabs value={resultTab} onValueChange={setResultTab}>
-                <TabsList className="h-8">
-                  <TabsTrigger value="result" className="text-xs h-7 px-2">Result</TabsTrigger>
-                  {isConnector && hasVerification && (
-                    <TabsTrigger value="verification" className="text-xs h-7 px-2">Verification</TabsTrigger>
-                  )}
-                  {isConnector && hasRequestBlock && (
-                    <TabsTrigger value="request" className="text-xs h-7 px-2">Request</TabsTrigger>
-                  )}
-                </TabsList>
-                <TabsContent value="result" className="mt-2">
-                  <pre className="text-[11px] font-mono bg-muted/30 border rounded p-2 max-h-72 overflow-auto whitespace-pre-wrap">
-{JSON.stringify(envelope.result ?? envelope.error ?? null, null, 2)}
-                  </pre>
-                </TabsContent>
-                {isConnector && hasVerification && (
-                  <TabsContent value="verification" className="mt-2">
-                    <pre className="text-[11px] font-mono bg-muted/30 border rounded p-2 max-h-72 overflow-auto whitespace-pre-wrap">
-{JSON.stringify(extras!.verification, null, 2)}
-                    </pre>
-                  </TabsContent>
-                )}
-                {isConnector && hasRequestBlock && (
-                  <TabsContent value="request" className="mt-2">
-                    <pre className="text-[11px] font-mono bg-muted/30 border rounded p-2 max-h-72 overflow-auto whitespace-pre-wrap">
-{JSON.stringify(extras!.request, null, 2)}
-                    </pre>
-                  </TabsContent>
-                )}
-              </Tabs>
-            </div>
-          )}
-        </div>
-
-        <div className="border-t p-3 flex items-center justify-between bg-card/40">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-3.5 w-3.5 mr-1" /> Close
-          </Button>
-          <Button size="sm" onClick={handleRun} disabled={running || !adapter}>
-            {running ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1" />}
+    <DetailSheet
+      open={!!adapter}
+      onOpenChange={(o) => { if (!o) onClose(); }}
+      wide
+      title={<span className="font-mono text-md">{adapter?.id}</span>}
+      description={`${adapter?.kind === 'tool' ? 'Runs this tool' : 'Calls this connector API'} with the payload below${adapter?.connectorApi ? `, through ${adapter.connectorApi}` : ''}.`}
+      meta={(
+        <>
+          {adapter?.riskLevel && <StatusPill status={adapter.riskLevel} variant="soft" />}
+          <span className="text-xs text-muted-foreground">{adapter?.kind === 'tool' ? 'Tool' : 'Connector API'}</span>
+        </>
+      )}
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button onClick={handleRun} disabled={running || !adapter}>
+            <Icon name={running ? 'spinner' : 'play'} className={cn(running && 'animate-spin')} />
             Run
           </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </>
+      )}
+    >
+      <div className="space-y-6">
+        <section>
+          <SubHeading>Payload</SubHeading>
+          <Textarea
+            value={payload}
+            onChange={(e) => setPayload(e.target.value)}
+            spellCheck={false}
+            aria-label="Payload as JSON"
+            className="min-h-[160px] resize-y font-mono text-xs leading-5"
+          />
+          {requiredKeys.length > 0 && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Required:{' '}
+              {requiredKeys.map((k, i) => (
+                <span key={k}>{i > 0 && ', '}<code className="font-mono text-foreground">{k}</code></span>
+              ))}
+            </p>
+          )}
+        </section>
+
+        {error && <InlineError>{error}</InlineError>}
+
+        {running && !envelope && <Skeleton className="h-32 w-full" aria-busy="true" />}
+
+        {envelope && (
+          <section className="animate-fade-up">
+            <SubHeading action={envelope.duration_ms != null ? <span className="num text-xs text-muted-foreground">{envelope.duration_ms} ms</span> : undefined}>
+              <span className="flex flex-wrap items-center gap-3">
+                Result
+                <StatusPill status={envelope.status} tone={envelope.status === 'pass' || envelope.status === 'fail' ? undefined : 'warning'} />
+              </span>
+            </SubHeading>
+            {envelope.result_preview && (
+              <p className="mb-2 line-clamp-2 break-all font-mono text-xs text-muted-foreground">{envelope.result_preview}</p>
+            )}
+
+            <Tabs value={resultTab} onValueChange={setResultTab}>
+              {(isConnector && (hasVerification || hasRequestBlock)) && (
+                <TabsList variant="line" className="mb-3">
+                  <TabsTrigger value="result">Response</TabsTrigger>
+                  {hasVerification && <TabsTrigger value="verification">Verification</TabsTrigger>}
+                  {hasRequestBlock && <TabsTrigger value="request">Request</TabsTrigger>}
+                </TabsList>
+              )}
+              <TabsContent value="result" className="mt-0">
+                <CodeBlock maxHeight={320} wrap>{json(envelope.result ?? envelope.error ?? null)}</CodeBlock>
+              </TabsContent>
+              {isConnector && hasVerification && (
+                <TabsContent value="verification" className="mt-0">
+                  <CodeBlock maxHeight={320} wrap>{json(extras!.verification)}</CodeBlock>
+                </TabsContent>
+              )}
+              {isConnector && hasRequestBlock && (
+                <TabsContent value="request" className="mt-0">
+                  <CodeBlock maxHeight={320} wrap>{json(extras!.request)}</CodeBlock>
+                </TabsContent>
+              )}
+            </Tabs>
+          </section>
+        )}
+      </div>
+    </DetailSheet>
   );
 }
 

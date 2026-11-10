@@ -257,14 +257,14 @@ export const SecondBrainPanel: React.FC<SecondBrainPanelProps> = ({
               {contextData && currentStage && (
                 <div className="mb-4">
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4 text-yellow-500" />
+                    <Lightbulb className="h-4 w-4 text-warning" />
                     Contextual Recommendations
                   </h4>
                   <div className="space-y-2">
                     {getContextualRules().map(rule => (
                       <div
                         key={rule.id}
-                        className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700"
+                        className="p-2 bg-warning/10 dark:bg-warning/20 rounded border border-warning/25 dark:border-warning/25"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -346,19 +346,19 @@ export const SecondBrainPanel: React.FC<SecondBrainPanelProps> = ({
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-3 bg-card rounded-lg border border-border">
-                      <div className="text-2xl font-bold text-primary">{statistics.totalRules}</div>
+                      <div className="text-2xl font-semibold text-primary">{statistics.totalRules}</div>
                       <div className="text-xs text-muted-foreground">Total Rules</div>
                     </div>
                     <div className="p-3 bg-card rounded-lg border border-border">
-                      <div className="text-2xl font-bold text-green-600">{statistics.activeRules}</div>
+                      <div className="text-2xl font-semibold text-success">{statistics.activeRules}</div>
                       <div className="text-xs text-muted-foreground">Active Rules</div>
                     </div>
                     <div className="p-3 bg-card rounded-lg border border-border">
-                      <div className="text-2xl font-bold text-blue-600">{statistics.totalApplications}</div>
+                      <div className="text-2xl font-semibold text-primary">{statistics.totalApplications}</div>
                       <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-3 bg-card rounded-lg border border-border">
-                      <div className="text-2xl font-bold text-purple-600">
+                      <div className="text-2xl font-semibold text-primary">
                         {Math.round(statistics.averageConfidence * 100)}%
                       </div>
                       <div className="text-xs text-muted-foreground">Avg Confidence</div>

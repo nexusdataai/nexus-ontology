@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Hammer, Loader2, CheckCircle2, XCircle, Clock, Play } from 'lucide-react';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, Meter, Panel, StatusPill } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import { ontoApi } from '@/services/ontoApi';
 
 interface StepStatus {
@@ -14,26 +14,31 @@ interface StepStatus {
 }
 
 const PIPELINE_STEPS: StepStatus[] = [
-  { id: 'extract_unified_schema', name: 'Extract Unified Schema', status: 'pending' },
-  { id: 'resolve_fdw_mapping', name: 'Resolve FDW Mapping', status: 'pending' },
-  { id: 'extract_fdw', name: 'Extract FDW Metadata', status: 'pending' },
-  { id: 'extract_mapping_rules', name: 'Extract Mapping Rules', status: 'pending' },
-  { id: 'extract_policies', name: 'Extract Policies', status: 'pending' },
-  { id: 'extract_workflows', name: 'Extract Workflows', status: 'pending' },
-  { id: 'extract_integrations', name: 'Extract Integrations', status: 'pending' },
-  { id: 'normalize', name: 'Normalize (.onto)', status: 'pending' },
-  { id: 'enrich', name: 'LLM Enrichment', status: 'pending' },
-  { id: 'chunk_embed', name: 'Chunk & Embed', status: 'pending' },
-  { id: 'load_vector', name: 'Load Vector DB', status: 'pending' },
-  { id: 'load_graph', name: 'Load Graph DB', status: 'pending' },
-  { id: 'validate', name: 'Validate Quality', status: 'pending' },
+  { id: 'extract_unified_schema', name: 'Read the unified schema', status: 'pending' },
+  { id: 'resolve_fdw_mapping', name: 'Resolve source table mappings', status: 'pending' },
+  { id: 'extract_fdw', name: 'Read source table metadata', status: 'pending' },
+  { id: 'extract_mapping_rules', name: 'Read mapping rules', status: 'pending' },
+  { id: 'extract_policies', name: 'Read policies', status: 'pending' },
+  { id: 'extract_workflows', name: 'Read workflows', status: 'pending' },
+  { id: 'extract_integrations', name: 'Read integration rules', status: 'pending' },
+  { id: 'normalize', name: 'Merge into one knowledge bundle', status: 'pending' },
+  { id: 'enrich', name: 'Enrich with descriptions', status: 'pending' },
+  { id: 'chunk_embed', name: 'Split and embed', status: 'pending' },
+  { id: 'load_vector', name: 'Load the vector index', status: 'pending' },
+  { id: 'load_graph', name: 'Load the knowledge graph', status: 'pending' },
+  { id: 'validate', name: 'Check quality', status: 'pending' },
 ];
 
 interface BuildIndexPanelProps {
   onComplete?: () => void;
+  /** The index already exists, so the action reads "Rebuild index". */
+  built?: boolean;
+  className?: string;
 }
 
-const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete }) => {
+const formatElapsed = (s: number): string => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s * 10) / 10} s`);
+
+const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete, built, className }) => {
   const [running, setRunning] = useState(false);
   const [journeyId, setJourneyId] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -41,6 +46,9 @@ const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete }) => {
   const [overallStatus, setOverallStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
   const [logs, setLogs] = useState<string[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Presentation only: the step list and the log are folded away until needed.
+  const [showSteps, setShowSteps] = useState(false);
+  const [showLog, setShowLog] = useState(false);
 
   const startPipeline = async () => {
     setRunning(true);
@@ -57,6 +65,7 @@ const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete }) => {
       setLogs(prev => [...prev, `Failed to start pipeline: ${e.message}`]);
       setOverallStatus('failed');
       setRunning(false);
+      toast.error('The index build could not start', { description: e.message });
     }
   };
 
@@ -104,12 +113,14 @@ const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete }) => {
           setRunning(false);
           setLogs(prev => [...prev, 'Pipeline completed successfully!']);
           if (pollRef.current) clearInterval(pollRef.current);
+          toast.success('Knowledge index built', { description: `${completedCount} of ${PIPELINE_STEPS.length} steps completed.` });
           onComplete?.();
         } else if (jobStatus === 'failed' || jobStatus === 'error') {
           setOverallStatus('failed');
           setRunning(false);
           setLogs(prev => [...prev, `Pipeline failed: ${status?.error || 'unknown error'}`]);
           if (pollRef.current) clearInterval(pollRef.current);
+          toast.error('The index build failed', { description: status?.error || 'Open the run log for details.' });
         }
       } catch (e: any) {
         setLogs(prev => [...prev, `Poll error: ${e.message}`]);
@@ -122,73 +133,100 @@ const BuildIndexPanel: React.FC<BuildIndexPanelProps> = ({ onComplete }) => {
   }, [journeyId, jobId, running]);
 
   const completedCount = steps.filter(s => s.status === 'completed').length;
+  const currentStep = steps.find(s => s.status === 'in_progress');
+  const failedStep = steps.find(s => s.status === 'failed');
+  const total = PIPELINE_STEPS.length;
+  const stepsOpen = showSteps || overallStatus === 'running' || overallStatus === 'failed';
+
+  const verdict =
+    overallStatus === 'running' ? (currentStep ? `Running: ${currentStep.name}` : 'Starting the build')
+    : overallStatus === 'completed' ? 'The index is up to date with the knowledge store.'
+    : overallStatus === 'failed' ? (failedStep ? `Stopped at: ${failedStep.name}` : 'The build did not finish. See the run log.')
+    : built ? 'Rebuild after you change policies, workflows, integration rules or mappings.'
+    : 'Reads the knowledge store and source schemas, then loads the vector index and the graph.';
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Hammer className="h-5 w-5" />
-            Build Knowledge Index
-          </CardTitle>
-          <Button
-            onClick={startPipeline}
-            disabled={running}
-            size="sm"
-            variant={overallStatus === 'completed' ? 'outline' : 'default'}
-          >
-            {running ? (
-              <><Loader2 className="h-3 w-3 animate-spin mr-1" /> {completedCount}/{PIPELINE_STEPS.length}</>
-            ) : overallStatus === 'completed' ? (
-              <><CheckCircle2 className="h-3 w-3 mr-1" /> Rebuild</>
-            ) : (
-              <><Play className="h-3 w-3 mr-1" /> Build Index</>
-            )}
-          </Button>
+    <Panel
+      className={className}
+      title="Build"
+      description={`${total} steps, from schema to quality check`}
+      actions={overallStatus !== 'idle' && (
+        <StatusPill status={overallStatus === 'running' ? 'running' : overallStatus} variant="soft">
+          {overallStatus === 'running' ? 'Building' : overallStatus === 'completed' ? 'Built' : 'Failed'}
+        </StatusPill>
+      )}
+    >
+      <p className="text-sm text-muted-foreground" aria-live="polite">{verdict}</p>
+
+      {overallStatus !== 'idle' && (
+        <div className="mt-4">
+          <Meter
+            value={completedCount}
+            max={total}
+            tone={overallStatus === 'failed' ? 'danger' : overallStatus === 'completed' ? 'success' : 'info'}
+            label="Build progress"
+          />
+          <p className="mt-1.5 text-xs text-muted-foreground"><span className="num">{completedCount}</span> of <span className="num">{total}</span> steps done</p>
         </div>
-        {overallStatus !== 'idle' && (
-          <div className="flex gap-2 mt-2">
-            <Badge variant={overallStatus === 'completed' ? 'default' : overallStatus === 'failed' ? 'destructive' : 'secondary'}>
-              {overallStatus}
-            </Badge>
-            <Badge variant="outline">{completedCount}/{PIPELINE_STEPS.length} steps</Badge>
-          </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button onClick={startPipeline} disabled={running} variant={overallStatus === 'completed' ? 'outline' : 'default'}>
+          {running ? (
+            <><Icon name="spinner" className="animate-spin" /> Building, {completedCount} of {total}</>
+          ) : overallStatus === 'completed' || built ? (
+            <><Icon name="refresh" /> Rebuild index</>
+          ) : (
+            <><Icon name="play" /> Build index</>
+          )}
+        </Button>
+        {overallStatus !== 'running' && overallStatus !== 'failed' && (
+          <Button variant="ghost" size="sm" onClick={() => setShowSteps(v => !v)} aria-expanded={stepsOpen}>
+            {stepsOpen ? 'Hide steps' : 'What it does'}
+            <Icon name={stepsOpen ? 'chevron-up' : 'chevron-down'} className="h-3.5 w-3.5" />
+          </Button>
         )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          {steps.map((step) => (
-            <div key={step.id} className="flex items-center gap-2 text-sm py-1">
-              {step.status === 'completed' ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-              ) : step.status === 'in_progress' ? (
-                <Loader2 className="h-3.5 w-3.5 text-blue-400 animate-spin shrink-0" />
-              ) : step.status === 'failed' ? (
-                <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-              ) : (
-                <Clock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-              )}
-              <span className={step.status === 'pending' ? 'text-muted-foreground/50' : ''}>
+      </div>
+
+      {stepsOpen && (
+        <ol className="mt-4 border-t border-border">
+          {steps.map((step, i) => (
+            <li key={step.id} className="flex items-center gap-2.5 border-b border-border py-2 text-sm last:border-b-0">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                {step.status === 'completed' ? (
+                  <Icon name="check" className="h-3.5 w-3.5 text-success" label="Done" />
+                ) : step.status === 'in_progress' ? (
+                  <span className="dot-live text-primary dark:text-brand-hi" role="img" aria-label="Running" />
+                ) : step.status === 'failed' ? (
+                  <Icon name="cross-circle" className="h-3.5 w-3.5 text-destructive" label="Failed" />
+                ) : (
+                  <span className="num text-xs text-subtle-foreground">{i + 1}</span>
+                )}
+              </span>
+              <span className={cn('min-w-0 flex-1 truncate', step.status === 'pending' ? 'text-muted-foreground' : 'text-foreground', step.status === 'in_progress' && 'font-medium')}>
                 {step.name}
               </span>
-              {step.elapsed != null && (
-                <span className="text-xs text-muted-foreground ml-auto">{step.elapsed}s</span>
-              )}
-            </div>
+              {step.elapsed != null && <span className="num shrink-0 text-xs text-muted-foreground">{formatElapsed(step.elapsed)}</span>}
+            </li>
           ))}
-        </div>
+        </ol>
+      )}
 
-        {logs.length > 0 && (
-          <ScrollArea className="h-[120px] mt-2">
-            <div className="bg-muted/30 rounded p-2 text-xs font-mono space-y-0.5">
-              {logs.map((log, i) => (
-                <div key={i} className="text-muted-foreground">{log}</div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+      {logs.length > 0 && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowLog(v => !v)}
+            aria-expanded={showLog}
+            className="inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Icon name={showLog ? 'chevron-down' : 'chevron-right'} className="h-3 w-3" />
+            Run log <span className="num text-subtle-foreground">{logs.length}</span>
+          </button>
+          {showLog && <CodeBlock className="mt-2" maxHeight={180} wrap>{logs.join('\n')}</CodeBlock>}
+        </div>
+      )}
+    </Panel>
   );
 };
 

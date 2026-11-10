@@ -1,13 +1,27 @@
+/**
+ * Journey builder: draw a journey as a graph of steps.
+ *
+ * Editor layout: a sticky header (name, state, Suggest / Validate / Test run,
+ * Save), the steps to add on the left (searchable, grouped), the flow on a
+ * dotted canvas in the middle, and an inspector on the right with the selected
+ * step's properties, the journey settings and the last test run. Below lg the
+ * step list opens in a sheet; below xl the inspector does.
+ */
+import { confirmDialog } from '@/components/ds/confirm';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
-import {
-  CheckCircle2, ChevronDown, ChevronRight, Database, Loader2, Play,
-  Save, Search, Settings, Sparkles, AlertTriangle, GripVertical,
-} from 'lucide-react';
+import { Textarea } from './ui/textarea';
+import { Switch } from './ui/switch';
+import { Skeleton } from './ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { CodeBlock, DetailSheet, Field, InlineError, KeyValues, SearchInput, StatusPill, SubHeading } from '@/components/ds/kit';
+import { SystemLogo, systemName } from '@/components/ds/SystemLogo';
+import { useIsWide } from '@/components/journeys/studio/StepPipeline';
+import { sentenceCase, systemsIn } from '@/components/journeys/studio/format';
 import { apiClient } from '@/services/apiClient';
 import {
   reactToolsDiagnosticsService, type RegistryToolRow,
@@ -451,367 +465,464 @@ export function JourneyBuilder() {
   }, []);
 
   // ---- render ----
+  // Presentation only below this line.
 
-  return (
-    <div className="h-full flex gap-3 p-4">
-      {/* Left: Tool Palette */}
-      <Card className="w-64 flex flex-col shrink-0">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Tool Palette</CardTitle>
-          <div className="relative mt-1">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              value={toolSearch}
-              onChange={(e) => setToolSearch(e.target.value)}
-              placeholder="Search tools..."
-              className="pl-7 h-7 text-xs"
-            />
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'step' | 'journey' | 'run'>('journey');
+  const isXl = useIsWide('(min-width: 1280px)');
+
+  // The inspector follows the canvas: a selected step shows its properties,
+  // a test run shows its results.
+  useEffect(() => {
+    if (selectedNodeId) { setInspectorTab('step'); setInspectorOpen(true); }
+    else setInspectorTab((t) => (t === 'step' ? 'journey' : t));
+  }, [selectedNodeId]);
+  useEffect(() => {
+    if (run || running) { setInspectorTab('run'); setInspectorOpen(true); }
+  }, [run, running]);
+
+  const addTool = (toolName: string) => {
+    canvasRef.current?.addTool(toolName);
+    setCanvasVersion((v) => v + 1);
+    setPaletteOpen(false);
+  };
+
+  const readyText =
+    readyState.label === 'ready' ? 'Ready to run'
+    : readyState.label === 'name required' ? 'Add a name to save or run'
+    : readyState.label === 'drop at least one tool' ? 'Add a step to get started'
+    : readyState.tone === 'block' ? 'Steps form a loop: remove one connection'
+    : validation && !validation.valid ? `${validation.errors.length} validation ${validation.errors.length === 1 ? 'error' : 'errors'}`
+    : readyState.label;
+  const saveState = saving ? 'Saving' : savedJourneyId ? 'Saved to journeys' : 'Not saved yet';
+
+  const palette = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 px-3 pb-2 pt-3">
+        <SearchInput value={toolSearch} onChange={setToolSearch} placeholder="Search steps" className="sm:w-full" />
+      </div>
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto pb-3">
+        {groupedTools.length === 0 && tools.length === 0 && (
+          <div className="space-y-2 px-3 pt-1" aria-label="Loading steps">
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
           </div>
-        </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-0">
-          <ScrollArea className="h-full">
-            {groupedTools.length === 0 && (
-              <div className="px-3 py-6 text-[11px] text-muted-foreground text-center">
-                {tools.length === 0 ? 'Loading tools...' : 'No tools match your search.'}
-              </div>
-            )}
-            {groupedTools.map(([groupKey, catTools]) => {
-              const isOpen = expandedCats.has(groupKey);
-              return (
-                <div key={groupKey}>
+        )}
+        {groupedTools.length === 0 && tools.length > 0 && (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No steps match "{toolSearch}".</p>
+        )}
+        {groupedTools.map(([groupKey, catTools]) => {
+          const isOpen = expandedCats.has(groupKey) || !!toolSearch.trim();
+          return (
+            <div key={groupKey}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                onClick={() => setExpandedCats((prev) => {
+                  const n = new Set(prev);
+                  n.has(groupKey) ? n.delete(groupKey) : n.add(groupKey);
+                  return n;
+                })}
+              >
+                <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} className="h-3 w-3 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{sentenceCase(labelFor(groupKey))}</span>
+                <span className="num text-subtle-foreground">{catTools.length}</span>
+              </button>
+              {isOpen && catTools.map((tool) => {
+                const system = systemsIn(`${tool.connector_api || ''} ${tool.name}`)[0];
+                return (
                   <button
-                    className="w-full flex items-center gap-1 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground hover:bg-muted/30 uppercase tracking-wider"
-                    onClick={() => setExpandedCats((prev) => {
-                      const n = new Set(prev);
-                      n.has(groupKey) ? n.delete(groupKey) : n.add(groupKey);
-                      return n;
-                    })}
+                    key={tool.name}
+                    type="button"
+                    draggable
+                    onDragStart={(e) => onPaletteDragStart(e, tool.name)}
+                    onClick={() => addTool(tool.name)}
+                    title={tool.connector_api ? `Drag onto the canvas, or select to add. Calls ${tool.connector_api}` : 'Drag onto the canvas, or select to add'}
+                    className="group flex w-full cursor-grab items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-accent/70 focus-visible:bg-accent/70 focus-visible:outline-none active:cursor-grabbing"
                   >
-                    {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    {labelFor(groupKey)} ({catTools.length})
+                    {system
+                      ? <SystemLogo system={system} size="xs" className="mt-0.5" />
+                      : <Icon name="cube" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-subtle-foreground" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-xs text-foreground">{tool.name}</span>
+                      {tool.description && <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{tool.description}</span>}
+                    </span>
+                    <Icon name="plus" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-subtle-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                   </button>
-                  {isOpen && catTools.map((tool) => (
-                    <button
-                      key={tool.name}
-                      draggable
-                      onDragStart={(e) => onPaletteDragStart(e, tool.name)}
-                      title={tool.connector_api ? `Drag onto canvas. Calls ${tool.connector_api}` : 'Drag onto canvas'}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted/30 border-b border-border/30 cursor-grab active:cursor-grabbing flex items-start gap-1"
-                    >
-                      <GripVertical className="h-3 w-3 text-muted-foreground/60 mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{tool.name}</div>
-                        <div className="text-[9px] text-muted-foreground truncate">
-                          {tool.description?.substring(0, 50)}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-      {/* Center: Graph Canvas + toolbar + run feedback */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <Input
-            value={journeyName}
-            onChange={(e) => setJourneyName(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            placeholder="Journey name..."
-            className="text-sm h-8 max-w-xs"
-          />
-          {/* Execution-mode pill: two segments. Switching to sequential
-              while edges exist on the canvas pops a confirm so the user
-              knows their wiring will be dropped. */}
-          <div className="inline-flex rounded-md border bg-card overflow-hidden text-xs h-8" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={executionMode === 'sequential'}
-              title="Sequential: steps run in order with no inter-step data exchange (knowledge-indexing / ETL)"
-              className={cn(
-                'px-3 transition-colors',
-                executionMode === 'sequential'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted/30',
-              )}
-              onClick={() => {
-                if (executionMode === 'sequential') return;
-                const snap = canvasRef.current?.getState();
-                const edgeCount = snap?.edges?.length || 0;
-                if (edgeCount > 0) {
-                  const ok = window.confirm(
-                    `Switching to Sequential mode will remove ${edgeCount} connection${edgeCount === 1 ? '' : 's'} from the canvas. Continue?`,
-                  );
-                  if (!ok) return;
-                }
-                setExecutionMode('sequential');
+  const journeySettings = (
+    <div className="space-y-5">
+      <Field label="Description" htmlFor="jb-desc" hint="Also used as the goal when you ask for a suggestion.">
+        <Textarea id="jb-desc" value={journeyDesc} onChange={(e) => setJourneyDesc(e.target.value)} placeholder="What this journey does" rows={3} />
+      </Field>
+      <Field label="Starts" htmlFor="jb-trigger">
+        <Select value={trigger} onValueChange={setTrigger}>
+          <SelectTrigger id="jb-trigger"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="manual">Manually</SelectItem>
+            <SelectItem value="schedule">On a schedule</SelectItem>
+            <SelectItem value="webhook">From a webhook</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field
+        label="How steps run"
+        hint={executionMode === 'sequential'
+          ? 'Steps run in order and do not pass data to each other.'
+          : 'Steps can read the outputs of earlier steps through connections.'}
+      >
+        {/* Switching to "In order" while connections exist asks first,
+            because the wiring will be dropped. */}
+        <div className="inline-flex rounded-md border border-border bg-surface-2 p-0.5" role="tablist" aria-label="How steps run">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={executionMode === 'sequential'}
+            className={cn(
+              'h-8 rounded-[5px] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              executionMode === 'sequential' ? 'bg-card font-medium text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={async () => {
+              if (executionMode === 'sequential') return;
+              const snap = canvasRef.current?.getState();
+              const edgeCount = snap?.edges?.length || 0;
+              if (edgeCount > 0) {
+                const ok = await confirmDialog({
+                  title: 'Run the steps in order?',
+                  description: `This removes ${edgeCount} connection${edgeCount === 1 ? '' : 's'} from the canvas.`,
+                  confirmLabel: 'Switch',
+                });
+                if (!ok) return;
+              }
+              setExecutionMode('sequential');
+              setCanvasVersion((v) => v + 1);
+            }}
+          >
+            In order
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={executionMode === 'dataflow'}
+            className={cn(
+              'h-8 rounded-[5px] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              executionMode === 'dataflow' ? 'bg-card font-medium text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setExecutionMode('dataflow')}
+          >
+            Data flow
+          </button>
+        </div>
+      </Field>
+
+      <div className="border-t border-border pt-4">
+        <SubHeading>On the canvas</SubHeading>
+        <KeyValues
+          items={[
+            { label: 'Steps', value: <span className="num">{allNodes.length}</span> },
+            { label: 'Connections', value: <span className="num">{allEdges.length}</span> },
+            { label: 'Stages', value: <span className="num">{stages.length}</span> },
+            { label: 'Saved', value: savedJourneyId ? <span className="mono-id text-foreground">{savedJourneyId}</span> : 'Not yet' },
+          ]}
+        />
+      </div>
+
+      {savedYaml && (
+        <div>
+          <SubHeading>Definition</SubHeading>
+          <CodeBlock maxHeight={280}>{savedYaml}</CodeBlock>
+        </div>
+      )}
+    </div>
+  );
+
+  const runPanel = (
+    <div className="space-y-4">
+      {running && (
+        <p className="flex items-center gap-2.5 text-sm text-muted-foreground" aria-live="polite">
+          <span className="dot-live text-primary dark:text-brand-hi" aria-hidden="true" /> Running the steps on the canvas
+        </p>
+      )}
+      {!run && !running && (
+        <EmptyState icon="play" title="No test run yet" description="Run the journey to see what each step returned." className="py-10" />
+      )}
+      {run && <RunResultsPanel envelope={run} />}
+      {/* Data queues: data flow journeys only. Polls every 2 s while the run is in flight. */}
+      {run?.run_id && executionMode === 'dataflow' && (
+        <RunQueueInspector
+          runId={run.run_id}
+          pollIntervalMs={run.status === 'awaiting_step_approval' || run.status === 'running' ? 2000 : 0}
+        />
+      )}
+    </div>
+  );
+
+  const inspector = (
+    <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as typeof inspectorTab)} className="flex min-h-0 flex-1 flex-col">
+      <TabsList variant="line" className="shrink-0 px-4">
+        <TabsTrigger value="step">Step</TabsTrigger>
+        <TabsTrigger value="journey">Journey</TabsTrigger>
+        <TabsTrigger value="run">Test run</TabsTrigger>
+      </TabsList>
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <TabsContent value="step" className="mt-0">
+          {selectedNode ? (
+            <StepEditor
+              node={selectedNode}
+              allNodes={allNodes}
+              hints={hints}
+              tools={tools}
+              issues={issuesByNode.get(selectedNode.id) || []}
+              onPatch={patchSelected}
+              onWireFromParam={(param, src) => {
+                canvasRef.current?.setEdge({
+                  fromNode: src.fromNode,
+                  fromKey: src.fromKey,
+                  toNode: selectedNode.id,
+                  toParam: param,
+                });
                 setCanvasVersion((v) => v + 1);
               }}
-            >
-              Sequential
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={executionMode === 'dataflow'}
-              title="Dataflow: steps may consume one another's outputs via ConnectionDocs"
-              className={cn(
-                'px-3 transition-colors border-l',
-                executionMode === 'dataflow'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted/30',
-              )}
-              onClick={() => setExecutionMode('dataflow')}
-            >
-              Dataflow
-            </button>
-          </div>
-          <Input
-            value={journeyDesc}
-            onChange={(e) => setJourneyDesc(e.target.value)}
-            placeholder="Description..."
-            className="text-sm h-8 flex-1"
-          />
-          <select
-            value={trigger}
-            onChange={(e) => setTrigger(e.target.value)}
-            className="h-8 px-2 rounded border text-xs bg-background"
-          >
-            <option value="manual">Manual</option>
-            <option value="schedule">Schedule</option>
-            <option value="webhook">Webhook</option>
-          </select>
-          <Button size="sm" variant="outline" onClick={handleSuggest} disabled={suggesting}
-            title="Ask the AI Copilot to suggest next steps"
-          >
-            {suggesting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-            AI Suggest
+              onClearWireForParam={(param) => {
+                canvasRef.current?.removeEdgeForTarget(selectedNode.id, param);
+                setCanvasVersion((v) => v + 1);
+              }}
+            />
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {allNodes.length === 0 ? 'Add a step from the list, then select it to set its inputs.' : 'Select a step on the canvas to set its inputs.'}
+            </p>
+          )}
+        </TabsContent>
+        <TabsContent value="journey" className="mt-0">{journeySettings}</TabsContent>
+        <TabsContent value="run" className="mt-0">{runPanel}</TabsContent>
+      </div>
+    </Tabs>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Sticky editor header: name, state, secondary actions, Save */}
+      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background px-3 py-2 sm:px-5">
+        <Input
+          value={journeyName}
+          onChange={(e) => setJourneyName(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          placeholder="Journey name"
+          aria-label="Journey name"
+          className="h-9 w-full border-transparent bg-transparent px-2 text-md font-medium shadow-none hover:border-border focus-visible:border-border-strong sm:w-72"
+        />
+        <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+          <StatusPill tone={readyState.tone === 'ready' ? 'success' : readyState.tone === 'warn' ? 'warning' : 'danger'} className="font-normal">{readyText}</StatusPill>
+          <span className="hidden truncate md:inline">{saveState}</span>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Button size="sm" variant="ghost" className="lg:hidden" onClick={() => setPaletteOpen(true)}>
+            <Icon name="plus" /> Add step
           </Button>
-          <Button size="sm" variant="outline" onClick={handleValidate}
-            title="Run JourneyDoc.validate_strict against the live ToolRegistry"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Validate
+          <Button size="sm" variant="ghost" className="xl:hidden" onClick={() => setInspectorOpen(true)}>
+            <Icon name="sliders" /> Properties
           </Button>
-          <Button
-            size="sm" variant="outline" onClick={handleSave}
-            disabled={saving || !journeyName.trim() || hasCycleOnCanvas}
-            title={
-              !journeyName.trim() ? 'Enter a journey name above to enable Save'
-              : hasCycleOnCanvas ? 'Resolve the cycle in the graph before saving'
-              : 'Persist this journey to the Journeys tab (Foundry DDB)'
-            }
-          >
-            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-            Save
+          <Button size="sm" variant="ghost" onClick={handleSuggest} disabled={suggesting} title="Ask the Copilot to suggest the next steps">
+            <Icon name={suggesting ? 'spinner' : 'sparkles'} className={suggesting ? 'animate-spin' : undefined} /> Suggest
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleValidate} title="Check every step against the tools registry">
+            <Icon name="shield-check" /> Validate
           </Button>
           <Button
             size="sm"
+            variant="outline"
             onClick={handleRun}
             disabled={running || !journeyName.trim() || allNodes.length === 0 || hasCycleOnCanvas}
             title={
-              !journeyName.trim() ? 'Enter a journey name above to enable Run'
-              : allNodes.length === 0 ? 'Drop at least one tool onto the canvas to enable Run'
-              : hasCycleOnCanvas ? 'Resolve the cycle in the graph before running'
-              : 'Dispatch this journey through the YAML Journey Runner'
+              !journeyName.trim() ? 'Enter a journey name to run'
+              : allNodes.length === 0 ? 'Add at least one step to run'
+              : hasCycleOnCanvas ? 'Remove the loop in the graph before running'
+              : 'Run the journey as drawn, without saving'
             }
           >
-            {running ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1" />}
-            Run
+            <Icon name={running ? 'spinner' : 'play'} className={running ? 'animate-spin' : undefined} /> Test run
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !journeyName.trim() || hasCycleOnCanvas}
+            title={
+              !journeyName.trim() ? 'Enter a journey name to save'
+              : hasCycleOnCanvas ? 'Remove the loop in the graph before saving'
+              : 'Save this journey to the Journeys tab'
+            }
+          >
+            {saving && <Icon name="spinner" className="animate-spin" />} Save
           </Button>
         </div>
+      </header>
 
-        {/* Ready-state pill: communicates exactly why Save/Run are
-            disabled (or that everything is ready) so the user never
-            has to guess. */}
-        <div className={cn(
-          'mb-2 inline-flex items-center gap-2 self-start px-2 py-1 rounded text-[11px] border',
-          readyState.tone === 'ready'
-            ? 'bg-green-500/10 text-green-300 border-green-500/30'
-            : readyState.tone === 'warn'
-              ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-              : 'bg-red-500/10 text-red-300 border-red-500/30',
-        )}>
-          <span className="font-mono">{allNodes.length} nodes</span>
-          <span className="opacity-70">{allEdges.length} edges</span>
-          <span className="opacity-70">- "{journeyName || 'unnamed'}"</span>
-          <span className="font-medium">- {readyState.label}</span>
-        </div>
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[256px_minmax(0,1fr)] xl:grid-cols-[256px_minmax(0,1fr)_340px]">
+        {/* Left: steps to add */}
+        <aside className="hidden min-h-0 flex-col border-r border-border bg-sidebar/40 lg:flex" aria-label="Steps">
+          {palette}
+        </aside>
 
-        {validation && (
-          <div className={cn(
-            'mb-2 px-3 py-2 rounded text-xs',
-            validation.valid ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300',
-          )}>
-            {validation.valid ? 'Journey is valid' : validation.errors.join('; ')}
-            {validation.warnings.length > 0 && (
-              <span className="text-amber-300 ml-2">{validation.warnings.join('; ')}</span>
+        {/* Centre: the flow */}
+        <div className="flex min-h-0 min-w-0 flex-col">
+          {(validation || savedJourneyId || (run?.status === 'awaiting_step_approval' && run.pending_step && run.run_id)) && (
+            <div className="shrink-0 space-y-2 border-b border-border px-3 py-2 sm:px-4">
+              {validation && (
+                validation.valid ? (
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+                    <StatusPill tone={validation.warnings.length ? 'warning' : 'success'}>{validation.warnings.length ? 'Valid, with notes' : 'Valid'}</StatusPill>
+                    {validation.warnings.length > 0 && <span className="text-muted-foreground">{validation.warnings.join('; ')}</span>}
+                  </p>
+                ) : (
+                  <InlineError>
+                    {validation.errors.join('; ')}
+                    {validation.warnings.length > 0 && <span className="mt-1 block text-warning">{validation.warnings.join('; ')}</span>}
+                  </InlineError>
+                )
+              )}
+              {run?.status === 'awaiting_step_approval' && run.pending_step && run.run_id && (
+                <PendingStepCard
+                  runId={run.run_id}
+                  pending={run.pending_step}
+                  onApprove={handleApproveStep}
+                  onReject={handleRejectStep}
+                />
+              )}
+              {savedJourneyId && (
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+                  <StatusPill tone="success">Saved</StatusPill>
+                  <span className="mono-id">{savedJourneyId}</span>
+                  <a
+                    className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline dark:text-brand-hi"
+                    href={`/workspace/automation?tab=journeys&id=${encodeURIComponent(savedJourneyId)}`}
+                  >
+                    Open in journeys <Icon name="arrow-right" className="h-3.5 w-3.5" />
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="relative min-h-[320px] flex-1 overflow-hidden">
+            <JourneyGraphCanvas
+              key={activeStageId}
+              ref={canvasRef}
+              outputHints={hints}
+              validation={validation}
+              resolveTool={resolveTool}
+              executionMode={executionMode}
+              onSelectionChange={(id) => {
+                setSelectedNodeId(id);
+                setCanvasVersion((v) => v + 1);
+              }}
+              onPendingConnectionChange={setPendingConnection}
+            />
+
+            {/* Floating bar: stages of the journey */}
+            <div className="absolute left-3 top-3 z-10 max-w-[calc(100%-1.5rem)] rounded-lg border border-border bg-popover px-2 pt-2 shadow-sm">
+              <StageTabs
+                stages={stages}
+                activeStageId={activeStageId}
+                onActiveChange={(nextId) => {
+                  // Snapshot the live canvas back to the current slot
+                  // before switching tabs so unsaved drag / drop work is
+                  // preserved across the canvas remount.
+                  snapshotActiveStage();
+                  setActiveStageId(nextId);
+                }}
+                onAdd={() => {
+                  snapshotActiveStage();
+                  const next = newStage(stages);
+                  setStages((curr) => [...curr, next]);
+                  setActiveStageId(next.stageId);
+                }}
+                onRename={(stageId, name) => {
+                  setStages((curr) => curr.map((s) =>
+                    s.stageId === stageId ? { ...s, name } : s,
+                  ));
+                }}
+                onDelete={(stageId) => {
+                  setStages((curr) => {
+                    const remaining = curr.filter((s) => s.stageId !== stageId);
+                    return remaining.length ? remaining : [defaultStage()];
+                  });
+                  if (activeStageId === stageId) {
+                    const rest = stages.filter((s) => s.stageId !== stageId);
+                    setActiveStageId((rest[0] || defaultStage()).stageId);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Connecting: which output is being wired, and how to cancel */}
+            {pendingConnection && (
+              <div className="animate-fade-up absolute left-1/2 top-3 z-10 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-lg border border-brand/40 bg-popover px-3 py-1.5 text-xs text-foreground shadow-md">
+                <span className="dot-live shrink-0 text-primary dark:text-brand-hi" aria-hidden="true" />
+                <span className="min-w-0 truncate">
+                  Connecting <span className="font-mono">{pendingConnection.toolName}.{pendingConnection.key}</span>. Select an input to finish.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => canvasRef.current?.cancelConnection()}
+                  className="shrink-0 font-medium text-primary underline-offset-4 hover:underline dark:text-brand-hi"
+                  title="Cancel (Esc)"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {allNodes.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                <div className="max-w-xs text-center">
+                  <p className="text-md font-medium text-foreground">Start with a step</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="hidden lg:inline">Drag a step from the list onto the canvas, or select one to add it.</span>
+                    <span className="lg:hidden">Use "Add step" to choose the first step.</span>
+                    {' '}Connect an output to an input to pass data along.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
-        )}
-
-        {run?.status === 'awaiting_step_approval' && run.pending_step && run.run_id && (
-          <PendingStepCard
-            runId={run.run_id}
-            pending={run.pending_step}
-            onApprove={handleApproveStep}
-            onReject={handleRejectStep}
-            className="mb-2"
-          />
-        )}
-
-        {pendingConnection && (
-          <div className="mb-2 inline-flex items-center gap-2 self-start px-2 py-1 rounded text-[11px] border bg-primary/15 text-primary border-primary/40">
-            <span className="font-mono">{pendingConnection.toolName}.{pendingConnection.key}</span>
-            <span className="opacity-80">- click an input port to wire</span>
-            <button
-              type="button"
-              onClick={() => canvasRef.current?.cancelConnection()}
-              className="ml-2 underline hover:opacity-80"
-              title="Cancel (Esc)"
-            >
-              cancel
-            </button>
-          </div>
-        )}
-
-        <StageTabs
-          stages={stages}
-          activeStageId={activeStageId}
-          onActiveChange={(nextId) => {
-            // Snapshot the live canvas back to the current slot
-            // before switching tabs so unsaved drag / drop work is
-            // preserved across the canvas remount.
-            snapshotActiveStage();
-            setActiveStageId(nextId);
-          }}
-          onAdd={() => {
-            snapshotActiveStage();
-            const next = newStage(stages);
-            setStages((curr) => [...curr, next]);
-            setActiveStageId(next.stageId);
-          }}
-          onRename={(stageId, name) => {
-            setStages((curr) => curr.map((s) =>
-              s.stageId === stageId ? { ...s, name } : s,
-            ));
-          }}
-          onDelete={(stageId) => {
-            setStages((curr) => {
-              const remaining = curr.filter((s) => s.stageId !== stageId);
-              return remaining.length ? remaining : [defaultStage()];
-            });
-            if (activeStageId === stageId) {
-              const rest = stages.filter((s) => s.stageId !== stageId);
-              setActiveStageId((rest[0] || defaultStage()).stageId);
-            }
-          }}
-        />
-
-        <div className="flex-1 min-h-[300px] border rounded-md overflow-hidden bg-card/30">
-          <JourneyGraphCanvas
-            key={activeStageId}
-            ref={canvasRef}
-            outputHints={hints}
-            validation={validation}
-            resolveTool={resolveTool}
-            executionMode={executionMode}
-            onSelectionChange={(id) => {
-              setSelectedNodeId(id);
-              setCanvasVersion((v) => v + 1);
-            }}
-            onPendingConnectionChange={setPendingConnection}
-          />
         </div>
 
-        {savedJourneyId && (
-          <div className="mt-2 px-3 py-2 rounded text-xs bg-green-500/10 text-green-300 flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Saved as <span className="font-mono">{savedJourneyId}</span>
-            <a
-              className="underline hover:text-green-200 ml-auto"
-              href={`/workspace/automation?tab=journeys&id=${encodeURIComponent(savedJourneyId)}`}
-            >
-              Open in Journeys
-            </a>
-          </div>
-        )}
-
-        {run && (
-          <RunResultsPanel envelope={run} className="mt-2 max-h-72 overflow-auto" />
-        )}
-
-        {/* Data Queues inspector -- dataflow journeys only, since
-            sequential mode does not exchange data between steps and
-            thus has no queues to inspect. Polls every 2 s while the
-            run is in flight (paused / running). */}
-        {run?.run_id && executionMode === 'dataflow' && (
-          <RunQueueInspector
-            runId={run.run_id}
-            className="mt-2"
-            pollIntervalMs={
-              run.status === 'awaiting_step_approval' || run.status === 'running' ? 2000 : 0
-            }
-          />
-        )}
-
-        {savedYaml && (
-          <details className="mt-2 text-xs">
-            <summary className="cursor-pointer text-muted-foreground">Show saved YAML</summary>
-            <pre className="text-[9px] bg-muted/30 rounded p-2 mt-1 overflow-x-auto font-mono whitespace-pre">{savedYaml}</pre>
-          </details>
+        {/* Right: properties of the selected step, journey settings, test run */}
+        {isXl && (
+          <aside className="flex min-h-0 flex-col border-l border-border bg-card" aria-label="Properties">
+            {inspector}
+          </aside>
         )}
       </div>
 
-      {/* Right: Step Editor */}
-      <Card className="w-80 flex flex-col shrink-0">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1">
-            <Settings className="h-3.5 w-3.5" /> Step Editor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-3">
-          {selectedNode ? (
-            <ScrollArea className="h-full">
-              <StepEditor
-                node={selectedNode}
-                allNodes={allNodes}
-                hints={hints}
-                tools={tools}
-                issues={issuesByNode.get(selectedNode.id) || []}
-                onPatch={patchSelected}
-                onWireFromParam={(param, src) => {
-                  canvasRef.current?.setEdge({
-                    fromNode: src.fromNode,
-                    fromKey: src.fromKey,
-                    toNode: selectedNode.id,
-                    toParam: param,
-                  });
-                  setCanvasVersion((v) => v + 1);
-                }}
-                onClearWireForParam={(param) => {
-                  canvasRef.current?.removeEdgeForTarget(selectedNode.id, param);
-                  setCanvasVersion((v) => v + 1);
-                }}
-              />
-            </ScrollArea>
-          ) : (
-            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-              Drop a tool onto the canvas, then click a node to edit it.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Below lg the step list opens in a sheet; below xl the properties do. */}
+      <DetailSheet open={paletteOpen} onOpenChange={setPaletteOpen} title="Add a step" description="Select a step to add it to the canvas.">
+        <div className="-mx-5 -my-5 flex min-h-[60vh] flex-col">{paletteOpen ? palette : null}</div>
+      </DetailSheet>
+      <DetailSheet
+        open={!isXl && inspectorOpen}
+        onOpenChange={setInspectorOpen}
+        title={inspectorTab === 'step' && selectedNode ? selectedNode.data.name || 'Step' : 'Properties'}
+        description="Step inputs, journey settings and the last test run."
+      >
+        <div className="-mx-5 -my-5 flex min-h-[60vh] flex-col">{!isXl && inspectorOpen ? inspector : null}</div>
+      </DetailSheet>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// StepEditor (right-pane content)
+// StepEditor (inspector content for the selected step)
 // ---------------------------------------------------------------------------
 
 interface StepEditorProps {
@@ -849,49 +960,63 @@ function StepEditor({
     onPatch({ params: { ...params, [k]: value } });
   };
 
+  const system = systemsIn(`${tool?.connector_api || ''} ${node.data.tool || ''}`)[0];
+
   return (
-    <div className="space-y-3 text-xs">
-      <div>
-        <label className="text-[10px] text-muted-foreground uppercase">Step Name</label>
-        <Input
-          value={node.data.name}
-          onChange={(e) => onPatch({ name: e.target.value })}
-          className="h-7 text-xs mt-0.5"
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] text-muted-foreground uppercase">Tool</label>
-        <select
-          value={node.data.tool || ''}
-          onChange={(e) => {
-            const t = tools.find((x) => x.name === e.target.value);
-            onPatch({ tool: e.target.value, toolDef: t || undefined, params: {} });
-          }}
-          className="w-full h-7 px-2 rounded border text-xs bg-background mt-0.5"
-        >
-          {tools.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] text-muted-foreground uppercase">Parameters</label>
-          <span className="text-[9px] text-muted-foreground">{paramKeys.length} fields</span>
+    <div className="space-y-5">
+      {issues.length > 0 && (
+        <div role="alert" className="space-y-2 rounded-lg border border-destructive/25 bg-destructive/5 p-3">
+          {issues.map((iss, i) => (
+            <div key={i} className="text-sm">
+              <StatusPill tone={iss.severity === 'error' ? 'danger' : 'warning'}>{String(iss.code || '').replace(/[_-]+/g, ' ')}</StatusPill>
+              <p className="mt-0.5 text-muted-foreground">{iss.message}</p>
+            </div>
+          ))}
         </div>
-        <div className="space-y-1.5 mt-1">
-          {paramKeys.length === 0 && (
-            <div className="text-[10px] text-muted-foreground italic">no parameters declared</div>
-          )}
+      )}
+
+      <Field label="Step name" htmlFor={`name-${node.id}`}>
+        <Input id={`name-${node.id}`} value={node.data.name} onChange={(e) => onPatch({ name: e.target.value })} />
+      </Field>
+
+      <Field
+        label="Tool"
+        htmlFor={`tool-${node.id}`}
+        hint={tool?.description ? tool.description : undefined}
+      >
+        <Select
+          value={node.data.tool || ''}
+          onValueChange={(value) => {
+            const t = tools.find((x) => x.name === value);
+            onPatch({ tool: value, toolDef: t || undefined, params: {} });
+          }}
+        >
+          <SelectTrigger id={`tool-${node.id}`} className="font-mono text-xs"><SelectValue placeholder="Choose a tool" /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            {tools.map((t) => <SelectItem key={t.name} value={t.name} className="font-mono text-xs">{t.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {(system || tool?.risk_level) && (
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {system && <span className="inline-flex items-center gap-1.5 text-foreground"><SystemLogo system={system} size="xs" /> {systemName(system)}</span>}
+            {tool?.risk_level && <StatusPill status={tool.risk_level} className="font-normal" />}
+          </p>
+        )}
+      </Field>
+
+      <div>
+        <SubHeading action={<span className="num text-xs text-muted-foreground">{paramKeys.length} {paramKeys.length === 1 ? 'input' : 'inputs'}</span>}>Inputs</SubHeading>
+        {paramKeys.length === 0 && <p className="text-sm text-muted-foreground">This tool takes no inputs.</p>}
+        <div className="space-y-3.5">
           {paramKeys.map((k) => {
             const v = (params as any)[k];
             const shown = typeof v === 'string' ? v : (v === undefined ? '' : JSON.stringify(v));
             const isRequired = requiredSet.has(k);
             return (
-              <div key={k} className="space-y-0.5">
-                <div className="flex items-center justify-between gap-1">
-                  <label className="text-[10px] font-mono">
-                    {k}{isRequired ? <span className="text-amber-300">*</span> : ''}
+              <div key={k}>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label htmlFor={`param-${node.id}-${k}`} className="min-w-0 truncate font-mono text-xs text-foreground">
+                    {k}{isRequired ? <span className="font-sans text-muted-foreground"> (required)</span> : ''}
                   </label>
                   <ReadsFromDropdown
                     consumerNodeId={node.id}
@@ -901,71 +1026,45 @@ function StepEditor({
                     currentValue={v}
                     onPick={(src) => onWireFromParam(k, src)}
                     onClearChain={() => onClearWireForParam(k)}
-                    className="max-w-[140px]"
+                    className="max-w-[150px]"
                   />
                 </div>
                 <Input
+                  id={`param-${node.id}-${k}`}
                   value={shown}
                   onChange={(e) => setParam(k, e.target.value)}
-                  placeholder={isRequired ? 'required' : 'optional'}
-                  className="h-7 text-[11px] font-mono"
+                  placeholder={isRequired ? 'Required' : 'Optional'}
+                  className="font-mono text-xs"
                 />
               </div>
             );
           })}
         </div>
+        <p className="mt-3 text-xs text-subtle-foreground">
+          Type a value, or read it from an earlier step: drag that step's output onto the input on the canvas, or pick it from the menu beside the field.
+        </p>
       </div>
 
-      <div>
-        <label className="text-[10px] text-muted-foreground uppercase">Foreach (optional)</label>
+      <Field label="Repeat for each item" htmlFor={`foreach-${node.id}`} hint="Optional. A list from an earlier step; the tool runs once per item.">
         <Input
+          id={`foreach-${node.id}`}
           value={node.data.foreach || ''}
           onChange={(e) => onPatch({ foreach: e.target.value || undefined })}
           placeholder="${steps.s1.results}"
-          className="h-7 text-[11px] font-mono mt-0.5"
+          className="font-mono text-xs"
         />
-      </div>
+      </Field>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+        <label htmlFor={`approval-${node.id}`} className="min-w-0 cursor-pointer">
+          <span className="block text-sm font-medium text-foreground">Pause for approval</span>
+          <span className="block text-xs text-muted-foreground">The run waits for a person before this step.</span>
+        </label>
+        <Switch
           id={`approval-${node.id}`}
           checked={!!node.data.requires_approval}
-          onChange={(e) => onPatch({ requires_approval: e.target.checked })}
-          className="h-3 w-3"
+          onCheckedChange={(checked) => onPatch({ requires_approval: !!checked })}
         />
-        <label htmlFor={`approval-${node.id}`} className="text-[11px] cursor-pointer">
-          Requires approval
-        </label>
-      </div>
-
-      {issues.length > 0 && (
-        <div className="pt-2 border-t space-y-1">
-          <div className="text-[10px] uppercase tracking-wide text-red-300 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> Validation
-          </div>
-          {issues.map((iss, i) => (
-            <div key={i} className="text-[10px]">
-              <Badge variant="outline" className={cn(
-                'text-[9px] mr-1',
-                iss.severity === 'error'
-                  ? 'bg-red-500/15 text-red-300 border-red-500/30'
-                  : 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-              )}>
-                {iss.code}
-              </Badge>
-              {iss.message}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="text-[9px] text-muted-foreground pt-2 border-t flex items-start gap-1">
-        <Database className="h-3 w-3 mt-0.5 shrink-0" />
-        <span>
-          Drag a producer node's output port onto an input port to chain.
-          The reference dropdown next to each param is the keyboard fallback.
-        </span>
       </div>
     </div>
   );

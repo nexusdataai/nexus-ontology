@@ -12,15 +12,15 @@ import {
 } from 'recharts';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { gridProps, axisProps, ChartTooltip, cursorLine, CHART_MARGIN, CHART_COLORS } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
-const SERIES_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
+const SERIES_COLORS = CHART_COLORS;
 
 export function TrendPanel({ data, options, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 
@@ -45,13 +45,13 @@ export function TrendPanel({ data, options, height, loading }: PanelProps) {
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <ComposedChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-        <XAxis dataKey={xKey} tick={{ fontSize: 9 }} />
-        <YAxis tick={{ fontSize: 10 }} width={45} />
-        <Tooltip contentStyle={{ fontSize: 11 }} />
+      <ComposedChart data={rows} margin={CHART_MARGIN}>
+        <CartesianGrid {...gridProps} />
+        <XAxis dataKey={xKey} {...axisProps} />
+        <YAxis {...axisProps} width={45} />
+        <Tooltip content={<ChartTooltip />} cursor={cursorLine} />
         {showLegend && yFields.length > 1 && (
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }} iconType="square" iconSize={8} />
         )}
         {yFields.map((field, i) => {
           const color = SERIES_COLORS[i % SERIES_COLORS.length];

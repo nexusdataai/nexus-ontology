@@ -1,38 +1,38 @@
 import { useMemo } from 'react';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { CHART_COLORS } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 const STATE_COLORS: Record<string, string> = {
-  ok: '#22c55e',
-  good: '#22c55e',
-  running: '#22c55e',
-  active: '#22c55e',
-  up: '#22c55e',
-  online: '#22c55e',
-  healthy: '#22c55e',
-  warning: '#f59e0b',
-  degraded: '#f59e0b',
-  slow: '#f59e0b',
-  pending: '#f59e0b',
-  error: '#ef4444',
-  critical: '#ef4444',
-  down: '#ef4444',
-  offline: '#ef4444',
-  failed: '#ef4444',
-  stopped: '#ef4444',
-  idle: '#64748b',
-  unknown: '#64748b',
-  maintenance: '#8b5cf6',
+  ok: 'hsl(var(--success))',
+  good: 'hsl(var(--success))',
+  running: 'hsl(var(--success))',
+  active: 'hsl(var(--success))',
+  up: 'hsl(var(--success))',
+  online: 'hsl(var(--success))',
+  healthy: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  degraded: 'hsl(var(--warning))',
+  slow: 'hsl(var(--warning))',
+  pending: 'hsl(var(--warning))',
+  error: 'hsl(var(--destructive))',
+  critical: 'hsl(var(--destructive))',
+  down: 'hsl(var(--destructive))',
+  offline: 'hsl(var(--destructive))',
+  failed: 'hsl(var(--destructive))',
+  stopped: 'hsl(var(--destructive))',
+  idle: 'hsl(var(--muted-foreground))',
+  unknown: 'hsl(var(--muted-foreground))',
+  maintenance: 'hsl(var(--chart-4))',
 };
 
-const FALLBACK_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
+const FALLBACK_COLORS = CHART_COLORS;
 
 export function StateTimelinePanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data'}
-      </div>
+      <PanelState loading={loading} text="No data" />
     );
   }
 
@@ -108,7 +108,7 @@ export function StateTimelinePanel({ data, options, width, height, loading }: Pa
         return (
           <div key={entity} className="flex items-center gap-2 mb-1" style={{ height: rowHeight }}>
             <span
-              className="text-[10px] text-muted-foreground truncate flex-shrink-0 text-right"
+              className="text-xs text-muted-foreground truncate flex-shrink-0 text-right"
               style={{ width: labelWidth }}
             >
               {entity}
@@ -128,7 +128,7 @@ export function StateTimelinePanel({ data, options, width, height, loading }: Pa
                     title={`${entity}: ${seg.state}`}
                   >
                     {showLabel && (
-                      <span className="text-[8px] text-white font-medium truncate px-0.5 drop-shadow-sm">
+                      <span className="text-xs text-white font-medium truncate px-0.5 drop-shadow-sm">
                         {seg.state}
                       </span>
                     )}

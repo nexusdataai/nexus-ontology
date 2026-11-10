@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Field } from '@/components/ds/kit';
+import { Icon } from '@/components/ds/Icon';
+import { AddButton, Choice, FormBody, FormSection, NoRows, RemoveButton, SystemSelect } from './formKit';
+import { parseIntegrationDoc } from './knowledgeParsers';
 
 const SYSTEMS = ['Salesforce', 'Oracle', 'SAP', 'Google Drive'];
 const SYNC_TYPES = ['unidirectional', 'bidirectional'];
 const DIRECTIONS = ['source_to_target', 'target_to_source', 'bidirectional'];
-const SYSTEM_COLORS: Record<string, string> = {
-  Salesforce: 'bg-blue-500', Oracle: 'bg-orange-500', SAP: 'bg-green-500', 'Google Drive': 'bg-red-500',
-};
+
+const SYNC_TYPE_LABEL: Record<string, string> = { unidirectional: 'One way', bidirectional: 'Two way', one_way: 'One way', two_way: 'Two way' };
+const DIRECTION_LABEL: Record<string, string> = { source_to_target: 'Source to target', target_to_source: 'Target to source', bidirectional: 'Both ways' };
 
 interface FieldMapping { source: string; target: string; direction: string; transform: string; constraint: string }
 interface MappingGroup { name: string; sourceObject: string; targetObject: string; direction: string; fields: FieldMapping[] }
@@ -41,6 +43,16 @@ function parseIntegration(content: string): IntFormState {
     if (line.match(/^sync_type:/)) s.syncType = line.split(':').slice(1).join(':').trim();
     if (line.match(/^frequency:/)) s.frequency = line.split(':').slice(1).join(':').trim().replace(/"/g, '');
   }
+  // Open with what the file already holds, so saving from the form keeps
+  // its mappings, failure handling and dependencies.
+  const doc = parseIntegrationDoc(content);
+  s.description = doc.description;
+  s.mappings = doc.mappings.map(m => ({ ...m, fields: m.fields.map(f => ({ ...f })) }));
+  if (doc.retryCount != null) s.retryCount = doc.retryCount;
+  if (doc.retryInterval) s.retryInterval = doc.retryInterval;
+  s.alertEmail = doc.alertEmail;
+  s.fallback = doc.fallback;
+  s.dependencies = doc.dependencies.map(d => ({ ...d }));
   return s;
 }
 
@@ -91,23 +103,10 @@ function generateYaml(s: IntFormState): string {
   return y;
 }
 
-function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card className="mb-3">
-      <CardHeader className="pb-2 cursor-pointer" onClick={() => setOpen(!open)}>
-        <CardTitle className="text-sm flex items-center gap-1.5">
-          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}{title}
-        </CardTitle>
-      </CardHeader>
-      {open && <CardContent className="pt-0">{children}</CardContent>}
-    </Card>
-  );
-}
-
-function SystemBadge({ system }: { system: string }) {
-  const color = SYSTEM_COLORS[system] || 'bg-gray-500';
-  return <span className={`text-[9px] px-1.5 py-0.5 rounded text-white ${color}`}>{system}</span>;
+function DirectionIcon({ direction }: { direction: string }) {
+  if (direction === 'target_to_source') return <Icon name="arrow-right" className="h-3.5 w-3.5 rotate-180" />;
+  if (direction === 'bidirectional') return <Icon name="shuffle" className="h-3.5 w-3.5" />;
+  return <Icon name="arrow-right" className="h-3.5 w-3.5" />;
 }
 
 export default function IntegrationFormBuilder({ content, onChange }: { content: string; onChange: (c: string) => void }) {
@@ -116,132 +115,143 @@ export default function IntegrationFormBuilder({ content, onChange }: { content:
   useEffect(() => { onChange(generateYaml(state)); }, [state]);
   const update = (p: Partial<IntFormState>) => setState(s => ({ ...s, ...p }));
 
+  const setMapping = (mi: number, patch: Partial<MappingGroup>) => update({ mappings: state.mappings.map((m, j) => (j === mi ? { ...m, ...patch } : m)) });
+  const setMappingField = (mi: number, fi: number, patch: Partial<FieldMapping>) =>
+    setMapping(mi, { fields: state.mappings[mi].fields.map((f, j) => (j === fi ? { ...f, ...patch } : f)) });
+  const setDep = (i: number, patch: Partial<IntDep>) => update({ dependencies: state.dependencies.map((d, j) => (j === i ? { ...d, ...patch } : d)) });
+
+  const syncTypes = SYNC_TYPES.includes(state.syncType) || !state.syncType ? SYNC_TYPES : [state.syncType, ...SYNC_TYPES];
+
   return (
-    <div className="p-4 space-y-0">
-      <Section title="Integration Header">
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-[10px] text-muted-foreground">Name</label>
-            <Input value={state.name} onChange={e => update({ name: e.target.value })} placeholder="SF-Oracle Customer Sync" className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">ID</label>
-            <Input value={state.id} onChange={e => update({ id: e.target.value })} placeholder="INT_SF_ORACLE_V1" className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">Version</label>
-            <Input value={state.version} onChange={e => update({ version: e.target.value })} placeholder="1.0" className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">Frequency</label>
-            <Input value={state.frequency} onChange={e => update({ frequency: e.target.value })} placeholder="Every 15 minutes" className="text-xs" /></div>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex-1">
-            <label className="text-[10px] text-muted-foreground">Source System</label>
-            <select value={state.sourceSystem} onChange={e => update({ sourceSystem: e.target.value })}
-              className="w-full rounded border bg-card px-2 py-1.5 text-xs">
-              {SYSTEMS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+    <FormBody>
+      <FormSection title="Integration details" hint="Which two systems are connected, in which direction and how often.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name" htmlFor="int-name" className="sm:col-span-2">
+            <Input id="int-name" value={state.name} onChange={e => update({ name: e.target.value })} placeholder="Salesforce to Oracle customer sync" />
+          </Field>
+          <div className="grid items-end gap-3 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <Field label="Source system">
+              <SystemSelect label="Source system" systems={SYSTEMS} value={state.sourceSystem} onChange={(v) => update({ sourceSystem: v })} />
+            </Field>
+            <Icon name="arrow-right" className="mb-2.5 hidden text-subtle-foreground sm:block" />
+            <Field label="Target system">
+              <SystemSelect label="Target system" systems={SYSTEMS} value={state.targetSystem} onChange={(v) => update({ targetSystem: v })} />
+            </Field>
           </div>
-          <ArrowRight className="h-4 w-4 text-muted-foreground mt-4" />
-          <div className="flex-1">
-            <label className="text-[10px] text-muted-foreground">Target System</label>
-            <select value={state.targetSystem} onChange={e => update({ targetSystem: e.target.value })}
-              className="w-full rounded border bg-card px-2 py-1.5 text-xs">
-              {SYSTEMS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
+          <Field label="Direction">
+            <Choice
+              label="Sync direction"
+              value={state.syncType}
+              onChange={(t) => update({ syncType: t })}
+              options={syncTypes.map(t => ({ value: t, label: SYNC_TYPE_LABEL[t] || t }))}
+            />
+          </Field>
+          <Field label="Trigger or frequency" htmlFor="int-freq">
+            <Input id="int-freq" value={state.frequency} onChange={e => update({ frequency: e.target.value })} placeholder="Every 15 minutes" />
+          </Field>
+          <Field label="Integration ID" htmlFor="int-id">
+            <Input id="int-id" value={state.id} onChange={e => update({ id: e.target.value })} placeholder="INT_SF_ORACLE_V1" className="font-mono" />
+          </Field>
+          <Field label="Version" htmlFor="int-version">
+            <Input id="int-version" value={state.version} onChange={e => update({ version: e.target.value })} placeholder="1.0" />
+          </Field>
+          <Field label="Description" htmlFor="int-desc" className="sm:col-span-2">
+            <Textarea id="int-desc" value={state.description} onChange={e => update({ description: e.target.value })} rows={3} placeholder="What this integration keeps in step, in a sentence or two" />
+          </Field>
         </div>
-        <div className="mt-3">
-          <label className="text-[10px] text-muted-foreground">Sync Type</label>
-          <div className="flex gap-2 mt-1">
-            {SYNC_TYPES.map(t => (
-              <button key={t} onClick={() => update({ syncType: t })}
-                className={`px-3 py-1 rounded text-xs ${state.syncType === t ? 'bg-blue-600/20 text-blue-300 border border-blue-500' : 'border text-muted-foreground'}`}>
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Section>
+      </FormSection>
 
-      <Section title="Description" defaultOpen={false}>
-        <textarea value={state.description} onChange={e => update({ description: e.target.value })}
-          className="w-full h-16 p-2 rounded border bg-card text-xs resize-none" placeholder="Describe this integration..." />
-      </Section>
-
-      <Section title={`Field Mappings (${state.mappings.length} groups)`}>
-        {state.mappings.map((m, mi) => (
-          <Card key={mi} className="mb-3 border-dashed">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Input value={m.name} onChange={e => { const ms = [...state.mappings]; ms[mi] = { ...m, name: e.target.value }; update({ mappings: ms }); }}
-                  placeholder="Mapping group name" className="text-xs flex-1" />
-                <Button variant="ghost" size="sm" onClick={() => update({ mappings: state.mappings.filter((_, j) => j !== mi) })}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div><label className="text-[10px] text-muted-foreground">Source Object</label>
-                  <Input value={m.sourceObject} onChange={e => { const ms = [...state.mappings]; ms[mi] = { ...m, sourceObject: e.target.value }; update({ mappings: ms }); }}
-                    placeholder="Account" className="text-xs" /></div>
-                <div><label className="text-[10px] text-muted-foreground">Target Object</label>
-                  <Input value={m.targetObject} onChange={e => { const ms = [...state.mappings]; ms[mi] = { ...m, targetObject: e.target.value }; update({ mappings: ms }); }}
-                    placeholder="AR_Customer" className="text-xs" /></div>
+      <FormSection title="Field mappings" count={state.mappings.length} hint="Group fields by the pair of objects they move between.">
+        {state.mappings.length === 0 && <NoRows>No mapping groups yet.</NoRows>}
+        <div className="border-t border-border">
+          {state.mappings.map((m, mi) => (
+            <div key={mi} className="border-b border-border py-5">
+              <div className="flex items-start gap-2">
+                <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+                  <Field label="Group name" htmlFor={`int-map-name-${mi}`}>
+                    <Input id={`int-map-name-${mi}`} value={m.name} onChange={e => setMapping(mi, { name: e.target.value })} placeholder="Customer master" />
+                  </Field>
+                  <Field label="Source object" htmlFor={`int-map-src-${mi}`}>
+                    <Input id={`int-map-src-${mi}`} value={m.sourceObject} onChange={e => setMapping(mi, { sourceObject: e.target.value })} placeholder="Account" className="font-mono" />
+                  </Field>
+                  <Icon name="arrow-right" className="mb-2.5 hidden text-subtle-foreground sm:block" />
+                  <Field label="Target object" htmlFor={`int-map-tgt-${mi}`}>
+                    <Input id={`int-map-tgt-${mi}`} value={m.targetObject} onChange={e => setMapping(mi, { targetObject: e.target.value })} placeholder="AR_Customer" className="font-mono" />
+                  </Field>
+                </div>
+                <div className="pt-6"><RemoveButton label={`Remove mapping group ${m.name || mi + 1}`} onClick={() => update({ mappings: state.mappings.filter((_, j) => j !== mi) })} /></div>
               </div>
 
-              <div className="text-[10px] text-muted-foreground mb-1">Fields</div>
-              <div className="space-y-1.5">
+              <div className="mt-4 space-y-2 sm:pl-4">
+                {m.fields.length === 0 && <NoRows>No fields in this group yet.</NoRows>}
                 {m.fields.map((f, fi) => (
-                  <div key={fi} className="grid grid-cols-6 gap-1.5 items-center">
-                    <Input value={f.source} onChange={e => { const ms = [...state.mappings]; ms[mi].fields[fi] = { ...f, source: e.target.value }; update({ mappings: ms }); }}
-                      placeholder="source.field" className="text-[10px] col-span-2" />
-                    <select value={f.direction} onChange={e => { const ms = [...state.mappings]; ms[mi].fields[fi] = { ...f, direction: e.target.value }; update({ mappings: ms }); }}
-                      className="rounded border bg-card px-1 py-1 text-[10px]">
-                      {DIRECTIONS.map(d => <option key={d} value={d}>{d === 'source_to_target' ? '→' : d === 'target_to_source' ? '←' : '↔'}</option>)}
-                    </select>
-                    <Input value={f.target} onChange={e => { const ms = [...state.mappings]; ms[mi].fields[fi] = { ...f, target: e.target.value }; update({ mappings: ms }); }}
-                      placeholder="target.field" className="text-[10px] col-span-2" />
-                    <Button variant="ghost" size="sm" onClick={() => { const ms = [...state.mappings]; ms[mi].fields = ms[mi].fields.filter((_, j) => j !== fi); update({ mappings: ms }); }}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                  <div key={fi} className="flex items-center gap-2">
+                    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                      <Input value={f.source} onChange={e => setMappingField(mi, fi, { source: e.target.value })} placeholder="Account.Name" aria-label={`Source field ${fi + 1}`} className="font-mono text-xs" />
+                      <Select value={DIRECTIONS.includes(f.direction) ? f.direction : 'source_to_target'} onValueChange={(v) => setMappingField(mi, fi, { direction: v })}>
+                        <SelectTrigger className="h-9 w-14 px-2" aria-label={`Direction of field ${fi + 1}: ${DIRECTION_LABEL[f.direction] || 'Source to target'}`}>
+                          <SelectValue><DirectionIcon direction={f.direction} /></SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DIRECTIONS.map(d => (
+                            <SelectItem key={d} value={d}>
+                              <span className="inline-flex items-center gap-2"><DirectionIcon direction={d} />{DIRECTION_LABEL[d]}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input value={f.target} onChange={e => setMappingField(mi, fi, { target: e.target.value })} placeholder="AR_Customer.customer_name" aria-label={`Target field ${fi + 1}`} className="font-mono text-xs" />
+                    </div>
+                    <RemoveButton label={`Remove field ${fi + 1}`} onClick={() => setMapping(mi, { fields: m.fields.filter((_, j) => j !== fi) })} />
                   </div>
                 ))}
+                <div className="pt-1">
+                  <AddButton onClick={() => setMapping(mi, { fields: [...m.fields, { source: '', target: '', direction: 'source_to_target', transform: '', constraint: '' }] })}>Add field</AddButton>
+                </div>
               </div>
-              <Button variant="outline" size="sm" className="mt-2 text-[10px]" onClick={() => {
-                const ms = [...state.mappings];
-                ms[mi].fields = [...ms[mi].fields, { source: '', target: '', direction: 'source_to_target', transform: '', constraint: '' }];
-                update({ mappings: ms });
-              }}><Plus className="h-3 w-3 mr-1" />Add Field</Button>
-            </CardContent>
-          </Card>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => update({ mappings: [...state.mappings, { name: '', sourceObject: '', targetObject: '', direction: '', fields: [] }] })}>
-          <Plus className="h-3.5 w-3.5 mr-1" />Add Mapping Group
-        </Button>
-      </Section>
-
-      <Section title="Failure Handling" defaultOpen={false}>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-[10px] text-muted-foreground">Retry Count</label>
-            <Input type="number" value={state.retryCount} onChange={e => update({ retryCount: parseInt(e.target.value) || 0 })} className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">Retry Interval</label>
-            <Input value={state.retryInterval} onChange={e => update({ retryInterval: e.target.value })} placeholder="5 minutes" className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">Alert Email</label>
-            <Input value={state.alertEmail} onChange={e => update({ alertEmail: e.target.value })} placeholder="team@company.com" className="text-xs" /></div>
-          <div><label className="text-[10px] text-muted-foreground">Fallback Strategy</label>
-            <Input value={state.fallback} onChange={e => update({ fallback: e.target.value })} placeholder="Source system is authoritative" className="text-xs" /></div>
+            </div>
+          ))}
         </div>
-      </Section>
+        <div className="mt-3">
+          <AddButton onClick={() => update({ mappings: [...state.mappings, { name: '', sourceObject: '', targetObject: '', direction: '', fields: [] }] })}>Add mapping group</AddButton>
+        </div>
+      </FormSection>
 
-      <Section title="Dependencies" defaultOpen={false}>
-        {state.dependencies.map((d, i) => (
-          <div key={i} className="grid grid-cols-4 gap-2 mb-2">
-            <Input value={d.entity} onChange={e => { const ds = [...state.dependencies]; ds[i] = { ...d, entity: e.target.value }; update({ dependencies: ds }); }} placeholder="Entity" className="text-xs" />
-            <select value={d.system} onChange={e => { const ds = [...state.dependencies]; ds[i] = { ...d, system: e.target.value }; update({ dependencies: ds }); }}
-              className="rounded border bg-card px-2 py-1.5 text-xs"><option value="">System...</option>{SYSTEMS.map(s => <option key={s} value={s}>{s}</option>)}</select>
-            <Input value={d.relationship} onChange={e => { const ds = [...state.dependencies]; ds[i] = { ...d, relationship: e.target.value }; update({ dependencies: ds }); }} placeholder="Relationship" className="text-xs" />
-            <Button variant="ghost" size="sm" onClick={() => update({ dependencies: state.dependencies.filter((_, j) => j !== i) })}><Trash2 className="h-3.5 w-3.5" /></Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => update({ dependencies: [...state.dependencies, { entity: '', system: '', relationship: '' }] })}>
-          <Plus className="h-3.5 w-3.5 mr-1" />Add Dependency
-        </Button>
-      </Section>
-    </div>
+      <FormSection title="If a sync fails" hint="How often to retry, who to tell and which side wins.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Retries" htmlFor="int-retry">
+            <Input id="int-retry" type="number" min={0} value={state.retryCount} onChange={e => update({ retryCount: parseInt(e.target.value) || 0 })} />
+          </Field>
+          <Field label="Wait between retries" htmlFor="int-retry-int">
+            <Input id="int-retry-int" value={state.retryInterval} onChange={e => update({ retryInterval: e.target.value })} placeholder="5 minutes" />
+          </Field>
+          <Field label="Alert email" htmlFor="int-alert">
+            <Input id="int-alert" value={state.alertEmail} onChange={e => update({ alertEmail: e.target.value })} placeholder="team@company.com" />
+          </Field>
+          <Field label="Fallback" htmlFor="int-fallback">
+            <Input id="int-fallback" value={state.fallback} onChange={e => update({ fallback: e.target.value })} placeholder="Source system is authoritative" />
+          </Field>
+        </div>
+      </FormSection>
+
+      <FormSection title="Dependencies" count={state.dependencies.length} hint="Entities this integration relies on.">
+        {state.dependencies.length === 0 && <NoRows>No dependencies added.</NoRows>}
+        <div className="space-y-3">
+          {state.dependencies.map((d, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
+                <Input value={d.entity} onChange={e => setDep(i, { entity: e.target.value })} placeholder="Account" aria-label={`Dependency ${i + 1}: entity`} className="font-mono" />
+                <SystemSelect label={`Dependency ${i + 1}: system`} systems={SYSTEMS} emptyLabel="Any system" value={d.system} onChange={(v) => setDep(i, { system: v })} />
+                <Input value={d.relationship} onChange={e => setDep(i, { relationship: e.target.value })} placeholder="Source entity" aria-label={`Dependency ${i + 1}: relationship`} />
+              </div>
+              <RemoveButton label={`Remove dependency ${i + 1}`} onClick={() => update({ dependencies: state.dependencies.filter((_, j) => j !== i) })} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-3">
+          <AddButton onClick={() => update({ dependencies: [...state.dependencies, { entity: '', system: '', relationship: '' }] })}>Add dependency</AddButton>
+        </div>
+      </FormSection>
+    </FormBody>
   );
 }

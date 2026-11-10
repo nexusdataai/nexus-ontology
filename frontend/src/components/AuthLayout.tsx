@@ -31,11 +31,11 @@ export function AuthLayout({
                 <path d="M8 2c4 0 8 1.7 8 11 0 3.7-2.3 7-6 7-3 0-5-1.3-5-4 0-3.7 2-5 6-5 0 0 0 0 0 0"/>
               </svg>
             </div>
-            <span className="font-bold text-xl text-sidebar-foreground">AgriMetrics</span>
+            <span className="font-semibold text-xl text-sidebar-foreground">Nexus AI</span>
           </div>
-          <h1 className="text-4xl font-bold text-sidebar-foreground mb-6">Analytics Dashboard for Smart Agriculture</h1>
+          <h1 className="text-4xl font-semibold text-sidebar-foreground mb-6">The intelligent AI operating layer for the enterprise</h1>
           <p className="text-lg text-sidebar-foreground/80 max-w-md">
-            Monitor crop performance, track weather patterns, and analyze soil health data in real-time.
+            Connect your systems, build a verified ontology of your business, and deploy agents that reason and act.
           </p>
         </div>
         
@@ -48,7 +48,7 @@ export function AuthLayout({
       <div className="flex flex-col justify-center items-center p-6 md:p-12">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center md:text-left mb-8">
-            <h2 className="text-3xl font-bold tracking-tight mb-2">{title}</h2>
+            <h2 className="text-3xl font-semibold tracking-tight mb-2">{title}</h2>
             <p className="text-muted-foreground">{description}</p>
           </div>
 

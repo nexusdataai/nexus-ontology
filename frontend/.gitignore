@@ -179,3 +179,5 @@ shell_executor.log
 api_keys.txt
 secrets.json 
 docs-site/
+.vercel
+.env*

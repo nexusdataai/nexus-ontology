@@ -80,7 +80,7 @@ beforeEach(() => {
 
 function openModal() {
   render(<JourneyReportModal journeyId="j-1" />);
-  fireEvent.click(screen.getByText(/View Report/));
+  fireEvent.click(screen.getByText(/View report/i));
 }
 
 describe('JourneyReportModal', () => {
@@ -92,7 +92,7 @@ describe('JourneyReportModal', () => {
 
   it('renders the journey name alongside the report title', async () => {
     render(<JourneyReportModal journeyId="j-1" journeyName="Weekly SKU Replenishment" />);
-    fireEvent.click(screen.getByText(/View Report/));
+    fireEvent.click(screen.getByText(/View report/i));
     expect(await screen.findByText(/Weekly SKU Replenishment/)).toBeTruthy();
   });
 
@@ -121,8 +121,8 @@ describe('JourneyReportModal', () => {
   it('renders timeline events with state transitions', async () => {
     openModal();
     expect(await screen.findByText('Run Timeline')).toBeTruthy();
-    expect(screen.getByText('pending')).toBeTruthy();
-    expect(screen.getByText('in_progress')).toBeTruthy();
+    expect(screen.getByText(/pending/i)).toBeTruthy();
+    expect(screen.getByText(/in progress/i)).toBeTruthy();
   });
 
   it('renders step_breakdown table rows', async () => {
@@ -134,6 +134,6 @@ describe('JourneyReportModal', () => {
 
   it('shows total_jobs footer', async () => {
     openModal();
-    expect(await screen.findByText(/Based on 3 jobs/)).toBeTruthy();
+    expect(await screen.findByText(/Based on 3 runs/)).toBeTruthy();
   });
 });

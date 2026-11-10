@@ -19,10 +19,10 @@ export function ConfigurationCanvasWidget({ widget, data, loading }: Props) {
     <Card className="h-full">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Boxes className="h-4 w-4 text-fuchsia-500" />
+          <Boxes className="h-4 w-4 text-primary" />
           {widget.title} ({rows.length})
         </CardTitle>
-        <Badge variant="outline" className="text-[10px]">Drag-ready</Badge>
+        <Badge variant="outline" className="text-xs">Drag-ready</Badge>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -50,14 +50,14 @@ export function ConfigurationCanvasWidget({ widget, data, loading }: Props) {
                 </div>
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {row.Type && (
-                    <Badge variant="secondary" className="text-[9px]">{row.Type}</Badge>
+                    <Badge variant="secondary" className="text-xs">{row.Type}</Badge>
                   )}
                   {(row.Channel_Eligibility || '')
                     .split(',')
                     .filter(Boolean)
                     .slice(0, 2)
                     .map((c: string) => (
-                      <Badge key={c} className="text-[9px] bg-fuchsia-500/10 text-fuchsia-600">
+                      <Badge key={c} className="text-xs bg-primary/10 text-primary">
                         {c.trim()}
                       </Badge>
                     ))}

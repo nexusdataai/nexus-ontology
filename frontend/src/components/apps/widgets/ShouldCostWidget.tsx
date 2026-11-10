@@ -24,7 +24,7 @@ export function ShouldCostWidget({ widget, data, loading }: Props) {
     <Card className="h-full">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Calculator className="h-4 w-4 text-indigo-500" />
+          <Calculator className="h-4 w-4 text-primary" />
           {widget.title} ({rows.length})
         </CardTitle>
       </CardHeader>
@@ -42,19 +42,19 @@ export function ShouldCostWidget({ widget, data, loading }: Props) {
             {rows.map((m, i) => {
               const conf = Number(m.Confidence ?? 0);
               const cost = Number(m.Modeled_Cost ?? 0);
-              const confColor = conf > 0.75 ? 'text-green-600' : conf > 0.5 ? 'text-amber-600' : 'text-red-600';
+              const confColor = conf > 0.75 ? 'text-success' : conf > 0.5 ? 'text-warning' : 'text-destructive';
               return (
                 <div key={m.Model_ID || i} className="border rounded-md p-3 bg-card flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-muted-foreground">{m.Model_ID}</span>
-                    <Badge variant="outline" className="text-[10px]">{m.Material_ID}</Badge>
+                    <Badge variant="outline" className="text-xs">{m.Material_ID}</Badge>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-sm font-mono">
                       ${cost.toFixed(2)}
-                      <span className="text-[9px] text-muted-foreground ml-1">/unit</span>
+                      <span className="text-xs text-muted-foreground ml-1">/unit</span>
                     </div>
-                    <Badge className={`text-[9px] bg-muted ${confColor}`}>
+                    <Badge className={`text-xs bg-muted ${confColor}`}>
                       {(conf * 100).toFixed(0)}% conf
                     </Badge>
                   </div>

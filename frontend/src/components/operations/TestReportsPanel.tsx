@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import {
-  Play, Loader2, CheckCircle, XCircle, Clock, ExternalLink,
-  FlaskConical, Link2, BarChart3, RefreshCw,
-} from 'lucide-react';
+import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, KeyValues, StatusPill } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
 import { apiRequest } from '@/services/apiClient';
 
 const TEST_CATEGORIES = [
-  { id: 'unit', label: 'Unit Tests', description: 'Component-level test coverage', color: 'text-emerald-400' },
-  { id: 'integration', label: 'Integration Tests', description: 'End-to-end API & service tests', color: 'text-blue-400' },
-  { id: 'bdd', label: 'BDD Tests', description: 'Behavior-driven scenarios', color: 'text-amber-400' },
-  { id: 'endurance', label: 'Endurance Tests', description: 'Performance & stability tests', color: 'text-purple-400' },
+  { id: 'unit', label: 'Unit tests', description: 'Each component on its own', color: '' },
+  { id: 'integration', label: 'Integration tests', description: 'APIs and services working together', color: '' },
+  { id: 'bdd', label: 'Behaviour tests', description: 'Business scenarios written as given, when, then', color: '' },
+  { id: 'endurance', label: 'Endurance tests', description: 'Performance and stability over time', color: '' },
 ] as const;
 
 type RunStatus = 'none' | 'queued' | 'in_progress' | 'completed' | 'failure' | 'cancelled';
@@ -37,6 +36,8 @@ export function TestReportsPanel() {
   const [selected, setSelected] = useState<Set<string>>(new Set(['unit']));
   const [triggering, setTriggering] = useState(false);
   const [runStatus, setRunStatus] = useState<RunStatus>('none');
+  // Set when the backend says test runs are not configured (503).
+  const [notSetUp, setNotSetUp] = useState<string | null>(null);
   const [latestRun, setLatestRun] = useState<WorkflowRun | null>(null);
   const [recentRuns, setRecentRuns] = useState<WorkflowRun[]>([]);
   const [results, setResults] = useState<Record<string, CategoryResult>>({});
@@ -59,8 +60,13 @@ export function TestReportsPanel() {
       setRunStatus(data.status === 'none' ? 'none' : data.conclusion || data.status);
       setLatestRun(data.latest_run || null);
       setRecentRuns(data.recent_runs || []);
+      setNotSetUp(null);
       return data.status;
-    } catch {
+    } catch (e: any) {
+      const msg = `${e?.message || ''} ${typeof e?.data?.detail === 'string' ? e.data.detail : ''}`;
+      if (e?.status === 503 || /503|not configured/i.test(msg)) {
+        setNotSetUp(/GITHUB_TOKEN/i.test(msg) ? 'the GitHub token that starts the test pipeline (GITHUB_TOKEN) is not set on the backend' : 'the test pipeline is not configured on the backend');
+      }
       return 'none';
     }
   }, []);
@@ -113,200 +119,125 @@ export function TestReportsPanel() {
   };
 
   const isRunning = runStatus === 'queued' || runStatus === 'in_progress';
-
-  const statusBadge = (status: RunStatus) => {
-    switch (status) {
-      case 'queued':
-        return <Badge variant="outline" className="gap-1 text-yellow-400 border-yellow-400/40"><Clock className="h-3 w-3" />Queued</Badge>;
-      case 'in_progress':
-        return <Badge variant="outline" className="gap-1 text-blue-400 border-blue-400/40"><Loader2 className="h-3 w-3 animate-spin" />Running</Badge>;
-      case 'completed':
-        return <Badge variant="outline" className="gap-1 text-emerald-400 border-emerald-400/40"><CheckCircle className="h-3 w-3" />Passed</Badge>;
-      case 'failure':
-        return <Badge variant="outline" className="gap-1 text-red-400 border-red-400/40"><XCircle className="h-3 w-3" />Failed</Badge>;
-      default:
-        return <Badge variant="outline" className="gap-1 text-muted-foreground">No runs</Badge>;
-    }
+  const STATUS_TEXT: Record<string, string> = { queued: 'Queued', in_progress: 'Running', completed: 'Passed', success: 'Passed', failure: 'Failed', cancelled: 'Cancelled', none: 'No runs yet' };
+  const statusPill = (status: string, soft?: boolean) => (
+    <StatusPill status={status === 'completed' ? 'success' : status === 'failure' ? 'failed' : status === 'none' ? 'neutral' : status} variant={soft ? 'soft' : 'dot'}>
+      {STATUS_TEXT[status] || status.replace(/_/g, ' ')}
+    </StatusPill>
+  );
+  const when = (iso?: string | null) => {
+    if (!iso) return 'Not recorded';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <FlaskConical className="h-5 w-5" /> Test Reports
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Run backend test suites and view reports
-          </p>
+    <div className="mx-auto w-full max-w-[1400px] space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Test reports</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Run the backend test suites and open their reports. Runs happen in the build pipeline and take a few minutes.</p>
         </div>
-        {dashboardUrl && (
-          <button
-            onClick={() => window.open(dashboardUrl, '_blank')}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> Open Dashboard
-          </button>
-        )}
-      </div>
-
-      {/* Run Tests Card */}
-      <Card className="border-border bg-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Run Tests</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {TEST_CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => toggleCategory(cat.id)}
-                disabled={isRunning}
-                className={`
-                  rounded-lg border p-3 text-left transition-all text-sm
-                  ${selected.has(cat.id)
-                    ? 'border-blue-500/60 bg-blue-500/10'
-                    : 'border-border hover:border-muted-foreground/40'
-                  }
-                  ${isRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                `}
-              >
-                <div className={`font-medium ${cat.color}`}>{cat.label}</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">{cat.description}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleRunTests}
-              disabled={triggering || isRunning || selected.size === 0}
-              className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {triggering || isRunning
-                ? <><Loader2 className="h-4 w-4 animate-spin" /> {triggering ? 'Triggering...' : 'Running...'}</>
-                : <><Play className="h-4 w-4" /> Run Tests</>
-              }
-            </button>
-            <button
-              onClick={() => { fetchStatus(); fetchResults(); }}
-              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Refresh"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-            {statusBadge(runStatus)}
-          </div>
-
-          {error && (
-            <div className="text-sm text-red-400 bg-red-400/10 rounded-md px-3 py-2">{error}</div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { fetchStatus(); fetchResults(); }}>
+            <Icon name="refresh" className="h-3.5 w-3.5" /> Refresh
+          </Button>
+          {dashboardUrl && (
+            <Button variant="outline" onClick={() => window.open(dashboardUrl, '_blank')}>
+              Open report dashboard <Icon name="external-link" className="h-3.5 w-3.5" />
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </header>
 
-      {/* Latest Run */}
-      {latestRun && (
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center justify-between">
-              Latest Run
-              <a href={latestRun.html_url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:underline flex items-center gap-1">
-                <Link2 className="h-3 w-3" /> GitHub
-              </a>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <div className="text-muted-foreground text-xs">Status</div>
-                <div className="mt-0.5">{statusBadge(latestRun.conclusion as RunStatus || latestRun.status as RunStatus)}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Triggered by</div>
-                <div className="mt-0.5 font-medium">{latestRun.actor}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Started</div>
-                <div className="mt-0.5">{latestRun.started_at ? new Date(latestRun.started_at).toLocaleString() : '-'}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Updated</div>
-                <div className="mt-0.5">{latestRun.updated_at ? new Date(latestRun.updated_at).toLocaleString() : '-'}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {error && <InlineError>{error}</InlineError>}
+      {notSetUp && (
+        <p role="status" className="rounded-lg border border-border bg-surface-2/60 px-4 py-3 text-sm text-muted-foreground">
+          Test runs are not set up on this environment: {notSetUp}. Reports from earlier runs still open from the report dashboard.
+        </p>
       )}
 
-      {/* Results */}
-      <Card className="border-border bg-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" /> Available Reports
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {TEST_CATEGORIES.map(cat => {
-              const r = results[cat.id];
-              return (
-                <div key={cat.id} className={`rounded-lg border p-4 ${r?.available ? 'border-border' : 'border-border/50 opacity-60'}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className={`font-medium text-sm ${cat.color}`}>{cat.label}</div>
-                      {r?.available && r.timestamp && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5">Last run: {r.timestamp}</div>
-                      )}
-                      {!r?.available && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5">No reports available</div>
-                      )}
-                    </div>
-                    {r?.available && r.report_url && (
-                      <button
-                        onClick={() => window.open(r.report_url, '_blank')}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 transition-colors"
-                      >
-                        <ExternalLink className="h-3 w-3" /> View
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+      {/* Choose suites and run */}
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+          <div>
+            <h3 className="text-md font-medium text-foreground">Suites</h3>
+            <p className="text-xs text-muted-foreground">Tick the suites to include in the next run.</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-3">
+            {statusPill(runStatus, true)}
+            <Button onClick={handleRunTests} disabled={!!notSetUp || triggering || isRunning || selected.size === 0}>
+              <Icon name={triggering || isRunning ? 'spinner' : 'play'} className={cn('h-3.5 w-3.5', (triggering || isRunning) && 'animate-spin')} />
+              {triggering ? 'Starting' : isRunning ? 'Running' : selected.size > 1 ? `Run ${selected.size} suites` : 'Run suite'}
+            </Button>
+          </div>
+        </div>
+        <ul>
+          {TEST_CATEGORIES.map((cat, i) => {
+            const r = results[cat.id];
+            const on = selected.has(cat.id);
+            return (
+              <li key={cat.id} className="rise flex flex-wrap items-center gap-4 border-b border-border px-5 py-3.5 last:border-b-0" style={{ ['--i' as any]: i }}>
+                <label className={cn('flex min-w-0 flex-1 items-center gap-3.5', isRunning ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
+                  <Checkbox checked={on} onCheckedChange={() => toggleCategory(cat.id)} disabled={isRunning} aria-label={`Include ${cat.label}`} />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{cat.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{cat.description}</span>
+                  </span>
+                </label>
+                <span className="w-48 shrink-0 text-xs text-muted-foreground">{r?.available ? <>Last report {r.timestamp || 'available'}</> : 'No report yet'}</span>
+                {r?.available && r.report_url ? (
+                  <Button variant="ghost" size="sm" onClick={() => window.open(r.report_url, '_blank')}>
+                    View report <Icon name="external-link" className="h-3 w-3" />
+                  </Button>
+                ) : <span className="w-[108px]" aria-hidden="true" />}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-      {/* Recent Runs */}
+      {/* Latest run */}
+      {latestRun && (
+        <section>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="text-md font-medium text-foreground">Latest run</h3>
+            <a href={latestRun.html_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline dark:text-brand-hi">
+              Open in GitHub <Icon name="external-link" className="h-3 w-3" />
+            </a>
+          </div>
+          <div className="rounded-xl border border-border bg-card px-5 py-1 shadow-xs">
+            <KeyValues
+              columns={2}
+              items={[
+                { label: 'Result', value: statusPill(latestRun.conclusion || latestRun.status) },
+                { label: 'Started by', value: latestRun.actor },
+                { label: 'Started', value: when(latestRun.started_at) },
+                { label: 'Last update', value: when(latestRun.updated_at) },
+              ]}
+            />
+          </div>
+        </section>
+      )}
+
+      {/* History */}
       {recentRuns.length > 1 && (
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Recent Runs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {recentRuns.map(run => (
-                <div key={run.run_id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
-                  <div className="flex items-center gap-3">
-                    {statusBadge(run.conclusion as RunStatus || run.status as RunStatus)}
-                    <span className="text-muted-foreground text-xs">{run.actor}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">
-                      {run.started_at ? new Date(run.started_at).toLocaleString() : '-'}
-                    </span>
-                    <a href={run.html_url} target="_blank" rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline text-xs">
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <section>
+          <h3 className="mb-3 text-md font-medium text-foreground">Recent runs</h3>
+          <ul className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            {recentRuns.map(run => (
+              <li key={run.run_id} className="flex flex-wrap items-center gap-4 border-b border-border px-5 py-3 last:border-b-0">
+                <span className="w-28 shrink-0">{statusPill(run.conclusion || run.status)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{run.display_title || 'Test run'}</span>
+                <span className="text-xs text-muted-foreground">{run.actor}</span>
+                <span className="w-32 text-right text-xs text-muted-foreground">{when(run.started_at)}</span>
+                <a href={run.html_url} target="_blank" rel="noopener noreferrer" aria-label="Open this run in GitHub" className="rounded p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Icon name="external-link" className="h-3.5 w-3.5" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

@@ -30,10 +30,21 @@ export interface GatewayConfig {
   serverUrl?: string;
 }
 
+// AWS Cognito sign-in settings (config.json "cognito" block)
+export interface CognitoConfig {
+  region: string;
+  userPoolId: string;
+  clientId: string;
+  domain: string;
+  redirectSignIn: string;
+  redirectSignOut: string;
+}
+
 export interface AppConfig {
   api: ApiConfig;
   deploymentMode: DeploymentMode;
   gateway?: GatewayConfig;
+  cognito?: CognitoConfig;
   bypassAuth: boolean;
   environment: 'development' | 'staging' | 'production';
   dataSource: DataSource;

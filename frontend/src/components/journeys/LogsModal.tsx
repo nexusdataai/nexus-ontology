@@ -1,23 +1,26 @@
 /**
  * LogsModal Component
- * 
- * Modal for viewing step logs with color-coded log levels.
- * Supports both controlled mode (open/onClose) and trigger mode.
+ *
+ * Full log of one step of one run.
+ * Supports both controlled mode (isOpen/onClose) and trigger mode.
  */
 
 import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '../ui/dialog';
-import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
-import { Loader2 } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Skeleton } from '../ui/skeleton';
+import { Icon } from '../ds/Icon';
+import { EmptyState } from '../ds/primitives';
+import { Chips, InlineError } from '../ds/kit';
+import { cn } from '../../lib/utils';
 import { LogEntry, LogLevel } from '../../types/callProcessingJourney';
-import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
 export interface LogsModalProps {
   journeyId: string;
@@ -31,6 +34,8 @@ export interface LogsModalProps {
   // Trigger mode prop
   trigger?: React.ReactNode;
 }
+
+type LevelFilter = 'all' | 'warning' | 'error';
 
 export function LogsModal({
   journeyId,
@@ -46,11 +51,13 @@ export function LogsModal({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // View-only filter on the lines already loaded.
+  const [level, setLevel] = useState<LevelFilter>('all');
 
   // Use controlled or internal open state
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalOpen;
-  const setIsOpen = controlledIsOpen !== undefined 
-    ? (open: boolean) => !open && onClose?.() 
+  const setIsOpen = controlledIsOpen !== undefined
+    ? (open: boolean) => !open && onClose?.()
     : setInternalOpen;
 
   useEffect(() => {
@@ -74,18 +81,18 @@ export function LogsModal({
       const configRes = await fetch('/config.json');
       const config = await configRes.json();
       const baseUrl = config?.api?.baseUrl || '';
-      
+
       const url = `${baseUrl}/api/v1/journeys/${journeyId}/jobs/${jobId}/logs?step_name=${stepId}&limit=500`;
       console.log(`📋 Fetching logs from: ${url}`);
-      
+
       const response = await fetch(url);
       const json = await response.json();
       console.log('📋 API Response:', json);
-      
+
       // API returns { success, data: { logs: [...] } }
       const logsArray = json?.data?.logs || [];
       console.log(`📋 Found ${logsArray.length} logs`);
-      
+
       if (logsArray.length > 0) {
         const mappedLogs: LogEntry[] = logsArray.map((log: any) => ({
           timestamp: log.timestamp,
@@ -107,92 +114,97 @@ export function LogsModal({
     }
   };
 
-  const getLogLevelColor = (level: LogLevel): string => {
-    switch (level) {
-      case 'error':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'info':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'debug':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getLogTextColor = (level: LogLevel): string => {
-    switch (level) {
-      case 'error':
-        return 'text-red-700';
-      case 'warning':
-        return 'text-yellow-700';
-      case 'info':
-        return 'text-blue-700';
-      case 'debug':
-        return 'text-gray-600';
-      default:
-        return 'text-gray-700';
+  const levelClass = (l: LogLevel): string => {
+    switch (l) {
+      case 'error': return 'text-destructive';
+      case 'warning': return 'text-warning';
+      case 'debug': return 'text-subtle-foreground';
+      default: return 'text-muted-foreground';
     }
   };
 
   const formatTimestamp = (timestamp: string): string => {
     try {
-      return new Date(timestamp).toLocaleString();
+      return new Date(timestamp).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch {
       return timestamp;
     }
   };
 
+  const isWarn = (l: string) => l === 'warning' || l === 'warn';
+  const warnings = logs.filter(l => isWarn(l.level)).length;
+  const errors = logs.filter(l => l.level === 'error').length;
+  const shown = level === 'all' ? logs : logs.filter(l => (level === 'error' ? l.level === 'error' : isWarn(l.level)));
+
+  const copyAll = () => {
+    const text = shown.map(l => `${l.timestamp} ${String(l.level).toUpperCase()} ${l.message}`).join('\n');
+    navigator.clipboard?.writeText(text).catch(() => {});
+  };
+
   const dialogContent = (
-    <DialogContent className="max-w-4xl max-h-[80vh]" data-testid="logs-modal">
-      <DialogHeader>
-        <DialogTitle>{stepName} Logs</DialogTitle>
+    <DialogContent className="flex max-h-[85dvh] max-w-4xl flex-col gap-0 p-0" data-testid="logs-modal">
+      <DialogHeader className="border-b border-border px-5 pb-4 pt-5 pr-12 text-left">
+        <DialogTitle className="text-lg font-medium">{stepName} log</DialogTitle>
+        <DialogDescription className="text-sm text-muted-foreground">
+          {jobId ? <>Run <span className="mono-id">{jobId}</span>. </> : null}
+          {isLoading ? 'Loading lines.' : `${logs.length.toLocaleString()} ${logs.length === 1 ? 'line' : 'lines'}${errors ? `, ${errors} ${errors === 1 ? 'error' : 'errors'}` : ''}${warnings ? `, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}` : ''}.`}
+        </DialogDescription>
       </DialogHeader>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="ml-2">Loading logs...</span>
+      {!isLoading && !error && logs.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
+          <Chips<LevelFilter>
+            label="Filter by level"
+            value={level}
+            onChange={setLevel}
+            options={[
+              { value: 'all', label: 'All', count: logs.length },
+              { value: 'warning', label: 'Warnings', count: warnings },
+              { value: 'error', label: 'Errors', count: errors },
+            ]}
+          />
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={copyAll}><Icon name="copy" /> Copy</Button>
+            <Button variant="ghost" size="sm" onClick={loadLogs}><Icon name="refresh" /> Refresh</Button>
+          </div>
         </div>
-      ) : error ? (
-        <div className="text-center py-8 text-red-500" data-testid="logs-error">
-          {error}
-        </div>
-      ) : logs.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground" data-testid="logs-empty">
-          No logs available for this step
-        </div>
-      ) : (
-        <ScrollArea className="h-[500px] pr-4">
-          <div className="space-y-2 font-mono text-sm">
-            {logs.map((log, index) => (
+      )}
+
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        {isLoading ? (
+          <div className="space-y-2" aria-label="Loading log">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => <Skeleton key={i} className="h-4" style={{ width: `${92 - (i % 4) * 14}%` }} />)}
+          </div>
+        ) : error ? (
+          <div data-testid="logs-error">
+            <InlineError onRetry={loadLogs}>The log could not be loaded.</InlineError>
+          </div>
+        ) : logs.length === 0 ? (
+          <div data-testid="logs-empty">
+            <EmptyState
+              icon="terminal"
+              title="No log lines for this step"
+              description={jobId ? 'The step has not written anything in this run.' : 'Run the journey once to see its log here.'}
+            />
+          </div>
+        ) : shown.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No lines at this level.</p>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-border bg-surface-2/70 p-3 font-mono text-xs leading-5">
+            {shown.map((log, index) => (
               <div
                 key={`${log.timestamp}-${index}`}
-                className={`p-3 rounded border ${getLogLevelColor(log.level)}`}
+                className={cn('flex flex-col gap-x-3 rounded-sm px-1 sm:flex-row sm:items-start', log.level === 'error' && 'bg-destructive/10')}
                 data-testid={`log-entry-${index}`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge
-                    variant="outline"
-                    className={getLogLevelColor(log.level)}
-                    data-testid={`log-level-${index}`}
-                  >
-                    {log.level.toUpperCase()}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTimestamp(log.timestamp)}
-                  </span>
-                </div>
-                <p className={`whitespace-pre-wrap ${getLogTextColor(log.level)}`}>
-                  {log.message}
-                </p>
+                <span className="num shrink-0 select-none whitespace-nowrap text-subtle-foreground">{formatTimestamp(log.timestamp)}</span>
+                <span className={cn('w-14 shrink-0', levelClass(log.level))} data-testid={`log-level-${index}`}>{log.level}</span>
+                <span className={cn('min-w-0 flex-1 whitespace-pre-wrap break-words', log.level === 'error' ? 'text-destructive' : 'text-foreground')}>{log.message}</span>
               </div>
             ))}
           </div>
-        </ScrollArea>
-      )}
+        )}
+      </div>
     </DialogContent>
   );
 

@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Upload, Trash2, RefreshCw, Loader2, FileText, GitBranch, Link2,
-  Sparkles, Download, FolderOpen,
-} from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
 import { ontoDataApi, type OntoFile } from '@/services/ontoDataApi';
+import { confirmDialog } from '@/components/ds/confirm';
 
 const CATEGORIES = [
-  { id: 'policies', label: 'Policies', icon: FileText, accept: '.md,.txt,.pdf', color: 'text-amber-400' },
-  { id: 'workflows', label: 'Workflows', icon: GitBranch, accept: '.yaml,.yml,.json', color: 'text-green-400' },
-  { id: 'integrations', label: 'Integrations', icon: Link2, accept: '.json,.yaml,.yml', color: 'text-purple-400' },
+  { id: 'policies', label: 'Policies', hint: 'Markdown, text or PDF', accept: '.md,.txt,.pdf' },
+  { id: 'workflows', label: 'Workflows', hint: 'YAML or JSON', accept: '.yaml,.yml,.json' },
+  { id: 'integrations', label: 'Integration rules', hint: 'YAML or JSON', accept: '.json,.yaml,.yml' },
 ];
 
 const OntoDataManager: React.FC = () => {
@@ -21,16 +19,22 @@ const OntoDataManager: React.FC = () => {
   const [seeding, setSeeding] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Presentation only.
+  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const loadFiles = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await ontoDataApi.listFiles();
       setFiles(res.files || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load files:', e);
+      setError(e?.message || 'The knowledge files could not be loaded.');
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   };
 
@@ -40,21 +44,25 @@ const OntoDataManager: React.FC = () => {
     setUploading(category);
     try {
       await ontoDataApi.uploadFile(category, file);
+      toast.success('File uploaded', { description: file.name });
       await loadFiles();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Upload failed:', e);
+      toast.error('Upload failed', { description: e?.message });
     } finally {
       setUploading(null);
     }
   };
 
   const handleDelete = async (key: string) => {
-    if (!confirm(`Delete ${key.split('/').pop()}?`)) return;
+    if (!(await confirmDialog({ title: `Delete ${key.split('/').pop()}?`, description: 'The file is removed from the knowledge store.', destructive: true }))) return;
     try {
       await ontoDataApi.deleteFile(key);
+      toast.success('File deleted', { description: key.split('/').pop() });
       await loadFiles();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Delete failed:', e);
+      toast.error('Delete failed', { description: e?.message });
     }
   };
 
@@ -63,112 +71,118 @@ const OntoDataManager: React.FC = () => {
     try {
       const res = await ontoDataApi.seedDefaults();
       if (res.success) {
+        const n = Object.values(res.counts || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+        toast.success('Sample files loaded', { description: n ? `${n} files are in the knowledge store.` : undefined });
         await loadFiles();
+      } else {
+        toast.error('The sample files could not be loaded');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Seed failed:', e);
+      toast.error('The sample files could not be loaded', { description: e?.message });
     } finally {
       setSeeding(false);
     }
   };
 
   const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const formatDay = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const firstLoad = loading && !loaded;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FolderOpen className="h-5 w-5" />
-          <span className="font-medium">Knowledge Data Store</span>
-          <Badge variant="secondary">{files.length} files</Badge>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={loadFiles} disabled={loading}>
-            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          </Button>
-          <Button size="sm" onClick={handleSeed} disabled={seeding}>
-            {seeding ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            Seed Defaults
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <Toolbar>
+        <p className="text-sm text-muted-foreground">
+          {firstLoad ? 'Loading files' : <><span className="num font-medium text-foreground">{files.length}</span> {files.length === 1 ? 'file' : 'files'} in the knowledge store</>}
+        </p>
+        <ToolbarSpacer />
+        <Button variant="ghost" size="sm" onClick={loadFiles} disabled={loading}>
+          <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleSeed} disabled={seeding}>
+          <Icon name={seeding ? 'spinner' : 'download'} className={seeding ? 'animate-spin' : undefined} /> Load sample files
+        </Button>
+      </Toolbar>
 
-      <ScrollArea className="h-[450px]">
-        <div className="space-y-4 pr-3">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const catFiles = files.filter((f) => f.category === cat.id);
+      {error && <InlineError onRetry={loadFiles}>{error}</InlineError>}
 
-            return (
-              <Card key={cat.id} className="border-border/50">
-                <CardHeader className="py-3 px-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon className={`h-4 w-4 ${cat.color}`} />
-                      <CardTitle className="text-sm">{cat.label}</CardTitle>
-                      <Badge variant="outline" className="text-xs">{catFiles.length}</Badge>
-                    </div>
-                    <div>
-                      <input
-                        type="file"
-                        accept={cat.accept}
-                        className="hidden"
-                        ref={(el) => { fileInputRefs.current[cat.id] = el; }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleUpload(cat.id, file);
-                          e.target.value = '';
-                        }}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRefs.current[cat.id]?.click()}
-                        disabled={uploading === cat.id}
-                      >
-                        {uploading === cat.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <><Upload className="h-3 w-3 mr-1" /> Upload</>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 px-4 pb-3">
-                  {catFiles.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No {cat.label.toLowerCase()} uploaded yet. Click "Seed Defaults" to load sample data.</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {catFiles.map((f) => (
-                        <div key={f.key} className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 text-sm">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <Icon className="h-3 w-3 shrink-0 opacity-50" />
-                            <span className="truncate">{f.filename}</span>
-                            <span className="text-xs text-muted-foreground shrink-0">{formatSize(f.size)}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => handleDelete(f.key)}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
+      {CATEGORIES.map((cat) => {
+        const catFiles = files.filter((f) => f.category === cat.id);
+
+        return (
+          <section key={cat.id}>
+            <div className="flex items-end justify-between gap-3 pb-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-medium text-foreground">
+                  {cat.label} {!firstLoad && <span className="num font-normal text-muted-foreground">{catFiles.length}</span>}
+                </h3>
+                <p className="text-xs text-muted-foreground">{cat.hint}</p>
+              </div>
+              <div className="shrink-0">
+                <input
+                  type="file"
+                  accept={cat.accept}
+                  className="hidden"
+                  ref={(el) => { fileInputRefs.current[cat.id] = el; }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUpload(cat.id, file);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRefs.current[cat.id]?.click()}
+                  disabled={uploading === cat.id}
+                >
+                  <Icon name={uploading === cat.id ? 'spinner' : 'upload'} className={uploading === cat.id ? 'animate-spin' : undefined} />
+                  {uploading === cat.id ? 'Uploading' : 'Upload'}
+                </Button>
+              </div>
+            </div>
+
+            {firstLoad ? (
+              <div className="space-y-2 border-t border-border pt-3" aria-busy="true">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+              </div>
+            ) : catFiles.length === 0 ? (
+              <p className="border-y border-border py-3 text-sm text-muted-foreground">
+                No {cat.label.toLowerCase()} here yet. Upload a file, or load the sample files.
+              </p>
+            ) : (
+              <ul className="border-t border-border">
+                {catFiles.map((f) => (
+                  <li key={f.key} className="group flex items-center gap-3 border-b border-border py-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate text-foreground">{f.filename}</span>
+                    <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{formatDay(f.last_modified)}</span>
+                    <span className="num w-16 shrink-0 text-right text-xs text-muted-foreground">{formatSize(f.size)}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-7 w-7 shrink-0 text-subtle-foreground hover:text-destructive sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
+                      onClick={() => handleDelete(f.key)}
+                      aria-label={`Delete ${f.filename}`}
+                    >
+                      <Icon name="trash" className="h-3.5 w-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 };

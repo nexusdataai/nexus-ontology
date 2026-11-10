@@ -15,6 +15,7 @@
   "author": "Nexus Team",
   "scripts": {
     "dev": "vite",
+    "icons": "node scripts/build-icons.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "build:prod": "vite build --mode production",
@@ -28,12 +29,15 @@
     "deploy": "npm run clean && npm run build:prod",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:pages": "node scripts/check-pages.mjs",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@hookform/resolvers": "^3.9.0",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.0",

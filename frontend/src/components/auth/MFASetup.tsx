@@ -157,8 +157,8 @@ const MFASetup: React.FC<MFASetupProps> = ({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-          <Shield className="h-6 w-6 text-green-600" />
+        <div className="mx-auto w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-3">
+          <Shield className="h-6 w-6 text-success" />
         </div>
         <CardTitle>Set Up Two-Factor Authentication</CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
@@ -189,7 +189,7 @@ const MFASetup: React.FC<MFASetupProps> = ({
             <div className="text-center">
               <button
                 onClick={() => setShowSecret(!showSecret)}
-                className="text-xs text-blue-600 hover:underline flex items-center justify-center gap-1 mx-auto"
+                className="text-xs text-primary hover:underline flex items-center justify-center gap-1 mx-auto"
               >
                 {showSecret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 {showSecret ? 'Hide secret key' : "Can't scan? Show secret key"}
@@ -200,7 +200,7 @@ const MFASetup: React.FC<MFASetupProps> = ({
                     {secret}
                   </code>
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={copySecret}>
-                    {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                    {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   </Button>
                 </div>
               )}

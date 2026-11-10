@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Check, Loader2, ShieldCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Icon } from '@/components/ds/Icon';
+import { StatusPill } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
 
 interface PendingStep {
@@ -39,45 +39,44 @@ export function PendingStepCard({ runId, pending, onApprove, onReject, className
 
   return (
     <div className={cn(
-      'rounded-md border border-amber-500/40 bg-amber-500/10 text-foreground p-3 flex items-start gap-3',
+      'flex flex-wrap items-start gap-x-4 gap-y-3 rounded-xl border border-border-strong bg-card p-4 shadow-xs',
       className,
     )}>
-      <ShieldCheck className="h-5 w-5 text-amber-300 mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium">
-          Approval required for step <span className="font-mono">{pending.step_id}</span>
-          {pending.tool && (
-            <Badge variant="outline" className="ml-2 text-[10px] bg-card/60">{pending.tool}</Badge>
-          )}
+      <div className="min-w-0 flex-1 basis-64">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <StatusPill tone="warning" variant="soft">Waiting for approval</StatusPill>
+          <span className="text-sm font-medium text-foreground">
+            Step <span className="font-mono text-xs">{pending.step_id}</span>
+          </span>
         </div>
-        <div className="text-[11px] text-muted-foreground mt-0.5">
-          Run <span className="font-mono">{runId}</span>
-          {pending.stage_id ? ` -- stage ${pending.stage_id}` : ''}
+        <div className="mt-1.5 text-xs text-muted-foreground">
+          {pending.tool && <>Tool <span className="font-mono text-foreground">{pending.tool}</span>, </>}
+          run <span className="font-mono">{runId}</span>
+          {pending.stage_id ? <>, stage <span className="font-mono">{pending.stage_id}</span></> : ''}
         </div>
         {pending.params_preview && (
-          <pre className="text-[10px] font-mono bg-card/40 border rounded p-2 mt-2 max-h-32 overflow-auto">
+          <pre className="scroll-thin mt-3 max-h-32 overflow-auto rounded-lg border border-border bg-surface-2/70 p-2.5 font-mono text-xs leading-5 text-foreground">
 {JSON.stringify(pending.params_preview, null, 2)}
           </pre>
         )}
       </div>
-      <div className="flex flex-col gap-1 shrink-0">
-        <Button
-          size="sm"
-          className="bg-green-600 hover:bg-green-700 text-white"
-          disabled={!!busy}
-          onClick={() => handle('approve')}
-        >
-          {busy === 'approve' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1" />}
-          Approve
-        </Button>
+      <div className="flex shrink-0 items-center gap-2">
         <Button
           size="sm"
           variant="outline"
           disabled={!!busy}
           onClick={() => handle('reject')}
         >
-          {busy === 'reject' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <X className="h-3.5 w-3.5 mr-1" />}
+          <Icon name={busy === 'reject' ? 'spinner' : 'close'} className={cn('h-3.5 w-3.5', busy === 'reject' && 'animate-spin')} />
           Reject
+        </Button>
+        <Button
+          size="sm"
+          disabled={!!busy}
+          onClick={() => handle('approve')}
+        >
+          <Icon name={busy === 'approve' ? 'spinner' : 'check'} className={cn('h-3.5 w-3.5', busy === 'approve' && 'animate-spin')} />
+          Approve
         </Button>
       </div>
     </div>

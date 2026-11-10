@@ -180,15 +180,15 @@ export const useRole = () => {
   const getRoleBadgeColor = useMemo(() => {
     switch (userRole) {
       case 'Admin':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-destructive/10 text-destructive border-destructive/25';
       case 'Executive':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-primary/10 text-primary border-primary/25';
       case 'SalesManager':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-primary/10 text-primary border-primary/25';
       case 'Rep':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-success/10 text-success border-success/25';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-surface-2 text-foreground border-border';
     }
   }, [userRole]);
 

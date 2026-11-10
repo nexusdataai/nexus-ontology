@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { apiClient } from '@/services/apiClient';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
 import { cn } from '@/lib/utils';
+import { confirmDialog } from '@/components/ds/confirm';
 
 /**
  * Inspector for the Data Queues subsystem. Fetches a per-queue
@@ -44,6 +46,8 @@ function _shortenKey(key: string): string {
   return colon >= 0 ? tail.slice(colon + 1) : tail;
 }
 
+const HEAD = 'border-b border-border bg-surface-2 px-3 py-2 text-xs font-medium text-muted-foreground';
+
 export function RunQueueInspector({ runId, className, pollIntervalMs = 0 }: Props) {
   const [snapshot, setSnapshot] = useState<QueueSnapshotResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,7 +80,7 @@ export function RunQueueInspector({ runId, className, pollIntervalMs = 0 }: Prop
 
   const handlePurge = async () => {
     if (!runId) return;
-    if (!window.confirm('Purge every queue for this run? Items not yet acked are lost.')) return;
+    if (!(await confirmDialog({ title: 'Purge every queue for this run?', description: 'Items that are not yet acknowledged are lost.', confirmLabel: 'Purge', destructive: true }))) return;
     try {
       await apiClient.delete(`/api/v1/control-plane/runs/${encodeURIComponent(runId)}/queues`);
       load();
@@ -88,70 +92,64 @@ export function RunQueueInspector({ runId, className, pollIntervalMs = 0 }: Prop
   const rows = Object.entries(snapshot?.queues || {});
 
   return (
-    <div className={cn('border rounded-md bg-card text-xs', className)}>
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b">
-        <div className="font-medium">Data queues</div>
+    <div className={cn('overflow-hidden rounded-xl border border-border bg-card text-sm', className)}>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="font-medium text-foreground">Data queues</div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={load} disabled={loading} title="Refresh">
-            {loading
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <RefreshCw className="h-3.5 w-3.5" />}
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={load} disabled={loading} title="Refresh" aria-label="Refresh queues">
+            <Icon name="refresh" className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           </Button>
           <Button
-            size="sm" variant="ghost" onClick={handlePurge}
+            size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={handlePurge}
             title="Purge every queue for this run"
+            aria-label="Purge every queue for this run"
             disabled={!rows.length}
           >
-            <Trash2 className="h-3.5 w-3.5 text-red-300" />
+            <Icon name="trash" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="px-3 py-2 text-red-300">
-          {error}
+      {error && <InlineError className="m-3" onRetry={load}>{error}</InlineError>}
+
+      {loading && !snapshot && !error && (
+        <div className="space-y-2 p-3" aria-busy="true">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-4/5" />
         </div>
       )}
 
       {rows.length === 0 && !loading && !error && (
-        <div className="px-3 py-4 text-muted-foreground italic">No active queues for this run.</div>
+        <div className="px-3 py-4 text-sm text-muted-foreground">No active queues for this run.</div>
       )}
 
       {rows.length > 0 && (
-        <table className="w-full text-left">
-          <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground">
-            <tr>
-              <th className="px-3 py-1.5 font-medium">Queue</th>
-              <th className="px-3 py-1.5 font-medium w-16 text-right">Depth</th>
-              <th className="px-3 py-1.5 font-medium w-16 text-right">Pending</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([key, info]) => (
-              <tr key={key} className="border-t">
-                <td className="px-3 py-1.5 font-mono text-[11px] truncate" title={key}>
-                  {_shortenKey(key)}
-                </td>
-                <td className="px-3 py-1.5 text-right">
-                  <Badge variant="outline" className={cn(
-                    'text-[10px]',
-                    info.depth > 0 && 'bg-blue-500/10 text-blue-300 border-blue-500/30',
-                  )}>
-                    {info.depth}
-                  </Badge>
-                </td>
-                <td className="px-3 py-1.5 text-right">
-                  <Badge variant="outline" className={cn(
-                    'text-[10px]',
-                    info.pending > 0 && 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-                  )}>
-                    {info.pending}
-                  </Badge>
-                </td>
+        <div className="scroll-thin overflow-x-auto">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr>
+                <th scope="col" className={HEAD}>Queue</th>
+                <th scope="col" className={cn(HEAD, 'w-20 text-right')}>Depth</th>
+                <th scope="col" className={cn(HEAD, 'w-20 text-right')}>Pending</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(([key, info]) => (
+                <tr key={key} className="border-b border-border last:border-b-0">
+                  <td className="max-w-[280px] truncate px-3 py-2 font-mono text-xs text-foreground" title={key}>
+                    {_shortenKey(key)}
+                  </td>
+                  <td className={cn('num px-3 py-2 text-right', info.depth > 0 ? 'font-medium text-foreground' : 'text-subtle-foreground')}>
+                    {info.depth}
+                  </td>
+                  <td className={cn('num px-3 py-2 text-right', info.pending > 0 ? 'font-medium text-foreground' : 'text-subtle-foreground')}>
+                    {info.pending}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

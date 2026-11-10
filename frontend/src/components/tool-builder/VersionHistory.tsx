@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Loader2, RotateCcw } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { EmptyState } from '@/components/ds/primitives';
+import { CodeBlock, InlineError } from '@/components/ds/kit';
+import { cn } from '@/lib/utils';
+import { formatWhen } from '@/components/reasoning/toolMeta';
 import { toolBuilderService, type ToolVersion } from '@/services/toolBuilderService';
 
 interface Props {
@@ -9,12 +13,15 @@ interface Props {
   onRestored: () => void;
 }
 
+/** Saved versions of a tool: pick one to read its code or restore it. */
 export default function VersionHistory({ toolId, onRestored }: Props) {
   const [versions, setVersions] = useState<ToolVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState<number | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by "Retry" to load the list again.
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!toolId) return;
@@ -26,7 +33,7 @@ export default function VersionHistory({ toolId, onRestored }: Props) {
       .catch((e) => { if (!cancelled) setError(e?.message || String(e)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [toolId]);
+  }, [toolId, reload]);
 
   const handleRestore = async (version: number) => {
     if (!toolId) return;
@@ -44,80 +51,83 @@ export default function VersionHistory({ toolId, onRestored }: Props) {
   };
 
   if (!toolId) {
-    return (
-      <div className="text-xs text-muted-foreground italic">
-        Save the tool first to start a version history.
-      </div>
-    );
+    return <EmptyState icon="history" title="No history yet" description="Save the tool to start its version history." />;
   }
   if (loading) {
     return (
-      <div className="text-xs text-muted-foreground flex items-center gap-2">
-        <Loader2 className="h-3 w-3 animate-spin" /> loading versions...
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]" aria-busy="true">
+        <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-3 w-full" /></div>)}</div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
   if (error) {
-    return <div className="text-xs text-red-300">{error}</div>;
+    return <InlineError onRetry={() => setReload(n => n + 1)}>{error}</InlineError>;
   }
   if (versions.length === 0) {
-    return <div className="text-xs text-muted-foreground italic">No versions recorded.</div>;
+    return <EmptyState icon="history" title="No versions recorded" description="Each save adds a version here." />;
   }
 
-  const selected = versions.find((v) => v.version === selectedVersion) || null;
+  // The newest version is open by default.
+  const selected = versions.find((v) => v.version === selectedVersion) || versions[0];
+  const latest = Math.max(...versions.map(v => v.version));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 text-sm">
-      <div className="border rounded-md max-h-96 overflow-auto">
-        {versions.map((v) => (
-          <button
-            key={v.version}
-            type="button"
-            onClick={() => setSelectedVersion(v.version)}
-            className={`w-full text-left px-3 py-2 border-b border-border/40 hover:bg-muted/30 ${
-              selectedVersion === v.version ? 'bg-blue-600/10' : ''
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <Badge variant="outline" className="text-[10px]">v{v.version}</Badge>
-              <span className="text-[9px] text-muted-foreground truncate ml-2">{v.createdAt}</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-              {v.changelog || '(no changelog)'}
-            </div>
-            <div className="text-[9px] text-muted-foreground/70 truncate">{v.createdBy || ''}</div>
-          </button>
-        ))}
+    <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <h3 className="mb-2 text-md font-medium text-foreground">Versions</h3>
+        <ol className="scroll-thin max-h-[420px] overflow-auto rounded-xl border border-border">
+          {versions.map((v, i) => {
+            const on = selected.version === v.version;
+            return (
+              <li key={v.version} className="border-b border-border last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedVersion(v.version)}
+                  aria-current={on}
+                  style={{ ['--i' as any]: Math.min(i, 10) }}
+                  className={cn(
+                    'rise block w-full px-3.5 py-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    on ? 'bg-accent' : 'hover:bg-accent/60',
+                  )}
+                >
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className={cn('num text-sm text-foreground', on && 'font-medium')}>
+                      Version {v.version}{v.version === latest && <span className="font-normal text-muted-foreground"> · current</span>}
+                    </span>
+                    <span className="num shrink-0 text-xs text-muted-foreground">{formatWhen(v.createdAt)}</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{v.changelog || 'No change note'}</span>
+                  {v.createdBy && <span className="block truncate text-xs text-subtle-foreground">{v.createdBy}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
       </div>
-      <div>
-        {!selected && (
-          <div className="text-xs text-muted-foreground italic">
-            Pick a version on the left to inspect or restore.
+
+      <div key={selected.version} className="min-w-0 animate-fade-in">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-md font-medium text-foreground">Version {selected.version}</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {selected.changelog || 'No change note'}
+              {selected.createdBy && <> · {selected.createdBy}</>}
+              {selected.createdAt && <> · {formatWhen(selected.createdAt)}</>}
+            </p>
+            {selected.source_sha256 && <p className="mono-id mt-1" title={selected.source_sha256}>Checksum {String(selected.source_sha256).replace(/^sha256:/, '').slice(0, 12)}</p>}
           </div>
-        )}
-        {selected && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] text-muted-foreground">
-                v{selected.version} | sha {String(selected.source_sha256 || '').slice(0, 10)} | {selected.createdAt}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleRestore(selected.version)}
-                disabled={restoring === selected.version}
-              >
-                {restoring === selected.version
-                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
-                Restore as current
-              </Button>
-            </div>
-            <pre className="text-[10px] font-mono bg-muted/20 border rounded p-2 max-h-80 overflow-auto whitespace-pre-wrap">
-              {selected.source_code}
-            </pre>
-          </div>
-        )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleRestore(selected.version)}
+            disabled={restoring === selected.version}
+          >
+            <Icon name={restoring === selected.version ? 'spinner' : 'history'} className={cn(restoring === selected.version && 'animate-spin')} />
+            Restore this version
+          </Button>
+        </div>
+        <CodeBlock className="mt-4" maxHeight={420}>{selected.source_code || ''}</CodeBlock>
       </div>
     </div>
   );

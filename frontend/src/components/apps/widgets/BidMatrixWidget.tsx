@@ -64,7 +64,7 @@ export function BidMatrixWidget({ widget, data, loading }: Props) {
                           <td key={col} className="px-3 py-1.5">
                             <div className="flex gap-1 flex-wrap">
                               {flags.slice(0, 3).map((f) => (
-                                <Badge key={f} className="text-[9px] bg-indigo-500/10 text-indigo-600">
+                                <Badge key={f} className="text-xs bg-primary/10 text-primary">
                                   {f.trim()}
                                 </Badge>
                               ))}

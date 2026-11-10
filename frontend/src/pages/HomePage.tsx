@@ -1,331 +1,373 @@
-import { useState, useEffect, useMemo } from 'react';
-import Layout from '@/components/Layout';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Layout from '@/components/Layout';
 import { APP_REGISTRY } from '@/config/appRegistry';
-import {
-  Database, Layers, Zap, Server, Globe, FileText, Upload, Rss,
-  Bot, Shield, Workflow, LayoutGrid, Sparkles,
-  Network, Search, BookOpen, ArrowUpRight,
-  HeartPulse, Play, Activity,
-} from 'lucide-react';
 import { apiClient } from '@/services/apiClient';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedNumber } from '@/components/ds/AnimatedNumber';
+import { Icon } from '@/components/ds/Icon';
+import { PlatformStack, type LayerId } from '@/components/home/PlatformStack';
 
-const PLATE_STYLES: Record<string, { plate: string; glow: string; text: string; statBg: string; iconBg: string; heading: string; btnBg: string; btnHover: string }> = {
-  emerald: {
-    plate: 'bg-gradient-to-b from-emerald-50 to-emerald-100/80 dark:from-emerald-950/80 dark:to-emerald-950/60 border-emerald-200 dark:border-emerald-500/20',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)]',
-    text: 'text-emerald-600 dark:text-emerald-400',
-    statBg: 'bg-emerald-100 dark:bg-emerald-500/10',
-    iconBg: 'bg-emerald-200/60 dark:bg-emerald-500/15',
-    heading: 'text-emerald-900 dark:text-white',
-    btnBg: 'bg-emerald-100/80 dark:bg-emerald-500/10',
-    btnHover: 'hover:bg-emerald-200 dark:hover:bg-emerald-500/20',
-  },
-  blue: {
-    plate: 'bg-gradient-to-b from-blue-50 to-blue-100/80 dark:from-blue-950/80 dark:to-blue-950/60 border-blue-200 dark:border-blue-500/20',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-10px_rgba(59,130,246,0.2)]',
-    text: 'text-blue-600 dark:text-blue-400',
-    statBg: 'bg-blue-100 dark:bg-blue-500/10',
-    iconBg: 'bg-blue-200/60 dark:bg-blue-500/15',
-    heading: 'text-blue-900 dark:text-white',
-    btnBg: 'bg-blue-100/80 dark:bg-blue-500/10',
-    btnHover: 'hover:bg-blue-200 dark:hover:bg-blue-500/20',
-  },
-  purple: {
-    plate: 'bg-gradient-to-b from-purple-50 to-purple-100/80 dark:from-purple-950/80 dark:to-purple-950/60 border-purple-200 dark:border-purple-500/20',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-10px_rgba(168,85,247,0.2)]',
-    text: 'text-purple-600 dark:text-purple-400',
-    statBg: 'bg-purple-100 dark:bg-purple-500/10',
-    iconBg: 'bg-purple-200/60 dark:bg-purple-500/15',
-    heading: 'text-purple-900 dark:text-white',
-    btnBg: 'bg-purple-100/80 dark:bg-purple-500/10',
-    btnHover: 'hover:bg-purple-200 dark:hover:bg-purple-500/20',
-  },
-  amber: {
-    plate: 'bg-gradient-to-b from-amber-50 to-amber-100/80 dark:from-amber-950/70 dark:to-amber-950/50 border-amber-200 dark:border-amber-500/20',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-10px_rgba(245,158,11,0.15)]',
-    text: 'text-amber-600 dark:text-amber-400',
-    statBg: 'bg-amber-100 dark:bg-amber-500/10',
-    iconBg: 'bg-amber-200/60 dark:bg-amber-500/15',
-    heading: 'text-amber-900 dark:text-white',
-    btnBg: 'bg-amber-100/80 dark:bg-amber-500/10',
-    btnHover: 'hover:bg-amber-200 dark:hover:bg-amber-500/20',
-  },
-  teal: {
-    plate: 'bg-gradient-to-b from-teal-50 to-teal-100/80 dark:from-teal-950/80 dark:to-teal-950/60 border-teal-200 dark:border-teal-500/20',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-10px_rgba(20,184,166,0.15)]',
-    text: 'text-teal-600 dark:text-teal-400',
-    statBg: 'bg-teal-100 dark:bg-teal-500/10',
-    iconBg: 'bg-teal-200/60 dark:bg-teal-500/15',
-    heading: 'text-teal-900 dark:text-white',
-    btnBg: 'bg-teal-100/80 dark:bg-teal-500/10',
-    btnHover: 'hover:bg-teal-200 dark:hover:bg-teal-500/20',
-  },
+/* ----------------------------------------------------------------- helpers */
+
+const SYSTEM_LABELS: Record<string, string> = {
+  sfdc: 'Salesforce', salesforce: 'Salesforce', sap: 'SAP', oracle: 'Oracle',
+  gdrive: 'Google Drive', google_drive: 'Google Drive', social: 'Social listening',
+  files: 'File uploads', external: 'External',
+};
+const systemLabel = (k: string) => SYSTEM_LABELS[k.toLowerCase()] || k.replace(/[_-]+/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
+const JOURNEY_TYPE_LABELS: Record<string, string> = {
+  'semantic-rag': 'Knowledge pipeline', 'data-pipeline': 'Data pipeline',
+};
+const typeLabel = (t?: string) => {
+  if (!t) return 'Journey';
+  if (JOURNEY_TYPE_LABELS[t]) return JOURNEY_TYPE_LABELS[t];
+  const app = APP_REGISTRY.find(a => a.journeyStageId === t);
+  return app?.shortName || t.replace(/[_-]+/g, ' ').replace(/^\w/, c => c.toUpperCase());
 };
 
-function StatPill({ label, value, color, onClick }: { label: string; value: string | number; color: string; onClick?: () => void }) {
-  const s = PLATE_STYLES[color];
+function timeAgo(iso?: string) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return '';
+  const m = Math.max(0, Math.round(ms / 60000));
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+const STATUS_TONE: Record<string, string> = {
+  running: 'text-primary dark:text-brand-hi',
+  completed: 'text-success',
+  failed: 'text-destructive',
+  cancelled: 'text-subtle-foreground',
+  paused: 'text-warning',
+  created: 'text-subtle-foreground',
+};
+
+/* ------------------------------------------------------------------ pieces */
+
+/** A number with its label, written as text. Becomes a link when onClick is set. */
+function Metric({ value, label, onClick }: { value: React.ReactNode; label: string; onClick?: () => void }) {
+  const body = (
+    <>
+      <span className="num text-md font-medium text-foreground">{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+    </>
+  );
+  if (!onClick) return <span className="inline-flex items-baseline gap-1.5">{body}</span>;
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="group/m inline-flex items-baseline gap-1.5 rounded-sm underline-offset-4 transition-colors hover:[&>span:last-child]:text-foreground hover:[&>span:last-child]:underline"
+    >
+      {body}
+    </button>
+  );
+}
+
+function TextLink({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="group/l inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+    >
+      {children}
+      <Icon name="arrow-right" className="h-3.5 w-3.5 text-subtle-foreground transition-transform duration-300 ease-brand-out group-hover/l:translate-x-0.5 group-hover/l:text-foreground" />
+    </button>
+  );
+}
+
+/** One row of the layer list, linked to a plane in the drawing. */
+function LayerRow({
+  id, index, title, description, active, onHover, onOpen, children,
+}: {
+  id: LayerId;
+  index: string;
+  title: string;
+  description: string;
+  active: boolean;
+  onHover: (id: LayerId | null) => void;
+  onOpen?: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(); } : undefined}
-      onKeyDown={onClick ? (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick(); }
-      } : undefined}
-      className={`rounded-lg ${s.statBg} px-3 py-2 text-center ${onClick ? 'hover:brightness-125 transition-all cursor-pointer' : ''}`}
+      onMouseEnter={() => onHover(id)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(id)}
+      onBlur={() => onHover(null)}
+      className={cn(
+        'relative px-5 py-4 transition-colors duration-300 sm:px-6',
+        active && 'bg-surface-2/60',
+      )}
     >
-      <div className={`text-sm font-bold ${s.heading}`}>{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <span className={cn('absolute inset-y-0 left-0 w-0.5 bg-primary transition-transform duration-300 ease-brand-out', active ? 'scale-y-100' : 'scale-y-0')} />
+      <div className="flex items-start gap-4">
+        <span className="num w-5 shrink-0 pt-0.5 text-sm text-subtle-foreground">{index}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-md font-medium text-foreground">{title}</h2>
+            {onOpen && <TextLink onClick={onOpen}>Open</TextLink>}
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+          <div className="mt-2.5 flex flex-wrap items-baseline gap-x-5 gap-y-1.5">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function SourceIcon({ label, icon: Icon, color, onClick }: { label: string; icon: React.ElementType; color: string; onClick?: () => void }) {
-  const s = PLATE_STYLES[color];
+function ListSection({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(); } : undefined}
-      className="flex flex-col items-center gap-1 hover:brightness-125 transition-all"
-    >
-      <div className={`w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
-        <Icon className={`h-4 w-4 ${s.text}`} />
+    <section className="min-w-0">
+      <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2.5">
+        <h2 className="text-md font-medium text-foreground">{title}</h2>
+        {action}
       </div>
-      <span className="text-[9px] text-muted-foreground">{label}</span>
-    </div>
+      <div className="divide-y divide-border">{children}</div>
+    </section>
   );
 }
+
+const rowBtn = 'group/r flex w-full items-center gap-3 py-2.5 text-left transition-colors';
+
+/* -------------------------------------------------------------------- page */
 
 export default function HomePage() {
   const nav = useNavigate();
   const [stats, setStats] = useState<any>(null);
+  const [journeys, setJourneys] = useState<any[] | null>(null);
   const [journeyCount, setJourneyCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [hovered, setHovered] = useState<LayerId | null>(null);
+  const [tour, setTour] = useState<LayerId>('data');
+  // Walk up the stack slowly while nobody is pointing at it.
+  const active: LayerId = hovered ?? tour;
+  const setActive = setHovered;
+
   const appStats = useMemo(() => {
     const available = APP_REGISTRY.filter(a => a.status === 'available').length;
     const comingSoon = APP_REGISTRY.filter(a => a.status === 'coming_soon').length;
     return { available, comingSoon, total: APP_REGISTRY.length };
   }, []);
 
-  useEffect(() => {
-    apiClient.get<any>('/api/v1/control-plane/stats').then(setStats).catch(() => {});
-    apiClient.get<any>('/api/v1/journeys/').then(d => {
-      if (d?.total != null) {
-        setJourneyCount(d.total);
-      } else {
-        const items = d?.data || d?.journeys || d?.items || [];
-        setJourneyCount(Array.isArray(items) ? items.length : 0);
-      }
-    }).catch(() => {});
+  const load = useCallback(() => {
+    setLoading(true);
+    const a = apiClient.get<any>('/api/v1/control-plane/stats').then(setStats).catch(() => {});
+    const b = apiClient.get<any>('/api/v1/journeys/').then(d => {
+      const items = d?.data || d?.journeys || d?.items || [];
+      const list = Array.isArray(items) ? items : [];
+      setJourneys(list);
+      setJourneyCount(d?.total != null ? d.total : list.length);
+    }).catch(() => setJourneys([]));
+    Promise.allSettled([a, b]).then(() => {
+      setLoading(false);
+      setUpdatedAt(new Date());
+    });
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (hovered) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const order: LayerId[] = ['data', 'control', 'reasoning', 'solutions', 'ops'];
+    const t = window.setInterval(() => {
+      setTour(cur => order[(order.indexOf(cur) + 1) % order.length]);
+    }, 2600);
+    return () => window.clearInterval(t);
+  }, [hovered]);
 
   const go = (path: string, tab?: string) => {
     nav(tab ? `${path}?tab=${tab}` : path);
   };
 
+  const n = (v: unknown) => <AnimatedNumber value={typeof v === 'number' ? v : null} />;
+  const systems: [string, number][] = stats?.entities_by_system
+    ? Object.entries(stats.entities_by_system as Record<string, number>).sort((x, y) => y[1] - x[1])
+    : [];
+  const sourceCount = systems.length || 6;
+  const maxSystem = Math.max(1, ...systems.map(s => s[1]));
+
+  const recent = useMemo(() => {
+    return [...(journeys || [])]
+      .sort((x, y) => new Date(y.updated_at || y.created_at || 0).getTime() - new Date(x.updated_at || x.created_at || 0).getTime())
+      .slice(0, 5);
+  }, [journeys]);
+
+  const openLayer = (id: LayerId) => {
+    if (id === 'solutions') go('/workspace/apps');
+    else if (id === 'reasoning') go('/ai-stack/reasoning');
+    else if (id === 'control') go('/ai-stack/control-plane');
+    else if (id === 'data') go('/ai-stack/data-plane');
+    else go('/operations/health');
+  };
+
   return (
     <Layout>
-      <div className="flex items-start justify-center min-h-full p-6">
-        <div className="flex gap-5 w-full max-w-[1000px]">
+      <div className="page">
+        {/* Heading */}
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">Platform overview</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              How your enterprise data becomes governed AI action, layer by layer.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {updatedAt && (
+              <span className="text-xs text-subtle-foreground">
+                Updated {updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <Icon name="refresh" className={cn(loading && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
+        </div>
 
-          {/* ── Left: Main Stack ─────────────────────────── */}
-          <div className="flex-1 space-y-3 min-w-0">
-
-            {/* Solutions */}
-            <div
-              className={`w-full rounded-2xl border ${PLATE_STYLES.amber.plate} ${PLATE_STYLES.amber.glow} transition-all duration-300 hover:brightness-110`}
-            >
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-9 h-9 rounded-lg ${PLATE_STYLES.amber.iconBg} flex items-center justify-center`}>
-                    <LayoutGrid className={`h-5 w-5 ${PLATE_STYLES.amber.text}`} />
-                  </div>
-                  <div>
-                    <h2 className={`text-[15px] font-semibold ${PLATE_STYLES.amber.heading}`}>Solutions</h2>
-                    <p className="text-[11px] text-muted-foreground">Solutions Catalogue and AI Automation</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => go('/workspace/apps')}
-                    className={`flex items-center gap-3 rounded-lg ${PLATE_STYLES.amber.btnBg} px-4 py-3 ${PLATE_STYLES.amber.btnHover} transition-colors text-left`}>
-                    <LayoutGrid className={`h-5 w-5 ${PLATE_STYLES.amber.text} shrink-0`} />
-                    <div className="flex-1">
-                      <div className={`text-xs font-medium ${PLATE_STYLES.amber.heading}`}>Solutions</div>
-                      <div className="text-[10px] text-muted-foreground">Enterprise applications</div>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <div className="text-center">
-                        <div className="text-sm font-bold text-green-600 dark:text-green-400">{appStats.available}</div>
-                        <div className="text-[8px] text-muted-foreground">Active</div>
-                      </div>
-                      <div className="text-center">
-                        <div className={`text-sm font-bold ${PLATE_STYLES.amber.text}`}>{appStats.comingSoon}</div>
-                        <div className="text-[8px] text-muted-foreground">Planned</div>
-                      </div>
-                    </div>
-                  </button>
-                <button onClick={() => go('/workspace/automation')}
-                    className={`flex items-center gap-3 rounded-lg ${PLATE_STYLES.amber.btnBg} px-4 py-3 ${PLATE_STYLES.amber.btnHover} transition-colors text-left`}>
-                  <Sparkles className={`h-5 w-5 ${PLATE_STYLES.amber.text} shrink-0`} />
-                  <div className="flex-1">
-                    <div className={`text-xs font-medium ${PLATE_STYLES.amber.heading}`}>AI Automation</div>
-                      <div className="text-[10px] text-muted-foreground">Workflow automations</div>
-                    </div>
-                    <div className="text-center shrink-0">
-                      <div className={`text-sm font-bold ${PLATE_STYLES.amber.text}`}>{journeyCount}</div>
-                      <div className="text-[8px] text-muted-foreground">Journeys</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
+        {/* Platform map */}
+        <section className="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+            {/* drawing */}
+            <div className="canvas-dots relative flex items-center justify-center border-b border-border px-6 py-8 lg:border-b-0 lg:border-r">
+              <span className="eyebrow-brand absolute left-5 top-4 sm:left-6">Platform map</span>
+              <PlatformStack
+                active={active}
+                onHover={setActive}
+                onSelect={openLayer}
+                className="max-w-[420px] animate-fade-up"
+              />
             </div>
 
-            <div className="flex justify-center"><div className="w-px h-4 bg-border" /></div>
+            {/* layers */}
+            <div className="divide-y divide-border">
+              <LayerRow
+                id="solutions" index="04" title="Solutions" active={active === 'solutions'} onHover={setActive}
+                description="Packaged business applications and the automations behind them."
+              >
+                <Metric value={n(appStats.available)} label="active solutions" onClick={() => go('/workspace/apps')} />
+                {appStats.comingSoon > 0 && <Metric value={n(appStats.comingSoon)} label="planned" onClick={() => go('/workspace/apps')} />}
+                <Metric value={n(journeyCount)} label="journeys" onClick={() => go('/workspace/automation')} />
+              </LayerRow>
 
-            {/* Reasoning Plane */}
-            <button
-              onClick={() => go('/ai-stack/reasoning')}
-              className={`w-full text-left rounded-2xl border ${PLATE_STYLES.purple.plate} ${PLATE_STYLES.purple.glow} transition-all duration-300 hover:scale-[1.005] hover:brightness-110 group`}
-              style={{ transform: 'perspective(1200px) rotateX(6deg)' }}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${PLATE_STYLES.purple.iconBg} flex items-center justify-center`}>
-                      <Zap className={`h-5 w-5 ${PLATE_STYLES.purple.text}`} />
-                    </div>
-                    <div>
-                      <h2 className={`text-[15px] font-semibold ${PLATE_STYLES.purple.heading}`}>Reasoning Plane</h2>
-                      <p className="text-[11px] text-muted-foreground">ReAct agent with tool orchestration and policy guardrails</p>
-                    </div>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <StatPill label="Natural Language" value="AI Copilot" color="purple"
-                    onClick={() => { go('/ai-stack/reasoning', 'copilot'); }} />
-                  <StatPill label="Registered" value={`ReAct Tools (${stats?.tools_count || 14})`} color="purple"
-                    onClick={() => { go('/ai-stack/reasoning', 'tools'); }} />
-                  <StatPill label="RAG Validation" value="Planning Playground" color="purple"
-                    onClick={() => { go('/ai-stack/reasoning', 'playground'); }} />
-                </div>
-                <div className="flex items-center gap-6 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Bot className={`h-3 w-3 ${PLATE_STYLES.purple.text}`} /> LLM-driven planning loop</span>
-                <span className="flex items-center gap-1.5"><Shield className={`h-3 w-3 ${PLATE_STYLES.purple.text}`} /> Pre-execution policy checks</span>
-                <span className="flex items-center gap-1.5"><Workflow className={`h-3 w-3 ${PLATE_STYLES.purple.text}`} /> Multi-system orchestration</span>
-                </div>
-              </div>
-            </button>
+              <LayerRow
+                id="reasoning" index="03" title="Reasoning Plane" active={active === 'reasoning'} onHover={setActive}
+                description="ReAct agent that plans, calls tools and checks policy before it acts."
+                onOpen={() => go('/ai-stack/reasoning')}
+              >
+                <Metric value="AI Copilot" label="natural language" onClick={() => go('/ai-stack/reasoning', 'copilot')} />
+                <Metric value={<AnimatedNumber value={stats?.tools_count || 14} />} label="ReAct tools" onClick={() => go('/ai-stack/reasoning', 'tools')} />
+                <Metric value="Playground" label="RAG validation" onClick={() => go('/ai-stack/reasoning', 'playground')} />
+              </LayerRow>
 
-            <div className="flex justify-center"><div className="w-px h-4 bg-border" /></div>
+              <LayerRow
+                id="control" index="02" title="Control Plane" active={active === 'control'} onHover={setActive}
+                description="Enterprise ontology, knowledge graph and semantic index."
+                onOpen={() => go('/ai-stack/control-plane')}
+              >
+                <Metric value={n(stats?.onto_schema)} label="schemas" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
+                <Metric value={n(stats?.onto_policy)} label="policies" onClick={() => go('/ai-stack/control-plane', 'policies')} />
+                <Metric value={n(stats?.onto_workflow)} label="workflows" onClick={() => go('/ai-stack/control-plane', 'workflows')} />
+                <Metric value={n(stats?.onto_integration)} label="integrations" onClick={() => go('/ai-stack/control-plane', 'integrations')} />
+                <Metric value={n(stats?.graph_nodes)} label="graph nodes" onClick={() => go('/ai-stack/control-plane', 'explorer')} />
+                <Metric value={n(stats?.total_embeddings)} label="embeddings" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
+              </LayerRow>
 
-            {/* Control Plane */}
-            <button
-              onClick={() => go('/ai-stack/control-plane')}
-              className={`w-full text-left rounded-2xl border ${PLATE_STYLES.blue.plate} ${PLATE_STYLES.blue.glow} transition-all duration-300 hover:scale-[1.005] hover:brightness-110 group`}
-              style={{ transform: 'perspective(1200px) rotateX(12deg)' }}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${PLATE_STYLES.blue.iconBg} flex items-center justify-center`}>
-                      <Layers className={`h-5 w-5 ${PLATE_STYLES.blue.text}`} />
-                    </div>
-                    <div>
-                      <h2 className={`text-[15px] font-semibold ${PLATE_STYLES.blue.heading}`}>Control Plane</h2>
-                      <p className="text-[11px] text-muted-foreground">Enterprise ontology, knowledge graph, and semantic index</p>
-                    </div>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="grid grid-cols-6 gap-2 mb-3">
-                  <StatPill label="Schemas" value={stats?.onto_schema ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'knowledge'); }} />
-                  <StatPill label="Policies" value={stats?.onto_policy ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'policies'); }} />
-                  <StatPill label="Workflows" value={stats?.onto_workflow ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'workflows'); }} />
-                  <StatPill label="Integrations" value={stats?.onto_integration ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'integrations'); }} />
-                  <StatPill label="Graph Nodes" value={stats?.graph_nodes ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'explorer'); }} />
-                  <StatPill label="Embeddings" value={stats?.total_embeddings ?? '—'} color="blue"
-                    onClick={() => { go('/ai-stack/control-plane', 'knowledge'); }} />
-                </div>
-                <div className="flex items-center gap-6 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Network className={`h-3 w-3 ${PLATE_STYLES.blue.text}`} /> Apache AGE knowledge graph</span>
-                <span className="flex items-center gap-1.5"><Search className={`h-3 w-3 ${PLATE_STYLES.blue.text}`} /> Hybrid vector + graph search</span>
-                <span className="flex items-center gap-1.5"><BookOpen className={`h-3 w-3 ${PLATE_STYLES.blue.text}`} /> SCOR-aligned supply chain ontology</span>
-                </div>
-              </div>
-            </button>
+              <LayerRow
+                id="data" index="01" title="Data Plane" active={active === 'data'} onHover={setActive}
+                description="Virtual data layer over your systems: FDW connections, simulators and files."
+                onOpen={() => go('/ai-stack/data-plane')}
+              >
+                <Metric value={n(sourceCount)} label="data sources" />
+                <Metric value={n(stats?.virtual_entities)} label="entities" />
+                <Metric value={n(stats?.mapped_entities)} label="mapped" />
+                <Metric value={n(stats?.mapping_rules_active)} label="mapping rules" />
+              </LayerRow>
 
-            <div className="flex justify-center"><div className="w-px h-4 bg-border" /></div>
-
-            {/* Data Plane */}
-            <button
-              onClick={() => go('/ai-stack/data-plane')}
-              className={`w-full text-left rounded-2xl border ${PLATE_STYLES.emerald.plate} ${PLATE_STYLES.emerald.glow} transition-all duration-300 hover:scale-[1.005] hover:brightness-110 group`}
-              style={{ transform: 'perspective(1200px) rotateX(18deg)' }}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${PLATE_STYLES.emerald.iconBg} flex items-center justify-center`}>
-                      <Database className={`h-5 w-5 ${PLATE_STYLES.emerald.text}`} />
-                    </div>
-                    <div>
-                      <h2 className={`text-[15px] font-semibold ${PLATE_STYLES.emerald.heading}`}>Data Plane</h2>
-                      <p className="text-[11px] text-muted-foreground">Virtual data layer — FDW connections, simulators, enterprise data sources</p>
-                    </div>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="grid grid-cols-4 gap-3 mb-3">
-                  <StatPill label="Data Sources" value={stats?.entities_by_system ? Object.keys(stats.entities_by_system).length : 6} color="emerald" />
-                  <StatPill label="Entities" value={stats?.virtual_entities ?? '—'} color="emerald" />
-                  <StatPill label="Mapped" value={stats?.mapped_entities ?? '—'} color="emerald" />
-                  <StatPill label="Mapping Rules" value={stats?.mapping_rules_active ?? '—'} color="emerald" />
-                </div>
-                <div className="flex items-center justify-center gap-5 pt-1">
-                  <SourceIcon label="Salesforce" icon={Globe} color="emerald" />
-                  <SourceIcon label="Oracle" icon={Database} color="emerald" />
-                  <SourceIcon label="SAP" icon={Server} color="emerald" />
-                  <SourceIcon label="Google Drive" icon={FileText} color="emerald" />
-                  <SourceIcon label="Social" icon={Rss} color="emerald" />
-                  <SourceIcon label="File Uploads" icon={Upload} color="emerald" />
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {/* ── Right: AI Ops vertical strip ─────────────── */}
-          <div
-            className={`w-[100px] shrink-0 rounded-2xl border ${PLATE_STYLES.teal.plate} ${PLATE_STYLES.teal.glow} flex flex-col items-center py-4 px-2 gap-3 self-stretch transition-all duration-300 hover:brightness-110`}
-          >
-            <div className={`w-8 h-8 rounded-lg ${PLATE_STYLES.teal.iconBg} flex items-center justify-center`}>
-              <Activity className={`h-4 w-4 ${PLATE_STYLES.teal.text}`} />
+              <LayerRow
+                id="ops" index="" title="AI Ops" active={active === 'ops'} onHover={setActive}
+                description="Checks and monitoring that run alongside every layer."
+              >
+                <TextLink onClick={() => go('/operations/diagnostics')}>Diagnostics</TextLink>
+                <TextLink onClick={() => go('/operations/health')}>Health</TextLink>
+              </LayerRow>
             </div>
-            <span className={`text-[11px] font-semibold ${PLATE_STYLES.teal.heading}`}>AI Ops</span>
-
-            <div className="flex-1" />
-
-            <button onClick={() => go('/operations/diagnostics')}
-              className={`w-full flex flex-col items-center gap-1 rounded-lg ${PLATE_STYLES.teal.btnBg} px-2 py-3 ${PLATE_STYLES.teal.btnHover} transition-colors`}>
-              <Play className={`h-4 w-4 ${PLATE_STYLES.teal.text}`} />
-              <span className={`text-[9px] font-medium ${PLATE_STYLES.teal.heading}`}>Diagnostics</span>
-            </button>
-
-            <button onClick={() => go('/operations/health')}
-              className={`w-full flex flex-col items-center gap-1 rounded-lg ${PLATE_STYLES.teal.btnBg} px-2 py-3 ${PLATE_STYLES.teal.btnHover} transition-colors`}>
-              <HeartPulse className={`h-4 w-4 ${PLATE_STYLES.teal.text}`} />
-              <span className={`text-[9px] font-medium ${PLATE_STYLES.teal.heading}`}>Health</span>
-            </button>
-
-            <div className="flex-1" />
           </div>
+        </section>
 
+        {/* Lists */}
+        <div className="mt-10 grid gap-x-10 gap-y-10 lg:grid-cols-3">
+          <ListSection title="Recent journeys" action={<TextLink onClick={() => go('/workspace/automation')}>All journeys</TextLink>}>
+            {journeys === null && [0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-3 py-3"><Skeleton className="h-4 w-full" /></div>
+            ))}
+            {journeys !== null && recent.length === 0 && (
+              <p className="py-6 text-sm text-muted-foreground">No journeys yet. Create one in AI Automation.</p>
+            )}
+            {recent.map(j => {
+              const status = String(j.status || 'created').toLowerCase();
+              return (
+                <button key={j.id} type="button" onClick={() => nav(`/workspace/automation?journeyId=${encodeURIComponent(j.id)}`)} className={rowBtn}>
+                  <span className={cn(status === 'running' ? 'dot-live' : 'inline-block h-2 w-2 rounded-full bg-current', 'shrink-0', STATUS_TONE[status] || 'text-subtle-foreground')} aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground group-hover/r:underline group-hover/r:underline-offset-4">{j.name || j.id}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {typeLabel(j.type)} · <span className="capitalize">{status}</span>
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-subtle-foreground">{timeAgo(j.updated_at || j.created_at)}</span>
+                </button>
+              );
+            })}
+          </ListSection>
+
+          <ListSection title="Solutions" action={<TextLink onClick={() => go('/workspace/apps')}>All solutions</TextLink>}>
+            {APP_REGISTRY.slice(0, 5).map(app => (
+              <button key={app.id} type="button" onClick={() => nav(`/apps/${app.id}`)} className={rowBtn}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground group-hover/r:underline group-hover/r:underline-offset-4">{app.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {app.kpis.slice(0, 2).map(k => `${k.label} ${k.target}`).join(' · ')}
+                  </span>
+                </span>
+                <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-subtle-foreground transition-transform duration-300 ease-brand-out group-hover/r:translate-x-0.5 group-hover/r:text-foreground" />
+              </button>
+            ))}
+          </ListSection>
+
+          <ListSection title="Entities by system" action={<TextLink onClick={() => go('/ai-stack/data-plane')}>Data Plane</TextLink>}>
+            {!stats && loading && [0, 1, 2, 3].map(i => (
+              <div key={i} className="py-3"><Skeleton className="h-4 w-full" /></div>
+            ))}
+            {!loading && systems.length === 0 && (
+              <p className="py-6 text-sm text-muted-foreground">No mapped systems yet. Connect a source in the Data Plane.</p>
+            )}
+            {systems.map(([key, count]) => (
+              <div key={key} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-sm text-foreground">{systemLabel(key)}</span>
+                  <span className="num text-sm text-muted-foreground">{count}</span>
+                </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-3">
+                  <div
+                    className="h-full origin-left rounded-full bg-primary transition-transform duration-slow ease-brand-out"
+                    style={{ width: `${(count / maxSystem) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </ListSection>
         </div>
       </div>
     </Layout>

@@ -286,26 +286,37 @@ class AIHealthService:
         except Exception as e:
             errors.append(f"foundry: {e}")
 
-        # pgvector row count (best-effort)
+        # pgvector row count and Apache AGE presence (best-effort). Use the
+        # stores the control-plane API has already built: VectorStore and
+        # GraphStore need a connection manager, so they cannot be created
+        # here without one.
+        vs = gs = None
         try:
-            from src.services.control_plane.vector_store import VectorStore
-            vs = VectorStore()
-            n = await vs.count()  # type: ignore[attr-defined]
-            counts["pgvector_rows"] = int(n or 0)
+            from src.apis import control_plane_api as cp
+            await cp._ensure_init()
+            vs, gs = cp._vector_store, cp._graph_store
         except Exception as e:
-            details["pgvector_ok"] = False
-            errors.append(f"pgvector: {e}")
-        else:
-            details["pgvector_ok"] = True
+            errors.append(f"control plane init: {e}")
 
-        # Apache AGE presence (best-effort — presence check only)
-        try:
-            from src.services.control_plane.graph_store import GraphStore
-            gs = GraphStore()
-            details["age_available"] = bool(getattr(gs, "available", True))
-        except Exception as e:
+        if vs is None:
+            details["pgvector_ok"] = False
+            errors.append("pgvector: vector store not initialised (FDW disabled or database unreachable)")
+        else:
+            try:
+                counts["pgvector_rows"] = int(await vs.count() or 0)
+                details["pgvector_ok"] = True
+            except Exception as e:
+                details["pgvector_ok"] = False
+                errors.append(f"pgvector: {e}")
+
+        if gs is None:
             details["age_available"] = False
-            errors.append(f"age: {e}")
+        else:
+            try:
+                details["age_available"] = bool(await gs._is_age_available())
+            except Exception as e:
+                details["age_available"] = False
+                errors.append(f"age: {e}")
 
         return self._verdict("control", details, counts, errors)
 

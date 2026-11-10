@@ -27,7 +27,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-          <h1 className="text-2xl font-bold text-red-500 mb-4">Something went wrong</h1>
+          <h1 className="text-2xl font-semibold text-destructive mb-4">Something went wrong</h1>
           <p className="text-muted-foreground mb-4">Please try refreshing the page</p>
           <button
             onClick={() => window.location.reload()}

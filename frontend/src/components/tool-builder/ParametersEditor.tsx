@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Icon } from '@/components/ds/Icon';
+import { CodeBlock, SubHeading, TableShell } from '@/components/ds/kit';
 
 interface PropertyRow {
   key: string;
@@ -16,8 +19,13 @@ interface Props {
   onChange: (next: Record<string, unknown>) => void;
 }
 
-const TYPE_OPTIONS: PropertyRow['type'][] = [
-  'string', 'integer', 'number', 'boolean', 'object', 'array',
+const TYPE_OPTIONS: { value: PropertyRow['type']; label: string }[] = [
+  { value: 'string', label: 'Text' },
+  { value: 'integer', label: 'Whole number' },
+  { value: 'number', label: 'Number' },
+  { value: 'boolean', label: 'Yes or no' },
+  { value: 'object', label: 'Object' },
+  { value: 'array', label: 'List' },
 ];
 
 function schemaToRows(schema: Record<string, unknown>): PropertyRow[] {
@@ -55,6 +63,9 @@ function rowsToSchema(rows: PropertyRow[]): Record<string, unknown> {
   return { type: 'object', properties, required };
 }
 
+const th = 'h-10 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground';
+
+/** The inputs a tool accepts: one row per parameter, with the schema it produces. */
 export default function ParametersEditor({ schema, onChange }: Props) {
   const [rows, setRows] = useState<PropertyRow[]>(() => schemaToRows(schema || {}));
 
@@ -63,127 +74,91 @@ export default function ParametersEditor({ schema, onChange }: Props) {
     onChange(rowsToSchema(next));
   };
 
+  const patch = (idx: number, change: Partial<PropertyRow>) => {
+    const next = [...rows];
+    next[idx] = { ...rows[idx], ...change };
+    update(next);
+  };
+
+  const addRow = () => update([
+    ...rows,
+    { key: '', type: 'string', description: '', required: false, enumStr: '' },
+  ]);
+
   const preview = useMemo(() => JSON.stringify(rowsToSchema(rows), null, 2), [rows]);
 
   return (
-    <div className="space-y-3 text-sm">
-      <div className="text-[11px] text-muted-foreground">
-        Parameters JSON Schema. The tool's `params` argument is validated against this on every invocation.
+    <div className="grid gap-x-8 gap-y-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-md font-medium text-foreground">Parameters</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">The inputs the tool accepts. Every run is checked against them before the code starts.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={addRow}>
+            <Icon name="plus" /> Add parameter
+          </Button>
+        </div>
+
+        <TableShell className="mt-4">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead className="bg-surface-2/60">
+              <tr className="border-b border-border">
+                <th className={th}>Name</th>
+                <th className={th}>Type</th>
+                <th className={th}>Required</th>
+                <th className={th}>Allowed values</th>
+                <th className={th}>Description</th>
+                <th className={th}><span className="sr-only">Remove</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => (
+                <tr key={idx} className="border-b border-border last:border-b-0">
+                  <td className="w-[180px] px-3 py-2">
+                    <Input value={r.key} onChange={(e) => patch(idx, { key: e.target.value })} aria-label="Parameter name" placeholder="name" className="h-8 font-mono text-xs" />
+                  </td>
+                  <td className="w-[150px] px-3 py-2">
+                    <Select value={r.type} onValueChange={(v) => patch(idx, { type: v as PropertyRow['type'] })}>
+                      <SelectTrigger className="h-8" aria-label="Parameter type"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TYPE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Checkbox checked={r.required} onCheckedChange={(v) => patch(idx, { required: !!v })} aria-label="Required" />
+                  </td>
+                  <td className="w-[170px] px-3 py-2">
+                    <Input value={r.enumStr} onChange={(e) => patch(idx, { enumStr: e.target.value })} aria-label="Allowed values, separated by commas" placeholder="Any" className="h-8 text-xs" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input value={r.description} onChange={(e) => patch(idx, { description: e.target.value })} aria-label="Description" className="h-8 text-xs" />
+                  </td>
+                  <td className="w-12 px-3 py-2 text-right">
+                    <Button size="icon-sm" variant="ghost" aria-label={`Remove parameter ${r.key || idx + 1}`} onClick={() => update(rows.filter((_, i) => i !== idx))}>
+                      <Icon name="trash" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    No parameters. The tool runs with an empty payload.
+                    <div className="mt-3"><Button variant="outline" size="sm" onClick={addRow}><Icon name="plus" /> Add parameter</Button></div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TableShell>
+        <p className="mt-2 text-xs text-subtle-foreground">Separate allowed values with commas. Leave empty to accept anything of that type.</p>
       </div>
 
-      <div className="border rounded-md overflow-hidden">
-        <table className="w-full text-[11px]">
-          <thead className="bg-muted/40">
-            <tr className="text-left">
-              <th className="px-2 py-1.5">name</th>
-              <th className="px-2 py-1.5">type</th>
-              <th className="px-2 py-1.5">required</th>
-              <th className="px-2 py-1.5">enum (comma-sep)</th>
-              <th className="px-2 py-1.5">description</th>
-              <th className="px-2 py-1.5"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, idx) => (
-              <tr key={idx} className="border-t border-border/40">
-                <td className="px-2 py-1">
-                  <Input
-                    value={r.key}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[idx] = { ...r, key: e.target.value };
-                      update(next);
-                    }}
-                    className="h-6 text-[11px] font-mono"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <select
-                    value={r.type}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[idx] = { ...r, type: e.target.value as PropertyRow['type'] };
-                      update(next);
-                    }}
-                    className="h-6 text-[11px] bg-background border rounded px-1"
-                  >
-                    {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </td>
-                <td className="px-2 py-1">
-                  <input
-                    type="checkbox"
-                    checked={r.required}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[idx] = { ...r, required: e.target.checked };
-                      update(next);
-                    }}
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <Input
-                    value={r.enumStr}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[idx] = { ...r, enumStr: e.target.value };
-                      update(next);
-                    }}
-                    className="h-6 text-[11px]"
-                    placeholder=""
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <Input
-                    value={r.description}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[idx] = { ...r, description: e.target.value };
-                      update(next);
-                    }}
-                    className="h-6 text-[11px]"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0"
-                    onClick={() => update(rows.filter((_, i) => i !== idx))}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-3 text-center text-muted-foreground italic text-[11px]">
-                  No parameters - tool will accept an empty {'{}'} payload.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 text-[11px]"
-        onClick={() => update([
-          ...rows,
-          { key: '', type: 'string', description: '', required: false, enumStr: '' },
-        ])}
-      >
-        <Plus className="h-3 w-3 mr-1" /> Add field
-      </Button>
-
-      <div>
-        <div className="text-[11px] text-muted-foreground mb-1">Generated schema</div>
-        <pre className="text-[10px] font-mono bg-muted/20 border rounded p-2 max-h-40 overflow-auto">
-          {preview}
-        </pre>
+      <div className="min-w-0">
+        <SubHeading>Generated schema</SubHeading>
+        <CodeBlock maxHeight={360}>{preview}</CodeBlock>
       </div>
     </div>
   );

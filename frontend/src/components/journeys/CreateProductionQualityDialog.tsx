@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { CreateJourneyShell } from './studio/CreateJourneyShell';
 import { CallProcessingJourney } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
@@ -63,37 +59,24 @@ export function CreateProductionQualityDialog({ open, onClose, onCreated }: Crea
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>New Production & Quality Copilot Journey</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Journey Name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Production & Quality Copilot" />
-          </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>This journey will run 6 automated steps:</p>
-            <ol className="list-decimal list-inside space-y-0.5 ml-2">
-              <li>Load Production Data</li>
-              <li>OEE Calculation</li>
-              <li>Yield Analysis</li>
-              <li>Quality Scoring</li>
-              <li>Schedule Adherence</li>
-              <li>Publish Results</li>
-            </ol>
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Journey
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <CreateJourneyShell
+      open={open}
+      onClose={handleClose}
+      title="New Production & Quality Copilot Journey"
+      name={name}
+      onNameChange={setName}
+      namePlaceholder="Production & Quality Copilot"
+      steps={[
+        "Load Production Data",
+        "OEE Calculation",
+        "Yield Analysis",
+        "Quality Scoring",
+        "Schedule Adherence",
+        "Publish Results",
+      ]}
+      error={error}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit}
+    />
   );
 }

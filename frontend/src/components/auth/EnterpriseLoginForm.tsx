@@ -86,9 +86,9 @@ export const EnterpriseLoginForm: React.FC<EnterpriseLoginFormProps> = ({
     <div className={`w-full max-w-md mx-auto ${className}`}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardTitle className="text-xl">Sign in to Nexus AI</CardTitle>
           <CardDescription>
-            Sign in to access the Nexus AI
+            Use your work account to continue.
           </CardDescription>
         </CardHeader>
         

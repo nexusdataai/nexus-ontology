@@ -60,7 +60,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
         
         if (resumingJourney) {
           // Resuming existing journey - get fresh data to ensure latest state
-          const freshJourney = transformationJourneyService.getJourney(resumingJourney.id);
+          const freshJourney = await transformationJourneyService.getJourney(resumingJourney.id);
           if (!freshJourney) {
             console.error('🌟 Journey not found when resuming:', resumingJourney.id);
             return;
@@ -169,7 +169,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
           const journeyName = `${selectedSchema.name} Transformation`;
           const journeyDescription = `Complete transformation of ${selectedSchema.name} schema to TMF 629 Customer Management API`;
           
-          const newJourney = transformationJourneyService.createJourney({
+          const newJourney = await transformationJourneyService.createJourney({
             name: journeyName,
             description: journeyDescription,
             priority: 'medium',
@@ -228,8 +228,8 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
   useEffect(() => {
     if (!resumingJourney || !transformationJourney || !session) return;
 
-    const refreshInterval = setInterval(() => {
-      const freshJourney = transformationJourneyService.getJourney(transformationJourney.id);
+    const refreshInterval = setInterval(async () => {
+      const freshJourney = await transformationJourneyService.getJourney(transformationJourney.id);
       if (freshJourney) {
         // Check if journey state has changed
         const stageIndexChanged = freshJourney.currentStageIndex !== currentStageIndex;
@@ -338,7 +338,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
       }
       
       // Set up periodic refresh to show stage progress
-      const refreshInterval = setInterval(() => {
+      const refreshInterval = setInterval(async () => {
         const freshSession = discoveryWizardService.getSession(session.id);
         if (freshSession) {
           setSession(freshSession);
@@ -379,7 +379,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
         setSession(updatedSession);
         
         // Set up periodic refresh to show stage progress
-        const refreshInterval = setInterval(() => {
+        const refreshInterval = setInterval(async () => {
           const freshSession = discoveryWizardService.getSession(session.id);
           if (freshSession) {
             setSession(freshSession);
@@ -466,15 +466,15 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
       case 'in_progress':
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+        return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
       case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'skipped':
-        return <SkipForward className="h-4 w-4 text-gray-500" />;
+        return <SkipForward className="h-4 w-4 text-muted-foreground" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -482,15 +482,15 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-500';
+        return 'bg-success';
       case 'in_progress':
-        return 'bg-blue-500';
+        return 'bg-primary';
       case 'failed':
-        return 'bg-red-500';
+        return 'bg-destructive';
       case 'skipped':
-        return 'bg-gray-500';
+        return 'bg-border-strong';
       default:
-        return 'bg-gray-300';
+        return 'bg-surface-3';
     }
   };
 
@@ -533,7 +533,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-4xl mb-2 font-black text-foreground">
+                <h1 className="text-4xl mb-2 font-semibold text-foreground">
                   {resumingJourney ? 'Resume Transformation' : 'MTN SA AI Native Transformation'}
                 </h1>
                 <p className="text-muted-foreground">
@@ -551,7 +551,7 @@ export default function DiscoveryWizard({ selectedSchema, resumingJourney, onBac
                       {transformationJourney.status === 'running' ? 'Running' : transformationJourney.status}
                     </Badge>
                     {resumingJourney && (
-                      <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200">
+                      <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/25">
                         Resumed
                       </Badge>
                     )}
@@ -865,7 +865,7 @@ function StageReportView({ stage, onBack }: StageReportViewProps) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-4xl mb-2 font-black text-foreground">{stage.name} Report</h1>
+                <h1 className="text-4xl mb-2 font-semibold text-foreground">{stage.name} Report</h1>
                 <p className="text-muted-foreground">{report.summary}</p>
               </div>
             </div>
@@ -885,7 +885,7 @@ function StageReportView({ stage, onBack }: StageReportViewProps) {
                 <ul className="space-y-2">
                   {report.keyFindings.map((finding, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                       <span className="text-sm">{finding}</span>
                     </li>
                   ))}
@@ -926,7 +926,7 @@ function StageReportView({ stage, onBack }: StageReportViewProps) {
                 <ul className="space-y-2">
                   {report.recommendations.map((recommendation, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <Zap className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <Zap className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                       <span className="text-sm">{recommendation}</span>
                     </li>
                   ))}
@@ -942,8 +942,8 @@ function StageReportView({ stage, onBack }: StageReportViewProps) {
               <CardContent>
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    report.nextStageReadiness === 'ready' ? 'bg-green-500' :
-                    report.nextStageReadiness === 'needs_review' ? 'bg-yellow-500' : 'bg-red-500'
+                    report.nextStageReadiness === 'ready' ? 'bg-success' :
+                    report.nextStageReadiness === 'needs_review' ? 'bg-warning' : 'bg-destructive'
                   }`} />
                   <span className="font-medium capitalize">
                     {report.nextStageReadiness.replace('_', ' ')}

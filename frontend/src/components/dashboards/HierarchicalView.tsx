@@ -27,7 +27,7 @@ export default function HierarchicalView() {
   }, []);
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
+  if (error) return <div className="text-destructive p-4">{error}</div>;
   if (!data) return <div>No data available</div>;
 
   const TreemapBox = ({ item, width, height, color }: { 
@@ -46,7 +46,7 @@ export default function HierarchicalView() {
       }}
     >
       <div className="absolute inset-0 p-2 flex flex-col justify-center text-center">
-        <div className="text-white font-semibold text-sm group-hover:text-blue-200 transition-colors">
+        <div className="text-white font-semibold text-sm group-hover:text-primary transition-colors">
           {item.name}
         </div>
         <div className="text-muted-foreground text-xs mt-1">
@@ -139,15 +139,15 @@ export default function HierarchicalView() {
         {/* Summary Statistics */}
         <div className="mt-8 grid grid-cols-3 gap-6">
           <div className="bg-card rounded-lg p-4 border border-border text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">335</div>
+            <div className="text-2xl font-semibold text-primary dark:text-primary">335</div>
             <div className="text-muted-foreground text-sm">Total Tables</div>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border text-center">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">35</div>
+            <div className="text-2xl font-semibold text-success dark:text-success">35</div>
             <div className="text-muted-foreground text-sm">Procedures</div>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border text-center">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">4</div>
+            <div className="text-2xl font-semibold text-primary dark:text-primary">4</div>
             <div className="text-muted-foreground text-sm">TMF Components</div>
           </div>
         </div>

@@ -1,0 +1,395 @@
+{
+ "family": "UIcons by Flaticon / Freepik (Magnific)",
+ "style": "regular-rounded",
+ "source": "@flaticon/flaticon-uicons",
+ "icons": [
+  {
+   "name": "home",
+   "uicon": "fi-rr-home"
+  },
+  {
+   "name": "database",
+   "uicon": "fi-rr-database"
+  },
+  {
+   "name": "layers",
+   "uicon": "fi-rr-layers"
+  },
+  {
+   "name": "brain-ai",
+   "uicon": "fi-rr-brain-circuit"
+  },
+  {
+   "name": "apps",
+   "uicon": "fi-rr-apps"
+  },
+  {
+   "name": "chart-bar",
+   "uicon": "fi-rr-chart-histogram"
+  },
+  {
+   "name": "workflow",
+   "uicon": "fi-rr-workflow-alt"
+  },
+  {
+   "name": "stethoscope",
+   "uicon": "fi-rr-stethoscope"
+  },
+  {
+   "name": "heartbeat",
+   "uicon": "fi-rr-heart-rate"
+  },
+  {
+   "name": "flask",
+   "uicon": "fi-rr-flask"
+  },
+  {
+   "name": "settings",
+   "uicon": "fi-rr-settings"
+  },
+  {
+   "name": "help",
+   "uicon": "fi-rr-interrogation"
+  },
+  {
+   "name": "search",
+   "uicon": "fi-rr-search"
+  },
+  {
+   "name": "sun",
+   "uicon": "fi-rr-sun"
+  },
+  {
+   "name": "moon",
+   "uicon": "fi-rr-moon"
+  },
+  {
+   "name": "menu",
+   "uicon": "fi-rr-menu-burger"
+  },
+  {
+   "name": "close",
+   "uicon": "fi-rr-cross"
+  },
+  {
+   "name": "plus",
+   "uicon": "fi-rr-plus"
+  },
+  {
+   "name": "check",
+   "uicon": "fi-rr-check"
+  },
+  {
+   "name": "chevron-right",
+   "uicon": "fi-rr-angle-small-right"
+  },
+  {
+   "name": "chevron-down",
+   "uicon": "fi-rr-angle-small-down"
+  },
+  {
+   "name": "chevron-left",
+   "uicon": "fi-rr-angle-small-left"
+  },
+  {
+   "name": "chevron-up",
+   "uicon": "fi-rr-angle-small-up"
+  },
+  {
+   "name": "chevrons-left",
+   "uicon": "fi-rr-angle-double-small-left"
+  },
+  {
+   "name": "chevrons-right",
+   "uicon": "fi-rr-angle-double-small-right"
+  },
+  {
+   "name": "arrow-up-right",
+   "uicon": "fi-rr-arrow-up-right"
+  },
+  {
+   "name": "arrow-right",
+   "uicon": "fi-rr-arrow-small-right"
+  },
+  {
+   "name": "external-link",
+   "uicon": "fi-rr-arrow-up-right-from-square"
+  },
+  {
+   "name": "user",
+   "uicon": "fi-rr-user"
+  },
+  {
+   "name": "users",
+   "uicon": "fi-rr-users"
+  },
+  {
+   "name": "logout",
+   "uicon": "fi-rr-sign-out-alt"
+  },
+  {
+   "name": "bell",
+   "uicon": "fi-rr-bell"
+  },
+  {
+   "name": "chat-bot",
+   "uicon": "fi-rr-chatbot"
+  },
+  {
+   "name": "wrench",
+   "uicon": "fi-rr-wrench-simple"
+  },
+  {
+   "name": "target",
+   "uicon": "fi-rr-bullseye"
+  },
+  {
+   "name": "shield-check",
+   "uicon": "fi-rr-shield-check"
+  },
+  {
+   "name": "plug",
+   "uicon": "fi-rr-plug-connection"
+  },
+  {
+   "name": "network",
+   "uicon": "fi-rr-chart-network"
+  },
+  {
+   "name": "cube",
+   "uicon": "fi-rr-cube"
+  },
+  {
+   "name": "table",
+   "uicon": "fi-rr-table"
+  },
+  {
+   "name": "shuffle",
+   "uicon": "fi-rr-shuffle"
+  },
+  {
+   "name": "cloud",
+   "uicon": "fi-rr-cloud"
+  },
+  {
+   "name": "server",
+   "uicon": "fi-rr-database"
+  },
+  {
+   "name": "folder",
+   "uicon": "fi-rr-folder"
+  },
+  {
+   "name": "megaphone-or-rss",
+   "uicon": "fi-rr-megaphone"
+  },
+  {
+   "name": "upload",
+   "uicon": "fi-rr-upload"
+  },
+  {
+   "name": "document",
+   "uicon": "fi-rr-document"
+  },
+  {
+   "name": "key",
+   "uicon": "fi-rr-key"
+  },
+  {
+   "name": "lock",
+   "uicon": "fi-rr-lock"
+  },
+  {
+   "name": "calendar",
+   "uicon": "fi-rr-calendar"
+  },
+  {
+   "name": "clock",
+   "uicon": "fi-rr-clock"
+  },
+  {
+   "name": "play",
+   "uicon": "fi-rr-play"
+  },
+  {
+   "name": "pause",
+   "uicon": "fi-rr-pause"
+  },
+  {
+   "name": "refresh",
+   "uicon": "fi-rr-refresh"
+  },
+  {
+   "name": "alert-triangle",
+   "uicon": "fi-rr-triangle-warning"
+  },
+  {
+   "name": "info",
+   "uicon": "fi-rr-info"
+  },
+  {
+   "name": "filter",
+   "uicon": "fi-rr-filter"
+  },
+  {
+   "name": "download",
+   "uicon": "fi-rr-download"
+  },
+  {
+   "name": "trash",
+   "uicon": "fi-rr-trash"
+  },
+  {
+   "name": "edit",
+   "uicon": "fi-rr-pencil"
+  },
+  {
+   "name": "copy",
+   "uicon": "fi-rr-copy-alt"
+  },
+  {
+   "name": "eye",
+   "uicon": "fi-rr-eye"
+  },
+  {
+   "name": "code",
+   "uicon": "fi-rr-code-simple"
+  },
+  {
+   "name": "globe",
+   "uicon": "fi-rr-globe"
+  },
+  {
+   "name": "activity",
+   "uicon": "fi-rr-pulse"
+  },
+  {
+   "name": "route",
+   "uicon": "fi-rr-route"
+  },
+  {
+   "name": "dashboard",
+   "uicon": "fi-rr-dashboard"
+  },
+  {
+   "name": "bolt",
+   "uicon": "fi-rr-bolt"
+  },
+  {
+   "name": "sparkles",
+   "uicon": "fi-rr-sparkles"
+  },
+  {
+   "name": "more",
+   "uicon": "fi-rr-menu-dots"
+  },
+  {
+   "name": "link",
+   "uicon": "fi-rr-link-alt"
+  },
+  {
+   "name": "history",
+   "uicon": "fi-rr-time-past"
+  },
+  {
+   "name": "star",
+   "uicon": "fi-rr-star"
+  },
+  {
+   "name": "sliders",
+   "uicon": "fi-rr-settings-sliders"
+  },
+  {
+   "name": "box",
+   "uicon": "fi-rr-box-open"
+  },
+  {
+   "name": "graph",
+   "uicon": "fi-rr-chart-network"
+  },
+  {
+   "name": "terminal",
+   "uicon": "fi-rr-terminal"
+  },
+  {
+   "name": "mail",
+   "uicon": "fi-rr-envelope"
+  },
+  {
+   "name": "file-code",
+   "uicon": "fi-rr-file-code"
+  },
+  {
+   "name": "building",
+   "uicon": "fi-rr-building"
+  },
+  {
+   "name": "coins",
+   "uicon": "fi-rr-coins"
+  },
+  {
+   "name": "truck",
+   "uicon": "fi-rr-truck-side"
+  },
+  {
+   "name": "leaf",
+   "uicon": "fi-rr-leaf"
+  },
+  {
+   "name": "shopping-cart",
+   "uicon": "fi-rr-shopping-cart"
+  },
+  {
+   "name": "trend-up",
+   "uicon": "fi-rr-arrow-trend-up"
+  },
+  {
+   "name": "factory",
+   "uicon": "fi-rr-industry-windows"
+  },
+  {
+   "name": "receipt",
+   "uicon": "fi-rr-receipt"
+  },
+  {
+   "name": "clipboard",
+   "uicon": "fi-rr-clipboard-list"
+  },
+  {
+   "name": "check-circle",
+   "uicon": "fi-rr-check-circle"
+  },
+  {
+   "name": "cross-circle",
+   "uicon": "fi-rr-cross-circle"
+  },
+  {
+   "name": "spinner",
+   "uicon": "fi-rr-spinner"
+  },
+  {
+   "name": "expand",
+   "uicon": "fi-rr-expand"
+  },
+  {
+   "name": "minus",
+   "uicon": "fi-rr-minus"
+  },
+  {
+   "name": "grid",
+   "uicon": "fi-rr-grid"
+  },
+  {
+   "name": "list",
+   "uicon": "fi-rr-list"
+  },
+  {
+   "name": "send",
+   "uicon": "fi-rr-paper-plane"
+  },
+  {
+   "name": "bot",
+   "uicon": "fi-rr-robot"
+  }
+ ]
+}

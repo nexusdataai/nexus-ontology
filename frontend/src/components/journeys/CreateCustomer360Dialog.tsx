@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { CreateJourneyShell } from './studio/CreateJourneyShell';
 import { CallProcessingJourney } from '../../types/callProcessingJourney';
 import { callProcessingJourneyService } from '../../services/callProcessingJourneyService';
 
@@ -63,37 +59,24 @@ export function CreateCustomer360Dialog({ open, onClose, onCreated }: CreateCust
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>New Customer 360 & Revenue Growth Journey</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Journey Name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Customer 360 & Revenue Growth" />
-          </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>This journey will run 6 automated steps:</p>
-            <ol className="list-decimal list-inside space-y-0.5 ml-2">
-              <li>Load Customer Data</li>
-              <li>CLV Calculation</li>
-              <li>Churn Prediction</li>
-              <li>Wallet Share Analysis</li>
-              <li>Cross-Sell Scoring</li>
-              <li>Publish Results</li>
-            </ol>
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Journey
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <CreateJourneyShell
+      open={open}
+      onClose={handleClose}
+      title="New Customer 360 & Revenue Growth Journey"
+      name={name}
+      onNameChange={setName}
+      namePlaceholder="Customer 360 & Revenue Growth"
+      steps={[
+        "Load Customer Data",
+        "CLV Calculation",
+        "Churn Prediction",
+        "Wallet Share Analysis",
+        "Cross-Sell Scoring",
+        "Publish Results",
+      ]}
+      error={error}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit}
+    />
   );
 }

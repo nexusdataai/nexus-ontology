@@ -263,13 +263,13 @@ const SalesforceConnector: React.FC = () => {
   const getStatusIcon = (status: ConnectionStatus['status']) => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-success" />;
       case 'connecting':
-        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
+        return <RefreshCw className="h-5 w-5 text-primary animate-spin" />;
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-destructive" />;
       default:
-        return <WifiOff className="h-5 w-5 text-gray-400" />;
+        return <WifiOff className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
@@ -278,22 +278,22 @@ const SalesforceConnector: React.FC = () => {
       case 'Completed':
         return <Badge variant="secondary">Completed</Badge>;
       case 'Scheduled':
-        return <Badge variant="default" className="bg-blue-500 text-white">Scheduled</Badge>;
+        return <Badge variant="default" className="bg-primary text-white">Scheduled</Badge>;
       case 'In Progress':
-        return <Badge variant="default" className="bg-orange-500 text-white">In Progress</Badge>;
+        return <Badge variant="default" className="bg-warning text-white">In Progress</Badge>;
     }
   };
 
   const getOpportunityStageColor = (stage: string) => {
     switch (stage) {
       case 'Negotiation':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-warning/10 text-warning';
       case 'Proposal':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary/10 text-primary';
       case 'Closed Won':
-        return 'bg-green-100 text-green-800';
+        return 'bg-success/10 text-success';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-surface-2 text-foreground';
     }
   };
 
@@ -302,11 +302,11 @@ const SalesforceConnector: React.FC = () => {
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <Building className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">Salesforce Connector</h1>
+            <h1 className="text-3xl font-semibold text-foreground">Salesforce Connector</h1>
             <p className="text-muted-foreground">
               Connect to Salesforce CRM to sync customer data and call records
             </p>
@@ -402,16 +402,16 @@ const SalesforceConnector: React.FC = () => {
                   id="sf-sandbox"
                   checked={oauthConfig.sandbox}
                   onChange={(e) => handleConfigChange('sandbox', e.target.checked)}
-                  className="rounded border-gray-300"
+                  className="rounded border-border"
                 />
                 <Label htmlFor="sf-sandbox">Use Sandbox Environment</Label>
               </div>
 
               {connectionStatus.error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="p-3 bg-destructive/10 border border-destructive/25 rounded-md">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-red-700">{connectionStatus.error}</span>
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <span className="text-sm text-destructive">{connectionStatus.error}</span>
                   </div>
                 </div>
               )}
@@ -471,28 +471,28 @@ const SalesforceConnector: React.FC = () => {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold">Configuration Status</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Consumer Key</span>
                       {oauthConfig.clientId ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Consumer Secret</span>
                       {oauthConfig.clientSecret ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Instance URL</span>
                       {oauthConfig.instanceUrl ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
                   </div>
@@ -501,15 +501,15 @@ const SalesforceConnector: React.FC = () => {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold">Connection Health</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Salesforce API</span>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>SSL Certificate</span>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-surface-2 rounded">
                       <span>Environment</span>
                       <Badge variant="outline">{oauthConfig.sandbox ? 'Sandbox' : 'Production'}</Badge>
                     </div>
@@ -518,10 +518,10 @@ const SalesforceConnector: React.FC = () => {
               </div>
 
               {connectionStatus.lastConnected && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="p-3 bg-success/10 border border-success/25 rounded-md">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4 text-success" />
+                    <span className="text-sm text-success">
                       Last successful connection: {connectionStatus.lastConnected.toLocaleString()}
                     </span>
                   </div>
@@ -659,16 +659,16 @@ const SalesforceConnector: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-muted dark:bg-gray-900 text-foreground p-4 rounded-lg font-mono text-sm space-y-1">
-                <div className="text-green-400">[{new Date().toISOString()}] INFO: Salesforce Connector initialized</div>
-                <div className="text-blue-400">[{new Date().toISOString()}] DEBUG: OAuth configuration loaded</div>
-                <div className="text-blue-400">[{new Date().toISOString()}] DEBUG: Environment: {oauthConfig.sandbox ? 'Sandbox' : 'Production'}</div>
-                <div className="text-yellow-400">[{new Date().toISOString()}] WARN: Using mock data for demonstration</div>
+              <div className="bg-muted dark:bg-card text-foreground p-4 rounded-lg font-mono text-sm space-y-1">
+                <div className="text-success">[{new Date().toISOString()}] INFO: Salesforce Connector initialized</div>
+                <div className="text-primary">[{new Date().toISOString()}] DEBUG: OAuth configuration loaded</div>
+                <div className="text-primary">[{new Date().toISOString()}] DEBUG: Environment: {oauthConfig.sandbox ? 'Sandbox' : 'Production'}</div>
+                <div className="text-warning">[{new Date().toISOString()}] WARN: Using mock data for demonstration</div>
                 {connectionStatus.isConnected && (
-                  <div className="text-green-400">[{new Date().toISOString()}] INFO: Successfully connected to Salesforce API</div>
+                  <div className="text-success">[{new Date().toISOString()}] INFO: Successfully connected to Salesforce API</div>
                 )}
                 {connectionStatus.error && (
-                  <div className="text-red-400">[{new Date().toISOString()}] ERROR: {connectionStatus.error}</div>
+                  <div className="text-destructive">[{new Date().toISOString()}] ERROR: {connectionStatus.error}</div>
                 )}
               </div>
             </CardContent>

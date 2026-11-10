@@ -53,8 +53,8 @@ const Analytics = () => {
               <metric.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <div className="flex items-center text-xs text-green-600">
+              <div className="text-2xl font-semibold">{metric.value}</div>
+              <div className="flex items-center text-xs text-success">
                 <ArrowUpRight className="h-4 w-4" />
                 {metric.change}
               </div>

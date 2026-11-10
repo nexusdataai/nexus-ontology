@@ -1,13 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight,
-  HardDrive, Database, RefreshCw, Clock, Zap, BarChart3, ExternalLink,
-} from 'lucide-react';
+import { Loader2, Play, ChevronDown, ChevronRight, HardDrive, Database, RefreshCw, Clock, Zap, BarChart3, ExternalLink } from 'lucide-react';
 import { apiClient } from '@/services/apiClient';
 import { getSimulatorConfig } from '@/services/simulatorLink';
+import { Section, StatusBadge } from './_shared';
 
 interface DiagCheck {
   name: string;
@@ -34,47 +31,14 @@ interface DiagReport {
   };
 }
 
-const STATUS_BADGE: Record<string, { cls: string; icon: React.ElementType; label: string }> = {
-  pass: { cls: 'bg-green-500/20 text-green-300 border-green-500/30', icon: CheckCircle2, label: 'Pass' },
-  warn: { cls: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: AlertTriangle, label: 'Warning' },
-  fail: { cls: 'bg-red-500/20 text-red-300 border-red-500/30', icon: XCircle, label: 'Fail' },
-};
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_BADGE[status] || STATUS_BADGE.fail;
-  const Icon = cfg.icon;
-  return (
-    <Badge variant="outline" className={`${cfg.cls} gap-1`}>
-      <Icon className="h-3 w-3" /> {cfg.label}
-    </Badge>
-  );
-}
 
-function Section({ title, icon: Icon, status, defaultOpen, children }: {
-  title: string; icon: React.ElementType; status: string; defaultOpen?: boolean; children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen ?? true);
-  return (
-    <Card>
-      <CardHeader className="pb-2 cursor-pointer" onClick={() => setOpen(!open)}>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <Icon className="h-4 w-4" /> {title}
-          </CardTitle>
-          <StatusBadge status={status} />
-        </div>
-      </CardHeader>
-      {open && <CardContent>{children}</CardContent>}
-    </Card>
-  );
-}
 
 function CheckTable({ checks }: { checks: DiagCheck[] }) {
   return (
-    <table className="w-full text-xs">
+    <table className="w-full border-collapse text-sm">
       <thead>
-        <tr className="text-left text-muted-foreground border-b">
+        <tr className="border-b border-border text-left text-xs text-muted-foreground">
           <th className="py-1.5 pr-4">Component</th>
           <th className="py-1.5 pr-4">Status</th>
           <th className="py-1.5">Details</th>
@@ -82,7 +46,7 @@ function CheckTable({ checks }: { checks: DiagCheck[] }) {
       </thead>
       <tbody>
         {checks.map((c, i) => (
-          <tr key={i} className="border-b border-border/50">
+          <tr key={i} className="border-b border-border">
             <td className="py-2 pr-4 font-medium">{c.name}</td>
             <td className="py-2 pr-4"><StatusBadge status={c.status} /></td>
             <td className="py-2 text-muted-foreground">{c.message}</td>
@@ -99,7 +63,7 @@ function RedisDetails({ check }: { check: DiagCheck }) {
   return (
     <div className="space-y-3">
       {check.message && (
-        <div className={`text-xs px-3 py-2 rounded-md ${check.status === 'fail' ? 'bg-red-500/10 text-red-300' : check.status === 'warn' ? 'bg-amber-500/10 text-amber-300' : 'text-muted-foreground'}`}>
+        <div className={`text-xs px-3 py-2 rounded-md ${check.status === 'fail' ? 'bg-destructive/10 text-destructive' : check.status === 'warn' ? 'bg-warning/10 text-warning' : 'text-muted-foreground'}`}>
           {check.message}
         </div>
       )}
@@ -119,7 +83,7 @@ function RedisDetails({ check }: { check: DiagCheck }) {
           </div>
           <div className="h-2 bg-secondary rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${d.memory_usage_pct > 80 ? 'bg-red-500' : d.memory_usage_pct > 60 ? 'bg-amber-500' : 'bg-green-500'}`}
+              className={`h-full rounded-full transition-all ${d.memory_usage_pct > 80 ? 'bg-destructive' : d.memory_usage_pct > 60 ? 'bg-warning' : 'bg-success'}`}
               style={{ width: `${Math.min(d.memory_usage_pct, 100)}%` }}
             />
           </div>
@@ -127,13 +91,13 @@ function RedisDetails({ check }: { check: DiagCheck }) {
       )}
       <div className="flex items-center gap-2 text-xs flex-wrap">
         <span className="text-muted-foreground">Eviction Policy:</span>
-        <Badge variant="outline" className={d.maxmemory_policy === 'allkeys-lru' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-secondary'}>
+        <Badge variant="outline" className={d.maxmemory_policy === 'allkeys-lru' ? 'bg-warning/10 text-warning border-warning/30' : 'bg-secondary'}>
           {d.maxmemory_policy ?? 'unknown'}
         </Badge>
         <span className="text-muted-foreground ml-4">Default TTL:</span>
         <span>{d.default_ttl_seconds ? `${Math.round(d.default_ttl_seconds / 3600)}h` : '-'}</span>
         {d.fallback_active && (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-300 border-amber-500/30 ml-4">
+          <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 ml-4">
             Fallback Active ({d.fallback_keys ?? 0} keys)
           </Badge>
         )}
@@ -182,13 +146,13 @@ function VolumeDetails({ checks }: { checks: DiagCheck[] }) {
           </div>
           {expanded === c.name && c.details.zero_row_tables && c.details.zero_row_count > 0 && (
             <div className="px-3 pb-3 border-t border-border/50">
-              <div className="text-xs text-amber-300 mt-2 mb-1">Empty tables ({c.details.zero_row_count}):</div>
+              <div className="text-xs text-warning mt-2 mb-1">Empty tables ({c.details.zero_row_count}):</div>
               <div className="flex flex-wrap gap-1">
                 {(c.details.zero_row_tables as string[]).map(t => (
-                  <Badge key={t} variant="outline" className="bg-amber-500/10 text-amber-300 border-amber-500/30 text-[10px]">{t}</Badge>
+                  <Badge key={t} variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">{t}</Badge>
                 ))}
                 {c.details.zero_row_count > 10 && (
-                  <Badge variant="outline" className="bg-secondary text-[10px]">+{c.details.zero_row_count - 10} more</Badge>
+                  <Badge variant="outline" className="bg-secondary text-xs">+{c.details.zero_row_count - 10} more</Badge>
                 )}
               </div>
             </div>
@@ -225,11 +189,11 @@ export default function SimulatorDiagnosticsPanel() {
   }, []);
 
   return (
-    <div className="p-6 space-y-4 max-w-[1200px] mx-auto">
+    <div className="page space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold mb-1">Simulator Reachability</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-medium tracking-tight text-foreground">Simulator Reachability</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Lightweight health and catalog checks against the remote nexus-simulator service.
             Admin, seed, and table tools live in the simulator UI.
           </p>
@@ -242,21 +206,21 @@ export default function SimulatorDiagnosticsPanel() {
             </a>
           </Button>
           <Button onClick={runDiagnostics} disabled={loading}>
-            {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running...</> : <><Play className="h-4 w-4 mr-2" /> Run Diagnostics</>}
+            {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Running checks</> : <><Play className="h-4 w-4 mr-2" /> Run checks</>}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-          Diagnostics failed: {error}
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          The checks could not run: {error}
         </div>
       )}
 
       {!report && !loading && !error && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-strong py-16 text-muted-foreground">
           <Database className="h-12 w-12 mb-4 opacity-30" />
-          <p className="text-sm">Click "Run Diagnostics" to check the simulator pipeline</p>
+          <p className="text-sm">Run the checks to see the state of the simulator pipeline</p>
         </div>
       )}
 

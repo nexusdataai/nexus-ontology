@@ -148,10 +148,10 @@ const applicationProducts = {
 
 const getTierIcon = (tier: string) => {
   switch (tier) {
-    case "Tier 1": return <Award className="h-3 w-3 text-yellow-500" />;
-    case "Tier 2": return <Star className="h-3 w-3 text-blue-500" />;
-    case "Cloud-Native": return <Cloud className="h-3 w-3 text-cyan-500" />;
-    case "AI-Native": return <Brain className="h-3 w-3 text-purple-500" />;
+    case "Tier 1": return <Award className="h-3 w-3 text-warning" />;
+    case "Tier 2": return <Star className="h-3 w-3 text-primary" />;
+    case "Cloud-Native": return <Cloud className="h-3 w-3 text-primary" />;
+    case "AI-Native": return <Brain className="h-3 w-3 text-primary" />;
     default: return null;
   }
 };
@@ -170,17 +170,17 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
           <h3 className="text-lg font-semibold mb-2">ODA Component Network Flow</h3>
           <div className="flex justify-center items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <div className="w-4 h-4 bg-destructive rounded"></div>
               <span>ODA Components</span>
             </div>
             <ArrowRight className="h-4 w-4" />
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+              <div className="w-4 h-4 bg-primary rounded"></div>
               <span>TMF APIs</span>
             </div>
             <ArrowRight className="h-4 w-4" />
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
+              <div className="w-4 h-4 bg-success rounded"></div>
               <span>BSS/OSS Applications</span>
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
                     className={cn(
                       "p-3 rounded border cursor-pointer transition-all duration-200",
                       selectedAPI === apiConn.api 
-                        ? "bg-blue-500/20 border-blue-500" 
+                        ? "bg-primary/20 border-primary/40" 
                         : "bg-card hover:bg-muted/50"
                     )}
                     onClick={() => setSelectedAPI(
@@ -246,7 +246,7 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-blue-500" />
+                      <Activity className="h-4 w-4 text-primary" />
                       <span className="font-medium text-sm">{apiConn.api}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
@@ -283,7 +283,7 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
                       className={cn(
                         "p-3 rounded border cursor-pointer transition-all duration-200",
                         selectedApplication === app 
-                          ? "bg-green-500/20 border-green-500" 
+                          ? "bg-success/20 border-success/40" 
                           : "bg-card hover:bg-muted/50"
                       )}
                       onClick={() => setSelectedApplication(
@@ -291,7 +291,7 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
                       )}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <Icon className="h-4 w-4 text-green-500" />
+                        <Icon className="h-4 w-4 text-success" />
                         <span className="font-medium text-sm">{app}</span>
                       </div>
                       
@@ -334,8 +334,8 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
           <ScrollArea className="h-full">
             {selectedAPI && (
               <div>
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-blue-500" />
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
                   {selectedAPI}
                 </h3>
                 {tmfAPIConnections.find(api => api.api === selectedAPI) && (
@@ -373,7 +373,7 @@ export default function ODANetworkDiagram({ categories, selectedComponent, onCom
             
             {selectedApplication && (
               <div>
-                <h3 className="font-bold text-lg mb-4">
+                <h3 className="font-semibold text-lg mb-4">
                   {selectedApplication}
                 </h3>
                 <div className="space-y-4">

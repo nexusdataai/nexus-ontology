@@ -1,23 +1,23 @@
 import { useMemo } from 'react';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { CHART_COLORS } from '@/components/ds/charts';
+import { PanelState } from '../_shared';
 
 const STATUS_COLORS: Record<string, string> = {
-  ok: '#22c55e', good: '#22c55e', up: '#22c55e', online: '#22c55e', healthy: '#22c55e', pass: '#22c55e',
-  warning: '#f59e0b', degraded: '#f59e0b', slow: '#f59e0b', partial: '#f59e0b',
-  error: '#ef4444', critical: '#ef4444', down: '#ef4444', fail: '#ef4444', offline: '#ef4444',
-  unknown: '#64748b', na: '#64748b', pending: '#64748b',
-  maintenance: '#8b5cf6', info: '#3b82f6',
+  ok: 'hsl(var(--success))', good: 'hsl(var(--success))', up: 'hsl(var(--success))', online: 'hsl(var(--success))', healthy: 'hsl(var(--success))', pass: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))', degraded: 'hsl(var(--warning))', slow: 'hsl(var(--warning))', partial: 'hsl(var(--warning))',
+  error: 'hsl(var(--destructive))', critical: 'hsl(var(--destructive))', down: 'hsl(var(--destructive))', fail: 'hsl(var(--destructive))', offline: 'hsl(var(--destructive))',
+  unknown: 'hsl(var(--muted-foreground))', na: 'hsl(var(--muted-foreground))', pending: 'hsl(var(--muted-foreground))',
+  maintenance: 'hsl(var(--chart-4))', info: 'hsl(var(--chart-1))',
 };
 
-const FALLBACK_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
+const FALLBACK_COLORS = CHART_COLORS;
 
 export function StatusHistoryPanel({ data, options, width, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length < 3) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No data (need entity, time, status fields)'}
-      </div>
+      <PanelState loading={loading} text="No data (need entity, time, status fields)" />
     );
   }
 
@@ -72,7 +72,7 @@ export function StatusHistoryPanel({ data, options, width, height, loading }: Pa
           {timePeriods.map((t, i) => (
             <div
               key={i}
-              className="text-[8px] text-muted-foreground text-center truncate"
+              className="text-xs text-muted-foreground text-center truncate"
               style={{ width: cellSize }}
             >
               {t.length > 5 ? t.slice(-5) : t}
@@ -82,7 +82,7 @@ export function StatusHistoryPanel({ data, options, width, height, loading }: Pa
         {entities.map((entity) => (
           <div key={entity} className="flex items-center gap-1">
             <span
-              className="text-[10px] text-muted-foreground truncate text-right flex-shrink-0"
+              className="text-xs text-muted-foreground truncate text-right flex-shrink-0"
               style={{ width: labelWidth }}
             >
               {entity}

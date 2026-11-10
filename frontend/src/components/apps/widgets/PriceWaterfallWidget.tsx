@@ -61,20 +61,20 @@ export function PriceWaterfallWidget({ widget, data, loading }: Props) {
                       <span className="text-xs font-mono text-muted-foreground">
                         {r.Line_ID}
                       </span>
-                      <Badge variant="outline" className="text-[9px]">{r.Offering_ID}</Badge>
+                      <Badge variant="outline" className="text-xs">{r.Offering_ID}</Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       {marginBreach ? (
-                        <Badge className="bg-red-500/10 text-red-600 text-[9px]">
+                        <Badge className="bg-destructive/10 text-destructive text-xs">
                           <TrendingDown className="h-3 w-3 mr-1" />Below floor
                         </Badge>
                       ) : (
-                        <Badge className="bg-green-500/10 text-green-600 text-[9px]">
+                        <Badge className="bg-success/10 text-success text-xs">
                           <TrendingUp className="h-3 w-3 mr-1" />Healthy
                         </Badge>
                       )}
                       {belowFloor && (
-                        <Badge className="bg-amber-500/10 text-amber-600 text-[9px]">
+                        <Badge className="bg-warning/10 text-warning text-xs">
                           Below price floor
                         </Badge>
                       )}
@@ -82,11 +82,11 @@ export function PriceWaterfallWidget({ widget, data, loading }: Props) {
                   </div>
                   <div className="h-3 bg-muted rounded-full overflow-hidden mb-2">
                     <div
-                      className={`h-full ${marginBreach ? 'bg-red-500' : 'bg-emerald-500'}`}
+                      className={`h-full ${marginBreach ? 'bg-destructive' : 'bg-success'}`}
                       style={{ width: `${widthPct}%` }}
                     />
                   </div>
-                  <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 text-[11px]">
+                  <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
                     <Step label="Qty" value={String(r.Qty ?? 0)} />
                     <Step label="List" value={`$${list.toFixed(2)}`} />
                     <Step label="Tier Max" value={`${(r.Tier_Max_Discount_Pct ?? 0).toFixed(1)}%`} />
@@ -107,8 +107,8 @@ export function PriceWaterfallWidget({ widget, data, loading }: Props) {
 function Step({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</span>
-      <span className={`font-mono font-medium ${highlight ? 'text-red-600' : ''}`}>{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`font-mono font-medium ${highlight ? 'text-destructive' : ''}`}>{value}</span>
     </div>
   );
 }

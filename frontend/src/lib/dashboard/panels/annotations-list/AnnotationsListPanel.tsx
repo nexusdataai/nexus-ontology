@@ -3,13 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Tag } from 'lucide-react';
 import type { PanelProps } from '../types';
 import { dataFrameToRows } from '../../types';
+import { PanelState } from '../_shared';
 
 export function AnnotationsListPanel({ data, options, height, loading }: PanelProps) {
   if (loading || data.length === 0 || data[0].fields.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {loading ? 'Loading...' : 'No annotations'}
-      </div>
+      <PanelState loading={loading} text="No annotations" />
     );
   }
 
@@ -60,9 +59,9 @@ export function AnnotationsListPanel({ data, options, height, loading }: PanelPr
                 <CalendarDays className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] text-muted-foreground font-mono">{item.time}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{item.time}</span>
                     {showUser && item.user && (
-                      <span className="text-[9px] text-muted-foreground">by {item.user}</span>
+                      <span className="text-xs text-muted-foreground">by {item.user}</span>
                     )}
                   </div>
                   <p className="text-xs">{item.text}</p>
@@ -70,7 +69,7 @@ export function AnnotationsListPanel({ data, options, height, loading }: PanelPr
                     <div className="flex items-center gap-1 mt-1 flex-wrap">
                       <Tag className="h-2.5 w-2.5 text-muted-foreground" />
                       {item.tags.map((tag, ti) => (
-                        <Badge key={ti} variant="outline" className="text-[8px] px-1 py-0">
+                        <Badge key={ti} variant="outline" className="text-xs px-1 py-0">
                           {tag}
                         </Badge>
                       ))}

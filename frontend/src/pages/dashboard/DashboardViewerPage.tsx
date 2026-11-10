@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Pencil, ArrowLeft, RefreshCw, Loader2, Download } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { Icon } from '@/components/ds/Icon';
+import { InlineError } from '@/components/ds/kit';
+import { EditorHeader } from '@/components/analytics/EditorHeader';
 import type { DashboardModel } from '@/lib/dashboard/model';
 import type { TimeRange } from '@/lib/dashboard/types';
 import { DashboardGrid } from '@/lib/dashboard/components/DashboardGrid';
@@ -12,6 +14,8 @@ import { TimeRangePicker } from '@/lib/dashboard/components/TimeRangePicker';
 import { RefreshPicker } from '@/lib/dashboard/components/RefreshPicker';
 import { VariableControls } from '@/lib/dashboard/components/VariableControls';
 import { dashboardService } from '@/services/dashboardService';
+
+const LIBRARY = '/ai-analytics?tab=dashboards';
 
 export default function DashboardViewerPage() {
   const { uid } = useParams<{ uid: string }>();
@@ -23,7 +27,7 @@ export default function DashboardViewerPage() {
   const [refreshInterval, setRefreshInterval] = useState('');
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!uid) return;
     setLoading(true);
     dashboardService
@@ -35,6 +39,10 @@ export default function DashboardViewerPage() {
       .catch(() => toast.error('Failed to load dashboard'))
       .finally(() => setLoading(false));
   }, [uid]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleExport = () => {
     if (!dashboard) return;
@@ -48,64 +56,71 @@ export default function DashboardViewerPage() {
     toast.success('Dashboard exported');
   };
 
-  if (loading) {
+  if (loading || !dashboard) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="flex flex-col">
+          <EditorHeader
+            backLabel="AI Analytics"
+            onBack={() => navigate(LIBRARY)}
+            title={loading ? <Skeleton className="h-7 w-56" /> : <h1 className="text-lg font-medium tracking-tight text-foreground">Dashboard</h1>}
+          />
+          <div className="p-4 sm:p-6">
+            {loading ? (
+              <div className="grid gap-2 md:grid-cols-2" aria-busy="true" aria-label="Loading dashboard">
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-56 rounded-xl" />)}
+              </div>
+            ) : (
+              <InlineError onRetry={load}>
+                This dashboard could not be loaded. It may have been deleted, or the server did not answer.
+              </InlineError>
+            )}
+          </div>
         </div>
       </Layout>
     );
   }
 
-  if (!dashboard) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center h-64">
-          <p className="text-sm text-muted-foreground mb-3">Dashboard not found</p>
-          <Button variant="outline" size="sm" onClick={() => navigate('/dashboards')}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to dashboards
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
+  const panels = dashboard.panels ?? [];
+  const variables = dashboard.variables ?? [];
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between gap-3 p-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate('/dashboards')}>
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </Button>
-            <h1 className="text-sm font-medium truncate">{dashboard.title}</h1>
-            {dashboard.version > 0 && (
-              <Badge variant="outline" className="text-[9px]">v{dashboard.version}</Badge>
-            )}
-          </div>
+      <div className="flex flex-col">
+        <EditorHeader
+          backLabel="AI Analytics"
+          onBack={() => navigate(LIBRARY)}
+          title={<h1 className="min-w-0 truncate text-lg font-medium tracking-tight text-foreground">{dashboard.title}</h1>}
+          meta={
+            <span className="num shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              {panels.length} {panels.length === 1 ? 'panel' : 'panels'}
+              {dashboard.version > 0 && ` · version ${dashboard.version}`}
+            </span>
+          }
+          actions={
+            <>
+              <TimeRangePicker value={timeRange} onChange={setTimeRange} />
+              <RefreshPicker value={refreshInterval} onChange={setRefreshInterval} />
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Icon name="download" className="h-3.5 w-3.5" /> Export
+              </Button>
+              <Button size="sm" onClick={() => navigate(`/dashboard/builder/${uid}`)}>
+                <Icon name="edit" className="h-3.5 w-3.5" /> Edit dashboard
+              </Button>
+            </>
+          }
+        >
+          {dashboard.description && <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{dashboard.description}</p>}
+          {variables.length > 0 && (
+            <div className="mt-3">
+              <VariableControls variables={variables} values={variableValues} onChange={setVariableValues} />
+            </div>
+          )}
+        </EditorHeader>
 
-          <div className="flex items-center gap-2">
-            <TimeRangePicker value={timeRange} onChange={setTimeRange} />
-            <RefreshPicker value={refreshInterval} onChange={setRefreshInterval} />
-            <Button variant="outline" size="sm" className="h-8" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5 mr-1" /> Export
-            </Button>
-            <Button variant="outline" size="sm" className="h-8" onClick={() => navigate(`/dashboard/builder/${uid}`)}>
-              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-            </Button>
-          </div>
-        </div>
-
-        {(dashboard.variables ?? []).length > 0 && (
-          <div className="px-4 pt-2 border-b">
-            <VariableControls variables={dashboard.variables ?? []} values={variableValues} onChange={setVariableValues} />
-          </div>
-        )}
-
-        <div className="flex-1 overflow-auto p-4">
+        <div className="p-3 sm:p-4">
           <DashboardGrid
-            panels={dashboard.panels ?? []}
+            panels={panels}
             timeRange={timeRange}
             isEditing={false}
             onLayoutChange={() => {}}

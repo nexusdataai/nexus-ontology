@@ -47,10 +47,10 @@ interface Message {
 }
 
 const INTENT_COLORS: Record<string, string> = {
-  read_only: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  low_risk_write: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  high_risk_write: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  cross_system: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  read_only: 'bg-success/10 text-success dark:bg-success/15 dark:text-success',
+  low_risk_write: 'bg-warning/10 text-warning dark:bg-warning/15 dark:text-warning',
+  high_risk_write: 'bg-destructive/10 text-destructive dark:bg-destructive/15 dark:text-destructive',
+  cross_system: 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary',
 };
 
 const EXAMPLE_QUESTIONS = [
@@ -69,7 +69,7 @@ function StepCard({ s }: { s: AgentStep }) {
     <div className="rounded-lg border bg-card/40">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary text-[11px] font-semibold shrink-0">
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold shrink-0">
             {s.step}
           </span>
           {s.blocked ? (
@@ -77,23 +77,23 @@ function StepCard({ s }: { s: AgentStep }) {
               <Shield className="h-3.5 w-3.5" /> Blocked
             </span>
           ) : isFinalAnswer ? (
-            <span className="flex items-center gap-1 text-green-500 font-medium text-sm">
+            <span className="flex items-center gap-1 text-success font-medium text-sm">
               <CheckCircle2 className="h-3.5 w-3.5" /> Final answer
             </span>
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
-              <Database className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+              <Database className="h-3.5 w-3.5 text-primary shrink-0" />
               <span className="font-mono text-sm font-medium truncate" title={s.tool}>{s.tool}</span>
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {isToolCall && <Badge variant="outline" className="text-[10px]">tool call</Badge>}
+          {isToolCall && <Badge variant="outline" className="text-xs">tool call</Badge>}
           {isFinalAnswer && (
-            <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-400">answer</Badge>
+            <Badge variant="outline" className="text-xs border-success/40 text-success">answer</Badge>
           )}
           {s.duration_ms != null && (
-            <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
               <Clock className="h-3 w-3" />{Math.round(s.duration_ms)} ms
             </span>
           )}
@@ -108,26 +108,26 @@ function StepCard({ s }: { s: AgentStep }) {
         )}
         {isToolCall && argsString && (
           <div>
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <FileCode className="h-3 w-3" /> Arguments
             </div>
-            <pre className="text-[11px] bg-muted/40 rounded p-2 overflow-auto max-h-40 font-mono leading-relaxed">
+            <pre className="text-xs bg-muted/40 rounded p-2 overflow-auto max-h-40 font-mono leading-relaxed">
               {argsString}
             </pre>
           </div>
         )}
         {s.result_preview && (
           <div>
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <MessageSquareText className="h-3 w-3" /> Result preview
             </div>
-            <pre className="text-[11px] bg-muted/40 rounded p-2 overflow-auto max-h-48 whitespace-pre-wrap break-words font-mono leading-relaxed">
+            <pre className="text-xs bg-muted/40 rounded p-2 overflow-auto max-h-48 whitespace-pre-wrap break-words font-mono leading-relaxed">
               {s.result_preview}
             </pre>
           </div>
         )}
         {isFinalAnswer && !s.result_preview && (
-          <div className="text-[11px] text-muted-foreground italic">
+          <div className="text-xs text-muted-foreground italic">
             The agent produced the final answer and exited the ReAct loop.
           </div>
         )}
@@ -157,7 +157,7 @@ function StepDetails({ steps, intent, totalTokens, sessionId }: {
       >
         <ListTree className="h-3.5 w-3.5" />
         View reasoning steps
-        <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] font-normal">
+        <Badge variant="outline" className="ml-1 h-4 px-1 text-xs font-normal">
           {steps.length}
         </Badge>
       </Button>
@@ -193,7 +193,7 @@ function StepDetails({ steps, intent, totalTokens, sessionId }: {
               {sessionId && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span className="font-mono text-[10px] text-muted-foreground" title={sessionId}>
+                  <span className="font-mono text-xs text-muted-foreground" title={sessionId}>
                     session {sessionId.slice(0, 8)}
                   </span>
                 </>
@@ -277,11 +277,11 @@ export default function CopilotPage() {
     <Layout>
     <div className="flex flex-col h-[calc(100vh-64px)] max-w-5xl mx-auto p-4 gap-4">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+        <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-primary">
           <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold">AI Control Plane Copilot</h1>
+          <h1 className="text-xl font-semibold">AI Control Plane Copilot</h1>
           <p className="text-xs text-muted-foreground">
             Ask questions about your Salesforce data, schemas, and CRM operations
           </p>
@@ -292,8 +292,8 @@ export default function CopilotPage() {
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-6 py-12">
-              <div className="p-4 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900">
-                <Bot className="h-10 w-10 text-blue-600 dark:text-blue-400" />
+              <div className="p-4 rounded-full bg-gradient-to-br from-primary/10 to-primary/10 dark:from-primary/15 dark:to-primary/15">
+                <Bot className="h-10 w-10 text-primary dark:text-primary" />
               </div>
               <div className="text-center max-w-md">
                 <h2 className="text-lg font-semibold mb-2">Enterprise AI Agent</h2>
@@ -322,7 +322,7 @@ export default function CopilotPage() {
                   className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center shrink-0 mt-0.5">
                       <Bot className="h-4 w-4 text-white" />
                     </div>
                   )}
@@ -351,11 +351,11 @@ export default function CopilotPage() {
                             <Badge variant="outline" className={INTENT_COLORS[msg.agentData.intent] || ''}>
                               {msg.agentData.intent.replace(/_/g, ' ')}
                             </Badge>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               {msg.agentData.total_tokens.toLocaleString()} tokens
                             </span>
                             {msg.agentData.policy_violations.length > 0 && (
-                              <Badge variant="destructive" className="text-[10px]">
+                              <Badge variant="destructive" className="text-xs">
                                 {msg.agentData.policy_violations.length} violation(s)
                               </Badge>
                             )}
@@ -375,7 +375,7 @@ export default function CopilotPage() {
                     )}
                   </div>
                   {msg.role === 'user' && (
-                    <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-7 h-7 rounded-full bg-surface-3 dark:bg-surface-3 flex items-center justify-center shrink-0 mt-0.5">
                       <User className="h-4 w-4" />
                     </div>
                   )}

@@ -10,16 +10,16 @@ import { Plus, Eye, Trash2, Database, ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 const typeBadgeColor: Record<string, string> = {
-  FDW: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  CDC: 'bg-green-500/20 text-green-400 border-green-500/30',
-  ETL: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  FDW: 'bg-primary/20 text-primary border-primary/30',
+  CDC: 'bg-success/20 text-success border-success/30',
+  ETL: 'bg-warning/20 text-warning border-warning/30',
 };
 
 const statusColor: Record<string, string> = {
-  connected: 'bg-green-500',
-  disconnected: 'bg-gray-500',
-  error: 'bg-red-500',
-  pending: 'bg-yellow-500',
+  connected: 'bg-success',
+  disconnected: 'bg-border-strong',
+  error: 'bg-destructive',
+  pending: 'bg-warning',
 };
 
 export default function DataPlaneListPage() {
@@ -89,7 +89,7 @@ export default function DataPlaneListPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${statusColor[dp.status] || 'bg-gray-500'}`} />
+                    <span className={`h-2 w-2 rounded-full ${statusColor[dp.status] || 'bg-border-strong'}`} />
                     {dp.status}
                   </div>
                 </TableCell>
@@ -99,7 +99,7 @@ export default function DataPlaneListPage() {
                     <Eye className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteId(dp.id)}>
-                    <Trash2 className="h-4 w-4 text-red-400" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
               </TableRow>
