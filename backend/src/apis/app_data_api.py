@@ -87,6 +87,71 @@ async def get_dashboard(app_id: str):
     }
 
 
+# Entity prefix each solution's journey uses for its result entities
+# (O2C_Alert, C360_Alert, ...).
+APP_ENTITY_PREFIX = {
+    "order-to-cash": "O2C",
+    "customer-360": "C360",
+    "demand-forecasting": "DF",
+    "esg-sustainability": "ESG",
+    "inventory-optimization": "IO",
+    "procurement-analytics": "PA",
+    "production-quality": "PQ",
+    "supply-chain-risk": "SCR",
+}
+
+# Fields that identify what an alert is about, by solution.
+_ALERT_SUBJECT_FIELDS = ("entity_id", "account_id", "sku", "material_id", "po_id", "line_id", "vendor_id", "plant", "region")
+
+
+def _normalise_alert(a: Any) -> Any:
+    """Give every alert the fields the UI reads (entity_id, description),
+    keeping the solution's own fields as they are."""
+    if not isinstance(a, dict):
+        return a
+    out = dict(a)
+    if not out.get("entity_id"):
+        for k in _ALERT_SUBJECT_FIELDS[1:]:
+            if out.get(k):
+                out["entity_id"] = str(out[k])
+                break
+    if not out.get("description") and out.get("message"):
+        out["description"] = out["message"]
+    return out
+
+
+async def _alerts_from_vdl(app_id: str) -> List[Dict]:
+    """Read the alerts the latest journey run wrote to <PREFIX>_Alert.
+
+    The journeys store one row per run with the alert list as JSON in the
+    `alerts` column (or, for some, one row per alert)."""
+    prefix = APP_ENTITY_PREFIX.get(app_id)
+    if not prefix or not _virtual_query_service:
+        return []
+    try:
+        from src.models.mapping_rule_models import VirtualQueryRequest
+        resp = await _virtual_query_service.query_virtual_entity(
+            VirtualQueryRequest(virtual_entity=f"{prefix}_Alert", limit=1000)
+        )
+        rows = resp.rows or []
+    except Exception as e:
+        logger.debug(f"VDL alert read failed for {app_id}: {e}")
+        return []
+    if not rows:
+        return []
+    if any(isinstance(r, dict) and "alerts" in r for r in rows):
+        bundles = [r for r in rows if isinstance(r, dict) and "alerts" in r]
+        latest = max(bundles, key=lambda r: str(r.get("processed_at") or ""))
+        raw = latest.get("alerts")
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except ValueError:
+                raw = []
+        return raw if isinstance(raw, list) else []
+    return rows
+
+
 @router.get("/{app_id}/alerts")
 async def get_alerts(app_id: str):
     prefixes = APP_S3_PREFIXES.get(app_id, {})
@@ -99,7 +164,17 @@ async def get_alerts(app_id: str):
     elif isinstance(data, list):
         alerts = data
 
-    return {"app_id": app_id, "alerts": alerts, "total": len(alerts)}
+    source = "s3"
+    if not alerts:
+        # Most journeys write their alerts to the journey-reports bucket
+        # under their own run folder, not to the prefix above. They also
+        # write them to the <PREFIX>_Alert entity, which is what Process
+        # Analytics reads: use that.
+        alerts = await _alerts_from_vdl(app_id)
+        source = "vdl" if alerts else "empty"
+
+    alerts = [_normalise_alert(a) for a in alerts]
+    return {"app_id": app_id, "alerts": alerts, "total": len(alerts), "source": source}
 
 
 @router.get("/{app_id}/live/{entity}")
@@ -127,7 +202,15 @@ async def widget_query(app_id: str, req: WidgetQueryRequest):
 
         filters_list = None
         if req.filters:
-            filters_list = [VirtualFilter(field=k, operator="eq", value=v) for k, v in req.filters.items()]
+            filters_list = []
+            for k, v in req.filters.items():
+                # Widgets send either {"Field": value} or
+                # {"Field": {"operator": "lt", "value": 15}}.
+                if isinstance(v, dict) and "value" in v:
+                    op = str(v.get("operator") or "eq").lower()
+                    filters_list.append(VirtualFilter(field=k, operator=_FILTER_OPS.get(op, op), value=v["value"]))
+                else:
+                    filters_list.append(VirtualFilter(field=k, operator="eq", value=v))
 
         # An aggregate must see every row, not the first `limit` rows: the
         # limit applies to the aggregated result instead.
@@ -167,6 +250,10 @@ async def widget_query(app_id: str, req: WidgetQueryRequest):
     except Exception as e:
         logger.warning(f"Widget query failed for {req.entity}: {e}")
         return {"rows": [], "total": 0, "error": str(e)}
+
+
+# Spellings widgets use, mapped to the virtual query operators.
+_FILTER_OPS = {"=": "eq", "==": "eq", "!=": "neq", "ne": "neq", "<": "lt", "<=": "lte", ">": "gt", ">=": "gte"}
 
 
 def _sort_key(val):
