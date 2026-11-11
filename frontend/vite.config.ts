@@ -30,11 +30,13 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:8001',
           rewrite: (path) => path.replace(/^\/docs/, ''),
         },
-        '/test': {
+        // Old hosted report site. The pattern ends in a slash so it does not also
+        // catch /test-reports/, which is served from public/test-reports.
+        '^/test/': {
           target: 'https://d37vwg02pj6oqg.cloudfront.net',
           changeOrigin: true,
           secure: true,
-          rewrite: (path) => path.replace(/^\/test/, ''),
+          rewrite: (path) => path.replace(/^\/test\//, '/'),
         },
       },
     },

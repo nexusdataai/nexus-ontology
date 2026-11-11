@@ -41,7 +41,9 @@ export function TestReportsPanel() {
   const [latestRun, setLatestRun] = useState<WorkflowRun | null>(null);
   const [recentRuns, setRecentRuns] = useState<WorkflowRun[]>([]);
   const [results, setResults] = useState<Record<string, CategoryResult>>({});
-  const [dashboardUrl, setDashboardUrl] = useState('');
+  // The report site ships with the product (public/test-reports), so it opens
+  // from this installation and needs no outside hosting.
+  const dashboardUrl = `${import.meta.env.BASE_URL}test-reports/index.html`;
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -75,7 +77,6 @@ export function TestReportsPanel() {
     try {
       const data = await apiRequest<any>('/api/v1/tests/results', { requireAuth: false });
       setResults(data.categories || {});
-      setDashboardUrl(data.dashboard_url || '');
     } catch { /* silent */ }
   }, []);
 

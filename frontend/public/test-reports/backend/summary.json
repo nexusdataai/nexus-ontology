@@ -1,0 +1,25 @@
+{
+  "total": 1160,
+  "passed": 929,
+  "failed": 229,
+  "skipped": 0,
+  "error": 2,
+  "component": "Backend",
+  "slug": "backend",
+  "kinds": 1,
+  "duration": 501.423148393631,
+  "created": 1794386011.1391466,
+  "entries": [
+    {
+      "kind": "unit",
+      "href": "unit/20261111_083331/report.html",
+      "created": 1794386011.1391466,
+      "duration": 501.423148393631,
+      "total": 1160,
+      "passed": 929,
+      "failed": 229,
+      "skipped": 0,
+      "error": 2
+    }
+  ]
+}
