@@ -41,7 +41,7 @@ export function AppDashboard({ app }: Props) {
     <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">Process analytics</h1>
+          <h1 className="text-lg font-medium tracking-tight text-foreground">Process analytics</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">How {app.name.toLowerCase()} is performing against its targets, from the latest automation run.</p>
         </div>
         <StatusPill status="running" tone="success" live>Live data</StatusPill>

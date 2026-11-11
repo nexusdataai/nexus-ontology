@@ -109,8 +109,8 @@
   --sidebar-w: 232px;
   --sidebar-w-mini: 60px;
   --topbar-h: 52px;
-  --pagebar-h: 118px;                /* PageTabsBar: title + line tabs */
-  --subbar-h: 45px;                  /* PageTabsBar segment row */
+  --pagebar-h: 41px;                 /* PageTabsBar: compact title + line tabs on one row */
+  --subbar-h: 41px;                  /* PageTabsBar segment row */
   --tabbar-h: 60px;                  /* phone bottom tabs; 0 from md up */
 
   color-scheme: light;

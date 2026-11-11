@@ -1782,7 +1782,7 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               {hideHeader
                 ? <h2 className="text-md font-medium text-foreground">{activeStage.name}</h2>
-                : <h1 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">{journey?.name || 'Journey'}</h1>}
+                : <h1 className="text-lg font-medium tracking-tight text-foreground">{journey?.name || 'Journey'}</h1>}
               <StatusPill status={lastRunStatus || stageStatusForDisplay} variant="soft">{statusLabel}</StatusPill>
             </div>
             <p className="mt-1.5 text-sm text-muted-foreground">{metaParts.join(' · ')}</p>
@@ -1910,21 +1910,24 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
           </div>
         )}
 
-        <div className="px-3 py-5 sm:px-5 sm:py-6">
-          <StepPipeline
-            steps={pipelineSteps}
-            selectedId={selectedStep?.id}
-            onSelect={(_id, index) => setCurrentStepIndex(index)}
-            wide={isWide}
-            detail={!isWide ? stepDetail : undefined}
-          />
-        </div>
-
-        {isWide && stepDetail && (
-          <div key={selectedStep?.id} className="animate-fade-in border-t border-border bg-surface-2/30 px-4 py-5 sm:px-6">
-            {stepDetail}
+        {/* Steps run top to bottom; on wide screens the selected step opens beside the list. */}
+        <div className={isWide ? 'grid grid-cols-[minmax(260px,320px)_minmax(0,1fr)]' : ''}>
+          <div className={isWide ? 'border-r border-border px-2 py-3' : 'px-3 py-5 sm:px-5 sm:py-6'}>
+            <StepPipeline
+              steps={pipelineSteps}
+              selectedId={selectedStep?.id}
+              onSelect={(_id, index) => setCurrentStepIndex(index)}
+              wide={isWide}
+              detail={!isWide ? stepDetail : undefined}
+            />
           </div>
-        )}
+
+          {isWide && (
+            <div key={selectedStep?.id} className="animate-fade-in min-w-0 bg-surface-2/30 px-5 py-5 sm:px-6">
+              {stepDetail || <p className="text-sm text-muted-foreground">Select a step to see what it does and its output.</p>}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Results of the latest (or the selected) run, as a short report */}

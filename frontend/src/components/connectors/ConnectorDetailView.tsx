@@ -89,7 +89,7 @@ export function ConnectorDetailView({
         <SystemLogo system={connectorId} tile size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 className="text-2xl font-medium tracking-tight text-foreground">{connectorName}</h1>
+            <h1 className="text-lg font-medium tracking-tight text-foreground">{connectorName}</h1>
             <StatusPill status={status} variant="soft" />
           </div>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{description}</p>

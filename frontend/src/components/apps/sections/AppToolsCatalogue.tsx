@@ -119,7 +119,7 @@ export function AppToolsCatalogue({ app }: Props) {
           <Settings className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="text-lg font-semibold text-foreground">
             {app.shortName} Tools Catalogue
           </h1>
           <p className="text-sm text-muted-foreground">

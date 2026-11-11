@@ -29,7 +29,7 @@ const SemanticLayerPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold">Semantic Layer</h1>
+          <h1 className="text-lg font-semibold">Semantic Layer</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Unified view of your enterprise knowledge graph, vector embeddings, and entity relationships
           </p>

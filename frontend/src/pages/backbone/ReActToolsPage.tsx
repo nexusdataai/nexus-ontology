@@ -19,7 +19,7 @@ const ReActToolsPage: React.FC = () => {
     <Layout>
       <div className="p-6 bg-background text-foreground min-h-screen">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold">ReAct Tools</h1>
+          <h1 className="text-lg font-semibold">ReAct Tools</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Browse and test tools available to the ReAct planning agent
           </p>

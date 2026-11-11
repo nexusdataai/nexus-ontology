@@ -281,7 +281,7 @@ export default function CopilotPage() {
           <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">AI Control Plane Copilot</h1>
+          <h1 className="text-lg font-semibold">AI Control Plane Copilot</h1>
           <p className="text-xs text-muted-foreground">
             Ask questions about your Salesforce data, schemas, and CRM operations
           </p>

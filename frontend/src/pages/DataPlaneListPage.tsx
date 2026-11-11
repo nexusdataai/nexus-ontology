@@ -49,7 +49,7 @@ export default function DataPlaneListPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Database className="h-6 w-6" />
-          <h1 className="text-2xl font-semibold">Data Planes</h1>
+          <h1 className="text-lg font-semibold">Data Planes</h1>
         </div>
         <Button onClick={() => navigate('/data-plane/create')}>
           <Plus className="h-4 w-4 mr-2" /> Create Data Plane

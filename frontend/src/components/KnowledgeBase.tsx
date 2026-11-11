@@ -194,7 +194,7 @@ const KnowledgeBase: React.FC = () => {
             <Brain className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">KnowledgeBase</h1>
+            <h1 className="text-lg font-semibold text-foreground">KnowledgeBase</h1>
             <p className="text-muted-foreground">
               Upload documents, create vector indexes, and test AI-powered knowledge queries
             </p>

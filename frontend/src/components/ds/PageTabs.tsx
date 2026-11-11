@@ -20,6 +20,7 @@ import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Icon, type IconName } from '@/components/ds/Icon';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface TabItem {
   value: string;
@@ -65,16 +66,26 @@ export function PageTabsBar({ title, description, actions, sections, value, onCh
 
   return (
     <div className={cn('border-b border-border bg-background', className)}>
-      <div className="px-4 pt-5 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">{title}</h1>
-            {description && <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>}
-          </div>
-          {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      <div className="flex items-stretch gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Compact title: the breadcrumb already names the page, so the title
+            shares the tab row and the description sits behind an info hint. */}
+        <div className="flex shrink-0 items-center gap-1.5 border-r border-border pr-4">
+          <h1 className="whitespace-nowrap text-sm font-semibold tracking-tight text-foreground">{title}</h1>
+          {description && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label={`About ${title}`} className="flex h-6 w-6 items-center justify-center rounded-md text-subtle-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <Icon name="info" className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="start" className="max-w-sm text-sm">{description}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
 
-        <div role="tablist" aria-label={`${title} sections`} className="scrollbar-hide -mb-px mt-4 flex items-stretch gap-6 overflow-x-auto">
+        <div role="tablist" aria-label={`${title} sections`} className="scrollbar-hide -mb-px flex min-w-0 flex-1 items-stretch gap-6 overflow-x-auto">
           {sections.map(section => {
             const on = section === activeSection;
             return (
@@ -96,10 +107,11 @@ export function PageTabsBar({ title, description, actions, sections, value, onCh
             );
           })}
         </div>
+        {actions && <div className="flex shrink-0 items-center gap-2 py-1">{actions}</div>}
       </div>
 
       {activeSection && activeSection.items.length > 1 && (
-        <div className="border-t border-border bg-surface-2/40 px-4 py-2 sm:px-6 lg:px-8">
+        <div className="border-t border-border bg-surface-2/40 px-4 py-1.5 sm:px-6 lg:px-8">
           <div role="tablist" aria-label={`${activeSection.label} views`} className="scrollbar-hide flex items-center gap-1 overflow-x-auto">
             {activeSection.items.map(item => {
               const on = item.value === value;

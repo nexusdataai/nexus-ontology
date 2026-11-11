@@ -306,7 +306,7 @@ const SalesforceConnector: React.FC = () => {
             <Building className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-semibold text-foreground">Salesforce Connector</h1>
+            <h1 className="text-lg font-semibold text-foreground">Salesforce Connector</h1>
             <p className="text-muted-foreground">
               Connect to Salesforce CRM to sync customer data and call records
             </p>

@@ -1,14 +1,15 @@
 /**
  * The pipeline of a journey as one stepper.
  *
- * Wide screens: numbered nodes on one horizontal line; the selected step's
- * detail is rendered below by the parent. Narrow screens: a vertical
- * timeline (`StepRail`, the kit Timeline with room for block content) with
- * the selected step's detail opening inside its item.
+ * Wide screens: a vertical list of numbered steps (as in the original Journey
+ * Studio); the parent renders the selected step's detail beside it. Narrow
+ * screens: a vertical timeline (`StepRail`, the kit Timeline with room for
+ * block content) with the selected step's detail opening inside its item.
  *
  * One hue: done = primary, running = primary with a live dot and a flowing
  * connector, pending = neutral, failed = destructive.
  */
+import * as React from 'react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ds/Icon';
@@ -45,21 +46,6 @@ interface StepPipelineProps {
   wide: boolean;
   /** Detail of the selected step. Rendered inside the item on narrow screens only. */
   detail?: ReactNode;
-}
-
-function Connector({ from, to }: { from: StepStatus; to: StepStatus }) {
-  const reached = from === 'completed' && to !== 'pending';
-  const flowing = from === 'completed' && to === 'running';
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute top-[17px] h-0.5 overflow-visible"
-      style={{ left: 'calc(50% + 22px)', width: 'calc(100% - 44px)' }}
-    >
-      <line x1="0" y1="1" x2="100%" y2="1" strokeWidth="1.5" stroke={reached ? 'hsl(var(--primary))' : 'hsl(var(--border-strong))'} strokeOpacity={flowing ? 0.35 : 1} />
-      {flowing && <line x1="0" y1="1" x2="100%" y2="1" strokeWidth="1.5" stroke="hsl(var(--brand-hi))" className="flow-line" />}
-    </svg>
-  );
 }
 
 function Node({ status, index, selected }: { status: StepStatus; index: number; selected: boolean }) {
@@ -164,40 +150,46 @@ export function StepPipeline({ steps, selectedId, onSelect, wide, detail }: Step
     );
   }
 
+  // Wide screens: the steps run top to bottom, as in the original Journey
+  // Studio. Every step is visible without scrolling sideways; the parent shows
+  // the selected step's detail beside the list.
   return (
-    <div className="scroll-thin overflow-x-auto pb-1">
-      <ol className="flex min-w-full" style={{ minWidth: steps.length * 104 }}>
-        {steps.map((s, i) => {
-          const selected = s.id === selectedId;
-          return (
-            <li key={s.id} className="rise relative min-w-0 flex-1" style={{ ['--i' as any]: i }}>
-              {i < steps.length - 1 && <Connector from={s.status} to={steps[i + 1].status} />}
-              <button
-                type="button"
-                onClick={() => onSelect(s.id, i)}
-                aria-current={selected ? 'step' : undefined}
-                aria-label={`Step ${i + 1}, ${s.name}, ${STATUS_WORD[s.status]}`}
-                className="group flex w-full flex-col items-center px-1.5 pt-0.5 text-center focus-visible:outline-none"
-              >
-                <span className="rounded-full transition-transform duration-200 ease-brand group-hover:-translate-y-px group-focus-visible:ring-2 group-focus-visible:ring-ring">
-                  <Node status={s.status} index={i} selected={selected} />
-                </span>
-                <span
-                  className={cn(
-                    'mt-2.5 line-clamp-2 text-xs leading-4 transition-colors duration-150',
-                    selected ? 'font-medium text-foreground' : 'text-muted-foreground group-hover:text-foreground',
-                    s.status === 'failed' && !selected && 'text-destructive',
-                  )}
-                >
-                  {s.name}
-                </span>
-                <span className={cn('mt-2 h-0.5 w-8 rounded-full transition-colors duration-200', selected ? 'bg-primary' : 'bg-transparent')} aria-hidden="true" />
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+    <ol className="relative">
+      {steps.map((s, i) => {
+        const selected = s.id === selectedId;
+        const next = steps[i + 1];
+        const reached = !!next && s.status === 'completed' && next.status !== 'pending';
+        const flowing = !!next && s.status === 'completed' && next.status === 'running';
+        return (
+          <li key={s.id} className="rise relative" style={{ ['--i' as string]: i } as React.CSSProperties}>
+            {next && (
+              <span
+                aria-hidden="true"
+                className={cn('absolute left-[29px] top-[44px] h-[calc(100%-36px)] w-px', reached ? 'bg-primary/70' : 'bg-border-strong', flowing && 'animate-pulse bg-brand')}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onSelect(s.id, i)}
+              aria-current={selected ? 'step' : undefined}
+              aria-label={`Step ${i + 1}, ${s.name}, ${STATUS_WORD[s.status]}`}
+              className={cn(
+                'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selected ? 'bg-accent' : 'hover:bg-surface-2',
+              )}
+            >
+              <Node status={s.status} index={i} selected={selected} />
+              <span className="min-w-0 flex-1">
+                <span className={cn('block truncate text-sm', selected ? 'font-medium text-foreground' : 'text-foreground', s.status === 'failed' && 'text-destructive')}>{s.name}</span>
+                <span className={cn('block text-xs capitalize', s.status === 'running' ? 'text-primary dark:text-brand-hi' : s.status === 'failed' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_WORD[s.status]}</span>
+              </span>
+              {s.meta && <span className="shrink-0 text-xs text-muted-foreground">{s.meta}</span>}
+              <Icon name="chevron-right" className={cn('h-3.5 w-3.5 shrink-0 transition-opacity', selected ? 'text-foreground opacity-100' : 'text-subtle-foreground opacity-0 group-hover:opacity-100')} />
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

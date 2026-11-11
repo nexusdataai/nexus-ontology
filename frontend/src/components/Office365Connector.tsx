@@ -326,7 +326,7 @@ const Office365Connector: React.FC = () => {
             <Code2 className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-semibold text-foreground">Office 365 Connector</h1>
+            <h1 className="text-lg font-semibold text-foreground">Office 365 Connector</h1>
             <p className="text-muted-foreground">
               Integrate with Microsoft Office 365 and Teams for communication analytics
             </p>

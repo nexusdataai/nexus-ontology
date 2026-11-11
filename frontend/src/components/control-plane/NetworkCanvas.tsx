@@ -31,6 +31,8 @@ interface Props {
   onSelect: (id: string | null) => void;
   /** Lower-case search text: matching entities stay bright, the rest fade. */
   query: string;
+  /** A relationship type to show on its own (set while the legend is hovered). */
+  highlightType?: string | null;
 }
 
 /** Relationship colours, as in the original, from the theme palette. */
@@ -42,21 +44,21 @@ const EDGE_TYPE_COLOUR: Record<string, string> = {
   owned_by: 'hsl(var(--chart-3))',
   validates: 'hsl(var(--chart-2))',
 };
-const edgeColour = (type: string) => EDGE_TYPE_COLOUR[type] || 'hsl(var(--muted-foreground))';
+export const edgeColour = (type: string) => EDGE_TYPE_COLOUR[type] || 'hsl(var(--muted-foreground))';
 const words = (s: string) => String(s || '').replace(/_/g, ' ');
 const radius = (degree: number) => Math.max(11, Math.min(26, 9 + degree * 2.5));
 const shortName = (id: string) => (id.length > 24 ? `${id.slice(0, 22)}…` : id);
 
 /** Screen space taken by the toolbar above and the domain bar below the canvas. */
-const TOP_INSET = 112, BOTTOM_INSET = 100;
+const TOP_INSET = 20, BOTTOM_INSET = 24;
 /** Room (in graph units) kept around the network when scrolling. */
-const PAD_X = 160, PAD_TOP = 240, PAD_BOTTOM = 220;
+const PAD_X = 140, PAD_TOP = 110, PAD_BOTTOM = 120;
 
 type SimNode = NetworkNode & d3.SimulationNodeDatum & { r: number };
 type SimLink = d3.SimulationLinkDatum<SimNode> & NetworkLink;
 
 export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCanvas(
-  { nodes, links, colourOf, groupLabel, selectedId, onSelect, query },
+  { nodes, links, colourOf, groupLabel, selectedId, onSelect, query, highlightType = null },
   ref,
 ) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -223,7 +225,7 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
   /* ------------------------------------------------------------ highlight */
 
-  const [legendType, setLegendType] = useState<string | null>(null);
+  const legendType = highlightType;
   const focusId = selectedId;
   const connected = useMemo(() => {
     const s = new Set<string>();
@@ -240,8 +242,6 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
   const touches = (l: NetworkLink, id: string | null) => !!id && (l.s === id || l.t === id);
 
   const pos = new Map(simNodesRef.current.map(n => [n.id, n]));
-  const hoverNode = hover ? nodes.find(n => n.id === hover) : null;
-  const usedTypes = [...new Set(links.map(l => l.type))].sort();
 
   return (
     <div className="net-canvas absolute inset-0">
@@ -358,6 +358,11 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
                     >
                       {shortName(words(n.id))}
                     </text>
+                    {isHover && (
+                      <text y={p.r + 33} textAnchor="middle" fontSize={11} fill="hsl(var(--muted-foreground))" paintOrder="stroke" stroke="hsl(var(--background))" strokeWidth={3} strokeLinejoin="round" pointerEvents="none">
+                        {n.domain}{n.fieldCount != null ? ` · ${n.fieldCount} fields` : ''} · {n.degree} links
+                      </text>
+                    )}
                   </g>
                 </g>
               );
@@ -368,47 +373,6 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
       <NetScrollbars svgRef={svgRef} zoomRef={zoomRef} view={view} bounds={worldBounds()} />
 
-      {/* hover card, as in the original */}
-      {hoverNode && (
-        <div key={hoverNode.id} className="net-card pointer-events-none absolute left-3 top-28 z-10 w-64 rounded-xl border border-border bg-popover px-3.5 py-2.5 text-sm shadow-lg sm:left-4" role="status">
-          <p className="flex items-center gap-2 font-medium text-foreground">
-            <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: colourOf(hoverNode.group) }} />
-            <span className="truncate">{words(hoverNode.id)}</span>
-          </p>
-          <p className="mt-1 text-muted-foreground">{hoverNode.domain}</p>
-          <p className="mt-0.5 text-muted-foreground">
-            {hoverNode.fieldCount != null && <><span className="num text-foreground">{hoverNode.fieldCount}</span> fields · </>}
-            <span className="num text-foreground">{hoverNode.degree}</span> links
-            {hoverNode.riskLevel && <> · {hoverNode.riskLevel} risk</>}
-          </p>
-        </div>
-      )}
-
-      {/* edge-type legend, as in the original; hover a type to see only those lines */}
-      <div className="absolute bottom-24 left-3 z-10 rounded-xl border border-border bg-popover/90 px-3.5 py-2.5 text-sm shadow-sm backdrop-blur sm:left-4" aria-label="Relationship types">
-        <p className="mb-1.5 font-medium text-foreground">Edge types</p>
-        <ul className="space-y-0.5">
-          {usedTypes.map(t => (
-            <li key={t}>
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-md px-1.5 py-0.5 text-left transition-colors duration-150',
-                  legendType === t ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
-                )}
-                onMouseEnter={() => setLegendType(t)}
-                onMouseLeave={() => setLegendType(null)}
-                onFocus={() => setLegendType(t)}
-                onBlur={() => setLegendType(null)}
-                aria-label={`Highlight ${words(t)} relationships`}
-              >
-                <span className={cn('h-[3px] rounded-full transition-all duration-200', legendType === t ? 'w-6' : 'w-4')} style={{ background: edgeColour(t) }} />
-                {words(t)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
     </div>
   );
 });
@@ -423,14 +387,12 @@ const NET_CSS = `
 .net-canvas .net-halo { transition: opacity 220ms ease; }
 .net-canvas .net-pulse { transform-box: fill-box; transform-origin: center; animation: net-pulse 1.8s ease-out infinite; }
 .net-canvas .net-flow { animation: net-flow 900ms linear infinite; }
-.net-canvas .net-card { animation: net-card 180ms ease-out both; }
 @keyframes net-pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
 @keyframes net-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes net-pulse { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.7); } }
 @keyframes net-flow { from { stroke-dashoffset: 12; } to { stroke-dashoffset: 0; } }
-@keyframes net-card { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .net-canvas .net-pop, .net-canvas .net-lines, .net-canvas .net-pulse, .net-canvas .net-flow, .net-canvas .net-card { animation: none; }
+  .net-canvas .net-pop, .net-canvas .net-lines, .net-canvas .net-pulse, .net-canvas .net-flow { animation: none; }
   .net-canvas .net-ease, .net-canvas .net-dot, .net-canvas .net-halo { transition: none; }
 }
 `;
@@ -458,8 +420,8 @@ function NetScrollbars({ svgRef, zoomRef, view, bounds }: ScrollbarProps) {
   const width = (bounds.x1 - bounds.x0 + PAD_X * 2) * view.k;
   const height = (bounds.y1 - bounds.y0 + PAD_TOP + PAD_BOTTOM) * view.k;
 
-  const vTrack = Math.max(60, H - TOP_INSET - 200);
-  const hTrack = Math.max(60, W - 96);
+  const vTrack = Math.max(60, H - 28);
+  const hTrack = Math.max(60, W - 28);
   const showV = height > H + 2;
   const showH = width > W + 2;
   const vThumb = Math.max(32, vTrack * Math.min(1, H / height));
@@ -493,13 +455,13 @@ function NetScrollbars({ svgRef, zoomRef, view, bounds }: ScrollbarProps) {
   return (
     <>
       {showV && (
-        <div className="absolute right-1.5 z-10 w-1.5 rounded-full bg-muted/40" style={{ top: TOP_INSET, height: vTrack }} aria-hidden="true">
+        <div className="absolute right-1.5 z-10 w-1.5 rounded-full bg-muted/40" style={{ top: 8, height: vTrack }} aria-hidden="true">
           <div className={cn(thumb, 'left-0 w-1.5 cursor-ns-resize')} style={{ top: vPos * (vTrack - vThumb), height: vThumb }}
             onPointerDown={start('y')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
         </div>
       )}
       {showH && (
-        <div className="absolute left-3 z-10 h-1.5 rounded-full bg-muted/40" style={{ bottom: BOTTOM_INSET - 18, width: hTrack }} aria-hidden="true">
+        <div className="absolute left-2 z-10 h-1.5 rounded-full bg-muted/40" style={{ bottom: 6, width: hTrack }} aria-hidden="true">
           <div className={cn(thumb, 'top-0 h-1.5 cursor-ew-resize')} style={{ left: hPos * (hTrack - hThumb), width: hThumb }}
             onPointerDown={start('x')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
         </div>

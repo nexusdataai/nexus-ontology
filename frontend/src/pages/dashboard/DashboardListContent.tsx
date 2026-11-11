@@ -72,7 +72,7 @@ export function DashboardListContent({ hideHeading = false }: DashboardListConte
     <div className={hideHeading ? '' : 'page'}>
       {!hideHeading && (
         <div className="mb-6">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">Dashboards</h1>
+          <h1 className="text-lg font-medium tracking-tight text-foreground">Dashboards</h1>
           <p className="mt-1 text-sm text-muted-foreground">Dashboards built on the virtual data layer.</p>
         </div>
       )}

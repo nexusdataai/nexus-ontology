@@ -171,7 +171,7 @@ function AgentBuilderPlaceholder({ appName }: { appName: string }) {
   ];
   return (
     <div className="page max-w-3xl">
-      <h1 className="text-2xl font-medium tracking-tight text-foreground">Agent Builder</h1>
+      <h1 className="text-lg font-medium tracking-tight text-foreground">Agent Builder</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
         Build and configure AI agents for {appName}. This area is not available yet; it will cover:
       </p>

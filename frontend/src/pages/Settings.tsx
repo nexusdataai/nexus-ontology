@@ -370,7 +370,7 @@ const SettingsContent: React.FC = () => {
       <div className="page">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">Settings</h1>
+            <h1 className="text-lg font-medium tracking-tight text-foreground">Settings</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">Manage your account, your organisation and the platform configuration.</p>
           </div>
           {profile && <span className="text-sm text-muted-foreground">Signed in as <span className="text-foreground">{getRoleDisplayName}</span></span>}

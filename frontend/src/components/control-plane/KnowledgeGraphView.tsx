@@ -34,7 +34,8 @@ import { DetailSheet, InlineError, KeyValues, SearchInput, StatusPill } from '@/
 import { EmptyState } from '@/components/ds/primitives';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS } from '@/components/ds/charts';
-import { NetworkCanvas, type NetworkHandle } from './NetworkCanvas';
+import { NetworkCanvas, edgeColour, type NetworkHandle } from './NetworkCanvas';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /* ------------------------------------------------------------------ types */
 
@@ -74,6 +75,8 @@ type P = { x: number; y: number };
 type Pos = Record<string, P>;
 type LayoutMode = 'map' | 'network' | 'constellation' | 'lanes' | 'focus';
 type InspectorTab = 'relationships' | 'fields' | 'vdl' | 'data';
+/** Rows read for the Data tab of the details panel. */
+const PREVIEW_ROWS = 50;
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -302,7 +305,7 @@ export default function KnowledgeGraphView() {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<'domain' | 'system'>('domain');
 
-  const [rightTab, setRightTab] = useState<InspectorTab>('relationships');
+  const [rightTab, setRightTab] = useState<InspectorTab>('data');
   const [entityDetail, setEntityDetail] = useState<any | null>(null);
   const [entityMappingRules, setEntityMappingRules] = useState<MappingRule[]>([]);
   const [vdlLoading, setVdlLoading] = useState(false);
@@ -314,6 +317,8 @@ export default function KnowledgeGraphView() {
   modeRef.current = mode;
   const [focusId, setFocusId] = useState<string | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
+  const [legendType, setLegendType] = useState<string | null>(null);
+  const [wideDetails, setWideDetails] = useState(false);
   const [traceTo, setTraceTo] = useState<string | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [pos, setPos] = useState<Pos>({});
@@ -374,7 +379,7 @@ export default function KnowledgeGraphView() {
 
     setPreviewData(null);
     setPreviewLoading(true);
-    virtualQueryService.previewEntity(selectedNode.id, 10)
+    virtualQueryService.previewEntity(selectedNode.id, PREVIEW_ROWS)
       .then(setPreviewData)
       .catch(() => setPreviewData(null))
       .finally(() => setPreviewLoading(false));
@@ -393,7 +398,7 @@ export default function KnowledgeGraphView() {
     if (!selectedNode) return;
     setPreviewLoading(true);
     try {
-      const data = await virtualQueryService.previewEntity(selectedNode.id, 10);
+      const data = await virtualQueryService.previewEntity(selectedNode.id, PREVIEW_ROWS);
       setPreviewData(data);
     } catch { setPreviewData(null); }
     finally { setPreviewLoading(false); }
@@ -504,14 +509,14 @@ export default function KnowledgeGraphView() {
     const b = bboxOf(to, ids);
     const W = el.clientWidth, H = el.clientHeight;
     if (!W || !H) return;
-    const fitAll = Math.min(1.15, (W - 72) / b.w, (H - 200) / b.h);
-    const fitWidth = Math.min(1, (W - 72) / b.w);
+    const fitAll = Math.min(1.15, (W - 56) / b.w, (H - 56) / b.h);
+    const fitWidth = Math.min(1, (W - 56) / b.w);
     // The network is meant to be seen whole; the boxed layouts stay readable and scroll.
     const minK = modeRef.current === 'network' ? 0.5 : 0.62;
     const k = fitAll >= minK ? fitAll : Math.max(minK, fitWidth);
-    const tx = W / 2 - 16 - (b.x + b.w / 2) * k;
-    const tallerThanView = b.h * k > H - 200;
-    const ty = tallerThanView ? 96 - b.y * k : H / 2 + 12 - (b.y + b.h / 2) * k;
+    const tx = W / 2 - (b.x + b.w / 2) * k;
+    const tallerThanView = b.h * k > H - 56;
+    const ty = tallerThanView ? 28 - b.y * k : H / 2 - (b.y + b.h / 2) * k;
     const t = d3.zoomIdentity.translate(tx, ty).scale(k);
     const sel = d3.select(el);
     if (animate) sel.transition().duration(650).ease(d3.easeCubicOut).call(zoomRef.current.transform as any, t);
@@ -739,8 +744,92 @@ export default function KnowledgeGraphView() {
     />
   );
 
+  const usedTypes = [...new Set(links.map(l => l.type))].sort();
+  const hiddenGroups = systems.length - systemFilters.size;
+
   return (
-    <div className="flex h-full min-h-0 bg-background">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      {/* ----------------------------------------------------------- toolbar */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2 sm:px-4">
+        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Find an entity" className="w-44 sm:w-56" />
+        {q && <span className="num text-xs text-muted-foreground">{matchCount} found</span>}
+
+        <div className="flex items-center rounded-lg border border-border bg-background p-0.5" role="tablist" aria-label="Graph layout">
+          {([
+            { id: 'network', label: 'Network', icon: 'network' },
+            { id: 'map', label: 'Map', icon: 'apps' },
+            { id: 'lanes', label: 'Lanes', icon: 'layers' },
+            { id: 'focus', label: 'Lineage', icon: 'route' },
+            { id: 'constellation', label: 'Clusters', icon: 'target' },
+          ] as const).map(m => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              aria-selected={mode === m.id}
+              onClick={() => { if (m.id === 'focus' && selectedNode) setFocusId(selectedNode.id); setMode(m.id); }}
+              className={cn(
+                'flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                mode === m.id ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon name={m.icon} className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{m.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={cn('flex h-8 items-center gap-2 rounded-lg border bg-background px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', hiddenGroups > 0 ? 'border-brand/60 text-foreground' : 'border-border text-muted-foreground hover:text-foreground')}>
+              <Icon name="filter" className="h-3.5 w-3.5" />
+              {groupBy === 'domain' ? 'Domains' : 'Systems'}
+              <span className="num text-xs">{hiddenGroups > 0 ? `${systemFilters.size} of ${systems.length}` : systems.length}</span>
+              <Icon name="chevron-down" className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-[60vh] w-64 overflow-y-auto">
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSystemFilters(new Set(systems.map(x => x.sys))); }}>Show all</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {systems.map(({ sys, n }) => (
+              <DropdownMenuCheckboxItem key={sys} checked={systemFilters.has(sys)} onSelect={(e) => e.preventDefault()} onCheckedChange={() => toggleSystem(sys)}>
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: groupColour(sys) }} aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{groupLabel(sys)}</span>
+                <span className="num ml-2 text-xs text-muted-foreground">{n}</span>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <button
+          type="button"
+          onClick={() => setCrossOnly(v => !v)}
+          aria-pressed={crossOnly}
+          className={cn(
+            'flex h-8 items-center gap-2 rounded-lg border bg-background px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            crossOnly ? 'border-brand/60 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Icon name="shuffle" className={cn('h-3.5 w-3.5', crossOnly && 'text-primary dark:text-brand-hi')} />
+          <span className="hidden md:inline">{groupBy === 'domain' ? 'Cross-domain links' : 'Cross-system links'}</span>
+          <span className="num text-xs">{crossCount}</span>
+        </button>
+
+        <div className="ml-auto flex items-center rounded-lg border border-border bg-background p-0.5">
+          {([
+            { label: 'Zoom out', icon: 'minus', run: () => (mode === 'network' ? netRef.current?.zoomBy(0.74) : zoomBy(0.74)) },
+            { label: 'Zoom in', icon: 'plus', run: () => (mode === 'network' ? netRef.current?.zoomBy(1.35) : zoomBy(1.35)) },
+            { label: 'Fit to screen', icon: 'expand', run: () => (mode === 'network' ? netRef.current?.fit() : fit(posRef.current)) },
+          ] as const).map(b => (
+            <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label}
+              className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Icon name={b.icon} className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1">
       {/* ------------------------------------------------------------ canvas */}
       <div
         ref={wrapRef}
@@ -763,6 +852,7 @@ export default function KnowledgeGraphView() {
               selectedId={selectedNode?.id || null}
               onSelect={(id) => (id ? selectById(id) : selectNode(null))}
               query={q}
+              highlightType={legendType}
             />
           </div>
         )}
@@ -865,112 +955,9 @@ export default function KnowledgeGraphView() {
         </div>
 
         {/* toolbar */}
-        <div data-graph-ui className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start gap-2 sm:inset-x-4 sm:top-4">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur">
-            <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Find an entity" className="w-44 sm:w-56 [&_input]:h-8 [&_input]:border-0 [&_input]:bg-transparent [&_input]:shadow-none" />
-            {q && <span className="num pr-2 text-xs text-muted-foreground">{matchCount} found</span>}
-          </div>
-
-          <div className="pointer-events-auto flex items-center rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur" role="tablist" aria-label="Graph layout">
-            {([
-              { id: 'network', label: 'Network', icon: 'network' },
-              { id: 'map', label: 'Map', icon: 'apps' },
-              { id: 'lanes', label: 'Lanes', icon: 'layers' },
-              { id: 'focus', label: 'Lineage', icon: 'route' },
-              { id: 'constellation', label: 'Clusters', icon: 'target' },
-            ] as const).map(m => (
-              <button
-                key={m.id}
-                type="button"
-                role="tab"
-                aria-selected={mode === m.id}
-                onClick={() => { if (m.id === 'focus' && selectedNode) setFocusId(selectedNode.id); setMode(m.id); }}
-                className={cn(
-                  'flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  mode === m.id ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon name={m.icon} className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{m.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setCrossOnly(v => !v)}
-            aria-pressed={crossOnly}
-            className={cn(
-              'pointer-events-auto flex h-10 items-center gap-2 rounded-xl border bg-popover/95 px-3 text-sm shadow-md backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              crossOnly ? 'border-brand/60 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Icon name="shuffle" className={cn('h-3.5 w-3.5', crossOnly && 'text-primary dark:text-brand-hi')} />
-            <span className="hidden md:inline">{groupBy === 'domain' ? 'Cross-domain links' : 'Cross-system links'}</span>
-            <span className="num text-xs">{crossCount}</span>
-          </button>
-        </div>
-
-        {/* systems */}
-        <div data-graph-ui className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-3 sm:inset-x-4 sm:bottom-4">
-          <div className="pointer-events-auto flex max-w-full flex-col gap-2">
-            <div className="scroll-thin flex max-w-[calc(100vw-2rem)] items-center gap-1 overflow-x-auto rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur lg:max-w-[640px]">
-              {systems.map(({ sys, n }) => {
-                const on = systemFilters.has(sys);
-                return (
-                  <button
-                    key={sys}
-                    type="button"
-                    onClick={() => toggleSystem(sys)}
-                    aria-pressed={on}
-                    title={on ? `Hide ${groupLabel(sys)}` : `Show ${groupLabel(sys)}`}
-                    className={cn(
-                      'flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      on ? 'text-foreground hover:bg-accent' : 'text-subtle-foreground opacity-50 grayscale hover:opacity-80',
-                    )}
-                  >
-                    {mode === 'network' && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: groupColour(sys) }} aria-hidden="true" />}
-                    {groupBy === 'system' && mode !== 'network' && <SystemLogo system={sys} size="xs" />}
-                    <span className={cn('whitespace-nowrap', groupBy === 'system' && 'hidden sm:inline', !on && 'line-through')}>{groupLabel(sys)}</span>
-                    <span className="num text-xs text-muted-foreground">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="hidden px-1 text-xs text-muted-foreground md:block">
-              <span className="num text-foreground">{nodes.length}</span> entities, <span className="num text-foreground">{links.length}</span> relationships. {mode === 'network' ? 'Scroll to move, Ctrl + scroll to zoom' : 'Drag to move, scroll to zoom'}, select an entity to inspect it.
-            </p>
-          </div>
-
-          <div className="pointer-events-auto absolute bottom-[72px] right-0 flex shrink-0 flex-col items-end gap-2 md:bottom-[64px]">
-            <div className="flex flex-col rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur">
-              {([
-                { label: 'Zoom in', icon: 'plus', run: () => (mode === 'network' ? netRef.current?.zoomBy(1.35) : zoomBy(1.35)) },
-                { label: 'Zoom out', icon: 'minus', run: () => (mode === 'network' ? netRef.current?.zoomBy(0.74) : zoomBy(0.74)) },
-                { label: 'Fit to screen', icon: 'expand', run: () => (mode === 'network' ? netRef.current?.fit() : fit(posRef.current)) },
-              ] as const).map(b => (
-                <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Icon name={b.icon} className="h-3.5 w-3.5" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* minimap */}
-        <svg data-graph-ui className={cn('pointer-events-none absolute right-3 top-3 hidden h-[92px] w-[136px] rounded-xl border border-border bg-popover/95 shadow-md backdrop-blur sm:right-4 sm:top-4', mode !== 'network' && '2xl:block')} viewBox={`${world.x - 60} ${world.y - 60} ${world.w + 120} ${world.h + 120}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              {nodes.map(nd => pos[nd.id] && (
-                <rect key={nd.id} x={pos[nd.id].x - 26} y={pos[nd.id].y - 9} width={52} height={18} rx={9}
-                  fill={selectedNode?.id === nd.id ? 'hsl(var(--brand-hi))' : 'hsl(var(--muted-foreground))'} opacity={selectedNode?.id === nd.id ? 1 : 0.45} />
-              ))}
-              {size.w > 0 && (
-                <rect x={-view.x / view.k} y={-view.y / view.k} width={size.w / view.k} height={size.h / view.k} fill="hsl(var(--brand-hi) / 0.08)" stroke="hsl(var(--brand-hi))" strokeWidth={Math.max(2, 2 / view.k)} rx={8} vectorEffect="non-scaling-stroke" />
-              )}
-            </svg>
         {/* path result */}
         {selectedNode && traceTo && (
-          <div data-graph-ui className="pointer-events-auto absolute left-1/2 top-[68px] z-10 max-w-[min(92%,720px)] -translate-x-1/2 animate-fade-up rounded-xl border border-brand/40 bg-popover px-3.5 py-2 shadow-lg">
+          <div data-graph-ui className="pointer-events-auto absolute left-1/2 top-3 z-10 max-w-[min(92%,720px)] -translate-x-1/2 animate-fade-up rounded-xl border border-brand/40 bg-popover px-3.5 py-2 shadow-lg">
             {path ? (
               <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-foreground">
                 <span className="text-muted-foreground">{path.length - 1} {path.length === 2 ? 'step' : 'steps'}:</span>
@@ -991,14 +978,17 @@ export default function KnowledgeGraphView() {
 
       {/* --------------------------------------------------------- inspector */}
       {isDesktop && selectedNode && (
-        <aside key={selectedNode.id} className="flex w-[380px] shrink-0 animate-slide-in-right flex-col border-l border-border bg-card" aria-label="Entity details">
+        <aside key={selectedNode.id} className={cn('flex shrink-0 animate-slide-in-right flex-col border-l border-border bg-card transition-[width] duration-300', wideDetails ? 'w-[min(760px,58%)]' : 'w-[420px]')} aria-label="Entity details">
           <div className="flex items-start justify-between gap-3 px-5 pt-4">
             <InspectorTitle node={selectedNode} />
+            <button type="button" onClick={() => setWideDetails(v => !v)} aria-pressed={wideDetails} aria-label={wideDetails ? 'Make the details panel narrower' : 'Make the details panel wider'} title={wideDetails ? 'Narrower panel' : 'Wider panel'} className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Icon name={wideDetails ? 'chevrons-right' : 'chevrons-left'} className="h-4 w-4" />
+            </button>
             <button type="button" onClick={() => selectNode(null)} aria-label="Close details" title="Close (Esc)" className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Icon name="close" className="h-4 w-4" />
             </button>
           </div>
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 pb-24">{inspector}</div>
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 pb-8">{inspector}</div>
         </aside>
       )}
       {!isDesktop && (
@@ -1006,6 +996,35 @@ export default function KnowledgeGraphView() {
           {inspector}
         </DetailSheet>
       )}
+      </div>
+
+      {/* ------------------------------------------------------ legend strip */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-t border-border bg-card py-1.5 pl-3 pr-40 text-xs text-muted-foreground sm:pl-4">
+        {mode === 'network' && usedTypes.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1" aria-label="Relationship types">
+            <span className="mr-1 font-medium text-foreground">Edge types</span>
+            {usedTypes.map(t => (
+              <button
+                key={t}
+                type="button"
+                onMouseEnter={() => setLegendType(t)}
+                onMouseLeave={() => setLegendType(null)}
+                onFocus={() => setLegendType(t)}
+                onBlur={() => setLegendType(null)}
+                aria-label={`Highlight ${relLabel(t)} relationships`}
+                className={cn('flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors', legendType === t ? 'bg-accent text-foreground' : 'hover:text-foreground')}
+              >
+                <span className="h-[3px] w-4 rounded-full" style={{ background: edgeColour(t) }} />
+                {t.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="ml-auto">
+          <span className="num text-foreground">{nodes.length}</span> entities, <span className="num text-foreground">{links.length}</span> relationships.
+          <span className="hidden md:inline"> {mode === 'network' ? 'Scroll to move, Ctrl + scroll to zoom' : 'Drag to move, scroll to zoom'}, select an entity to see its data.</span>
+        </span>
+      </div>
     </div>
   );
 }
@@ -1053,7 +1072,7 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
   const fields: any[] = detail?.fields || [];
   const activeRule = rules.find(r => r.status === 'active') || rules[0];
   const rows = preview?.rows || [];
-  const columns = rows.length ? Object.keys(rows[0]).slice(0, 6) : [];
+  const columns = rows.length ? Object.keys(rows[0]) : [];
   const others = allNodes.filter(n => n.id !== node.id).sort((a, b) => a.id.localeCompare(b.id));
 
   const relRow = (e: Link, dir: 'out' | 'in') => {
@@ -1091,10 +1110,19 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={onFocus}><Icon name="route" className="h-3.5 w-3.5" /> Show lineage</Button>
-        <Button size="sm" variant="outline" onClick={onOpenEntity}><Icon name="table" className="h-3.5 w-3.5" /> Open in virtual data</Button>
+        <Button size="sm" variant="outline" onClick={onOpenEntity}><Icon name="table" className="h-3.5 w-3.5" /> Open in Entities</Button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-border bg-surface-2/50 p-3">
+      <Tabs value={tab} onValueChange={(v) => onTab(v as InspectorTab)} className="mt-4">
+        <TabsList variant="line" className="w-full justify-start">
+          <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="relationships">Links</TabsTrigger>
+          <TabsTrigger value="fields">Fields</TabsTrigger>
+          <TabsTrigger value="vdl">Data layer</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="relationships" className="mt-4 space-y-5">
+          <div className="rounded-xl border border-border bg-surface-2/50 p-3">
         <label htmlFor="kg-trace" className="text-xs font-medium text-foreground">Trace a path to another entity</label>
         <Select value={traceTo || '__none'} onValueChange={(v) => onTrace(v === '__none' ? null : v)}>
           <SelectTrigger id="kg-trace" className="mt-1.5 h-9 bg-card"><SelectValue placeholder="Choose an entity" /></SelectTrigger>
@@ -1104,16 +1132,6 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
           </SelectContent>
         </Select>
       </div>
-
-      <Tabs value={tab} onValueChange={(v) => onTab(v as InspectorTab)} className="mt-5">
-        <TabsList variant="line" className="w-full justify-start">
-          <TabsTrigger value="relationships">Links</TabsTrigger>
-          <TabsTrigger value="fields">Fields</TabsTrigger>
-          <TabsTrigger value="vdl">Data layer</TabsTrigger>
-          <TabsTrigger value="data">Sample</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="relationships" className="mt-4 space-y-5">
           {edges.length === 0 && governance.length === 0 && <p className="text-sm text-muted-foreground">This entity has no recorded relationships yet.</p>}
           {outgoing.length > 0 && (
             <section>
@@ -1193,7 +1211,7 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
         <TabsContent value="data" className="mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {previewLoading ? 'Reading live rows' : rows.length ? `${rows.length} live rows${preview?.metadata?.durationMs ? ` in ${preview.metadata.durationMs} ms` : ''}` : 'No rows returned'}
+              {previewLoading ? 'Reading rows' : rows.length ? `${rows.length} rows, ${columns.length} columns${preview?.metadata?.durationMs ? `, read in ${preview.metadata.durationMs} ms` : ''}` : 'No rows returned'}
             </p>
             <Button size="sm" variant="ghost" onClick={onRefreshPreview} disabled={previewLoading}>
               <Icon name="refresh" className={cn('h-3.5 w-3.5', previewLoading && 'animate-spin')} /> Refresh
@@ -1202,17 +1220,17 @@ function Inspector({ node, detail, edges, allNodes, tab, onTab, rules, rulesLoad
           {previewLoading ? (
             <div className="space-y-2">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-7 w-full" />)}</div>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This entity is not mapped to a source yet, or the source returned nothing.</p>
+            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground"><p className="font-medium text-foreground">No data to show</p><p className="mt-1">This entity is not mapped to a source yet, or its source returned no rows. Check its mapping in the Data layer tab.</p></div>
           ) : (
-            <div className="scroll-thin overflow-x-auto rounded-lg border border-border">
-              <table className="w-full border-collapse text-xs">
+            <div className="scroll-thin max-h-[52vh] overflow-auto rounded-lg border border-border">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr>{columns.map(c => <th key={c} scope="col" className="whitespace-nowrap border-b border-border bg-surface-2 px-2.5 py-1.5 text-left font-medium text-muted-foreground">{c}</th>)}</tr>
+                  <tr>{columns.map(c => <th key={c} scope="col" className="sticky top-0 whitespace-nowrap border-b border-border bg-surface-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground">{c}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {rows.slice(0, 8).map((r, i) => (
-                    <tr key={i} className="border-b border-border last:border-b-0">
-                      {columns.map(c => <td key={c} className="max-w-[140px] truncate whitespace-nowrap px-2.5 py-1.5 font-mono text-foreground">{String(r[c] ?? '')}</td>)}
+                  {rows.map((r, i) => (
+                    <tr key={i} className="border-b border-border last:border-b-0 hover:bg-surface-2/60">
+                      {columns.map(c => <td key={c} title={String(r[c] ?? '')} className="max-w-[220px] truncate whitespace-nowrap px-3 py-1.5 font-mono text-foreground">{String(r[c] ?? '')}</td>)}
                     </tr>
                   ))}
                 </tbody>

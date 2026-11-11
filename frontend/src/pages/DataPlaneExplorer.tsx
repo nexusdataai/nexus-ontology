@@ -74,7 +74,7 @@ export default function DataPlaneExplorer() {
           <>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
               <SystemLogo system={logoSystem} tile size="sm" />
-              <h1 className="min-w-0 break-words text-xl font-medium tracking-tight text-foreground sm:text-2xl">{name}</h1>
+              <h1 className="min-w-0 break-words text-lg font-medium tracking-tight text-foreground">{name}</h1>
               <StatusPill
                 tone={isSimulator ? 'neutral' : 'success'}
                 variant="soft"

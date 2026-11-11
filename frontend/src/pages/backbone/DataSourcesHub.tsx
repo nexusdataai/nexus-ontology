@@ -24,7 +24,7 @@ const DataSourcesHub: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-semibold">Data Sources Hub</h1>
+              <h1 className="text-lg font-semibold">Data Sources Hub</h1>
               <Badge variant="secondary" className="border-border">0 / 6 sources connected</Badge>
             </div>
             <p className="text-sm text-muted-foreground">

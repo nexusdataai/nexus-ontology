@@ -232,7 +232,7 @@ export default function HomePage() {
         {/* Heading */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">Platform overview</h1>
+            <h1 className="text-lg font-medium tracking-tight text-foreground">Platform overview</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               How your enterprise data becomes governed AI action, layer by layer.
             </p>

@@ -190,7 +190,7 @@ export default function ChatbotEditor({ onNavigate }: ChatbotEditorProps) {
         <div className="flex items-center gap-3">
           <MessageCircle className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Chatbot Editor</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Chatbot Editor</h1>
             <p className="text-muted-foreground">Test your AI assistant with MCP tool integration</p>
           </div>
         </div>

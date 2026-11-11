@@ -62,7 +62,7 @@ export function ViewListContent({ hideHeading = false }: ViewListContentProps) {
     <div className={hideHeading ? '' : 'page'}>
       {!hideHeading && (
         <div className="mb-6">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">Views</h1>
+          <h1 className="text-lg font-medium tracking-tight text-foreground">Views</h1>
           <p className="mt-1 text-sm text-muted-foreground">Tabbed collections of dashboards that you can attach to a solution.</p>
         </div>
       )}

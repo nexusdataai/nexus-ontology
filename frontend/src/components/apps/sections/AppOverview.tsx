@@ -64,7 +64,7 @@ export function AppOverview({ app, onNavigate }: Props) {
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">{app.name}</h1>
+              <h1 className="text-lg font-medium tracking-tight text-foreground">{app.name}</h1>
               {available ? <StatusPill status="active" live tone="success">Running</StatusPill> : <StatusPill tone="neutral">Coming soon</StatusPill>}
             </div>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{app.description}</p>

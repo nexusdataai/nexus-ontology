@@ -270,7 +270,7 @@ const ToolsCatalogue: React.FC<ToolsCatalogueProps> = ({ onToolSelect }) => {
             <Settings className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">Totogi Tools Catalogue</h1>
+            <h1 className="text-lg font-semibold text-foreground">Totogi Tools Catalogue</h1>
             <p className="text-muted-foreground">
               Explore and interact with our comprehensive suite of call center analytics and transformation tools
             </p>

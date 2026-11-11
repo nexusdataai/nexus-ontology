@@ -56,7 +56,7 @@ export default function SimulatorPage() {
         <div className="grid items-start gap-x-12 gap-y-10 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <section className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">Enterprise Simulator</h1>
+              <h1 className="text-lg font-medium tracking-tight text-foreground">Enterprise Simulator</h1>
               {state === 'checking' ? <StatusPill status="running">Checking</StatusPill> : state === 'online' ? <StatusPill status="online" live tone="success">Running</StatusPill> : <StatusPill status="offline">Not running</StatusPill>}
             </div>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
