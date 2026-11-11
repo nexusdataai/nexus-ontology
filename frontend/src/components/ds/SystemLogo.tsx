@@ -57,9 +57,24 @@ export function resolveSystem(system?: string | null): { key: string; def: Def |
 }
 
 /** Display name for a system key, e.g. "sfdc" → "Salesforce". */
+/** Names for source systems that have no logo of their own. */
+const SYSTEM_NAMES: Record<string, string> = {
+  tpm: 'Trade promotion (TPM)',
+  sourcing: 'Sourcing',
+  o2c: 'Order-to-Cash results',
+  external: 'External sources',
+  external_sources: 'External sources',
+  external_simulator: 'External sources',
+  bss: 'BSS',
+  nss: 'NSS',
+  oss: 'OSS',
+};
+
 export function systemName(system?: string | null): string {
   const { def } = resolveSystem(system);
   if (def) return def.name;
+  const raw = String(system || '').trim().toLowerCase();
+  if (SYSTEM_NAMES[raw]) return SYSTEM_NAMES[raw];
   const s = String(system || '').replace(/[_-]+/g, ' ').trim();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Unknown';
 }

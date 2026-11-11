@@ -21,6 +21,8 @@ import { mappingRuleService, type MappingRule } from '@/services/mappingRuleServ
 import type { QueryRequest } from '@/types/fdwTypes';
 
 const FDW_SCHEMA = 'sfdc_itxp2dev';
+/** Rows read for the Data tab. */
+const ROW_LIMIT = 50;
 
 interface SchemaEntity {
   name: string;
@@ -70,7 +72,8 @@ const humanize = (s: string): string => {
 const mappingStatusOf = (e: SchemaEntity): string =>
   e.fdwMappingStatus || (e.isVirtual ? 'virtual' : 'unmapped');
 
-type RightTab = 'fields' | 'relationships' | 'vdl' | 'sample';
+// Data first: the entity's real rows are what people come here to see.
+type RightTab = 'data' | 'fields' | 'relationships' | 'source';
 type MappingFilter = 'all' | 'mapped' | 'virtual' | 'unmapped';
 
 export default function EntityExplorer() {
@@ -81,7 +84,11 @@ export default function EntityExplorer() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<{ rows: any[]; metadata: any } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [rightTab, setRightTab] = useState<RightTab>('fields');
+  const [rightTab, setRightTab] = useState<RightTab>('data');
+  // Domain filter for the list (one control instead of group / domain / mapping).
+  const [domainFilter, setDomainFilter] = useState<string>('all');
+  // Quick filter over the rows on screen.
+  const [rowFilter, setRowFilter] = useState('');
   const [entityMappingRules, setEntityMappingRules] = useState<MappingRule[]>([]);
   const [vdlLoading, setVdlLoading] = useState(false);
   const [vdlError, setVdlError] = useState<string | null>(null);
@@ -126,10 +133,12 @@ export default function EntityExplorer() {
     setPreviewLoading(true);
     setPreviewData(null);
     try {
-      const data = await virtualQueryService.previewEntity(entity.name, 10);
+      const data = await virtualQueryService.previewEntity(entity.name, ROW_LIMIT);
       if (previewGen.current !== gen) return;
       if (data.rows && data.rows.length > 0) {
         setPreviewData({ rows: data.rows, metadata: data.metadata });
+        // Without this the header kept saying "Loading rows" next to the rows.
+        setPreviewLoading(false);
         return;
       }
     } catch {
@@ -161,7 +170,7 @@ export default function EntityExplorer() {
         table: entity.name,
         schemaName: FDW_SCHEMA,
         columns: queryCols,
-        limit: 10,
+        limit: ROW_LIMIT,
       };
       const result = await fdwService.executeQuery(req);
       if (previewGen.current !== gen) return;
@@ -180,14 +189,14 @@ export default function EntityExplorer() {
       setPreviewData(null);
       setPreviewLoading(false);
       setEntityMappingRules([]);
-      setRightTab('fields');
       return;
     }
+    setRowFilter('');
     loadPreview(selectedEntity);
   }, [selectedEntity, loadPreview]);
 
   useEffect(() => {
-    if (!selectedEntity || rightTab !== 'vdl') return;
+    if (!selectedEntity) return;
     setVdlLoading(true);
     setVdlError(null);
     mappingRuleService
@@ -198,24 +207,24 @@ export default function EntityExplorer() {
         setVdlError(e instanceof Error && e.message ? e.message : 'Mapping rules could not be loaded.');
       })
       .finally(() => setVdlLoading(false));
-  }, [selectedEntity?.name, rightTab]);
+  }, [selectedEntity?.name]);
 
   const filteredEntities = useMemo(() => {
+    const q = searchFilter.trim().toLowerCase();
     return entities.filter(e => {
-      if (!selectedGroups.has(groupKeyOf(e, groupAxis))) return false;
-      if (mappingFilter !== 'all' && mappingStatusOf(e) !== mappingFilter) return false;
-      if (!searchFilter) return true;
-      return e.name.toLowerCase().includes(searchFilter.toLowerCase());
+      if (domainFilter !== 'all' && groupKeyOf(e, 'domain') !== domainFilter) return false;
+      if (!q) return true;
+      return e.name.toLowerCase().includes(q) || (e.semantic || '').toLowerCase().includes(q);
     });
-  }, [entities, searchFilter, selectedGroups, groupAxis, mappingFilter]);
+  }, [entities, searchFilter, domainFilter]);
 
   const grouped = useMemo(() => {
     return filteredEntities.reduce<Record<string, SchemaEntity[]>>((acc, e) => {
-      const k = groupKeyOf(e, groupAxis);
+      const k = groupKeyOf(e, 'domain');
       (acc[k] ??= []).push(e);
       return acc;
     }, {});
-  }, [filteredEntities, groupAxis]);
+  }, [filteredEntities]);
 
   const sortedGroups = useMemo(
     () => Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)),
@@ -224,9 +233,9 @@ export default function EntityExplorer() {
 
   // Stable, sorted list of all groups on the current axis (the filter menu).
   const allGroups = useMemo(() => {
-    const s = new Set(entities.map(e => groupKeyOf(e, groupAxis)));
+    const s = new Set(entities.map(e => groupKeyOf(e, 'domain')));
     return [...s].sort();
-  }, [entities, groupAxis]);
+  }, [entities]);
 
   const toggleGroup = (key: string) => {
     setSelectedGroups(prev => {
@@ -259,52 +268,13 @@ export default function EntityExplorer() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 space-y-2.5 border-b border-border p-3">
         <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Search entities" className="sm:w-full" />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Group by</span>
-          <Tabs value={groupAxis} onValueChange={(v) => setGroupAxis(v as GroupAxis)}>
-            <TabsList className="h-8">
-              {(['domain', 'scor'] as GroupAxis[]).map(axis => (
-                <TabsTrigger key={axis} value={axis} className="px-2.5 text-xs">{GROUP_AXIS_LABEL[axis]}</TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="min-w-0 justify-between px-2.5 font-normal" disabled={allGroups.length === 0}>
-                <span className="truncate">
-                  {allGroupsOn ? `All ${GROUP_AXIS_PLURAL[groupAxis]}` : `${selectedGroupCount} of ${allGroups.length} ${GROUP_AXIS_PLURAL[groupAxis]}`}
-                </span>
-                <Icon name="chevron-down" className="h-3.5 w-3.5 text-subtle-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="scroll-thin max-h-80 w-60 overflow-y-auto">
-              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedGroups(new Set(allGroups)); }}>Show all</DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedGroups(new Set()); }}>Hide all</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {allGroups.map(key => (
-                <DropdownMenuCheckboxItem
-                  key={key}
-                  checked={selectedGroups.has(key)}
-                  onCheckedChange={() => toggleGroup(key)}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {key}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Select value={mappingFilter} onValueChange={(v) => setMappingFilter(v as MappingFilter)}>
-            <SelectTrigger className="h-8 px-2.5 text-xs" aria-label="Filter by mapping status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any mapping</SelectItem>
-              <SelectItem value="mapped">Mapped</SelectItem>
-              <SelectItem value="virtual">Virtual</SelectItem>
-              <SelectItem value="unmapped">Unmapped</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={domainFilter} onValueChange={setDomainFilter}>
+          <SelectTrigger className="h-9" aria-label="Business domain"><SelectValue /></SelectTrigger>
+          <SelectContent className="max-h-80">
+            <SelectItem value="all">All domains</SelectItem>
+            {allGroups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
@@ -348,10 +318,8 @@ export default function EntityExplorer() {
                           {entity.system && <SystemLogo system={entity.system} size="xs" className="mt-0.5" />}
                           <span className="min-w-0 flex-1">
                             <span className={cn('block truncate text-sm text-foreground', on && 'font-medium')}>{entity.name}</span>
-                            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span className="num">{entity.fields.length} fields</span>
-                              <span aria-hidden="true">·</span>
-                              <StatusPill status={mappingStatusOf(entity)} className="font-normal text-muted-foreground" />
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              <span className="num">{entity.fields.length}</span> fields
                             </span>
                           </span>
                         </button>
@@ -383,6 +351,10 @@ export default function EntityExplorer() {
       }, {})
     : {};
   const previewCols = previewData && previewData.rows.length > 0 ? Object.keys(previewData.rows[0]) : [];
+  const rowQuery = rowFilter.trim().toLowerCase();
+  const visibleRows = (previewData?.rows || [])
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => !rowQuery || Object.values(row).some(v => v != null && String(typeof v === 'object' ? JSON.stringify(v) : v).toLowerCase().includes(rowQuery)));
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -428,44 +400,44 @@ export default function EntityExplorer() {
               title={entities.length === 0 ? 'No virtual entities yet' : 'No entities match these filters'}
               description={entities.length === 0
                 ? 'Entities appear here once source systems are modelled in the virtual data layer.'
-                : 'Change the search, group or mapping filter to see entities again.'}
+                : 'Change the search or the domain to see entities again.'}
             />
           </div>
         ) : (
           <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
             <header className="shrink-0 px-4 pt-5 sm:px-6">
-              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h2 className="min-w-0 break-words text-xl font-medium tracking-tight text-foreground sm:text-2xl">{entity.name}</h2>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {entity.riskLevel && <StatusPill status={entity.riskLevel} variant="soft">{humanize(entity.riskLevel)} risk</StatusPill>}
-                  <StatusPill status={mappingStatusOf(entity)} variant="soft" />
-                </div>
+                <span className="text-sm text-muted-foreground">{entity.domain || 'No domain'}</span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                {entity.system && (
+              {entity.semantic && <p className="mt-1 line-clamp-2 max-w-3xl text-sm text-muted-foreground">{entity.semantic}</p>}
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                {activeRule ? (
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <SystemLogo system={activeRule.sourceSystem} size="sm" />
+                    <span>From <span className="text-foreground">{systemName(activeRule.sourceSystem)}</span></span>
+                    <span className="truncate font-mono text-xs text-subtle-foreground">{activeRule.sourceSchema}.{activeRule.sourceTable}</span>
+                  </span>
+                ) : vdlLoading ? (
+                  <Skeleton className="h-4 w-48" />
+                ) : (
+                  <span>{entity.isVirtual ? 'Virtual entity' : 'No active source table'}</span>
+                )}
+                <span aria-hidden="true">·</span>
+                <span><span className="num">{entity.fields.length}</span> fields</span>
+                {entity.riskLevel && (
                   <>
-                    <span className="inline-flex items-center gap-1.5 text-foreground">
-                      <SystemLogo system={entity.system} size="sm" />
-                      {systemName(entity.system)}
-                    </span>
                     <span aria-hidden="true">·</span>
+                    <StatusPill status={entity.riskLevel}>{humanize(entity.riskLevel)} risk</StatusPill>
                   </>
                 )}
-                <span>{entity.domain || 'No domain'}</span>
-                {entity.scorProcess && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>SCOR: {entity.scorProcess}</span>
-                  </>
-                )}
-              </div>
-              {entity.semantic && <p className="mt-2 line-clamp-2 max-w-3xl text-sm text-muted-foreground">{entity.semantic}</p>}
+              </p>
 
               <TabsList variant="line" className="mt-4">
+                <TabsTrigger value="data">Data</TabsTrigger>
                 <TabsTrigger value="fields">Fields <span className="num text-xs font-normal text-subtle-foreground">{entity.fields.length}</span></TabsTrigger>
                 <TabsTrigger value="relationships">Relationships <span className="num text-xs font-normal text-subtle-foreground">{entity.relationships.length}</span></TabsTrigger>
-                <TabsTrigger value="vdl">Data layer</TabsTrigger>
-                <TabsTrigger value="sample">Sample data</TabsTrigger>
+                <TabsTrigger value="source">Source</TabsTrigger>
               </TabsList>
             </header>
 
@@ -553,7 +525,7 @@ export default function EntityExplorer() {
               </TabsContent>
 
               {/* Data layer */}
-              <TabsContent value="vdl" className="mt-0">
+              <TabsContent value="source" className="mt-0">
                 {vdlLoading ? (
                   <div className="max-w-3xl space-y-2.5" aria-busy="true">
                     {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
@@ -581,7 +553,7 @@ export default function EntityExplorer() {
                       />
                       {entity.isVirtual && (
                         <p className="mt-3 text-sm text-muted-foreground">
-                          This is a virtual entity with no direct FDW table. Sample data is read through the virtual query path.
+                          This is a virtual entity with no direct FDW table. Its data is read through the virtual query path.
                         </p>
                       )}
                       {!activeRule && !vdlError && (
@@ -620,54 +592,76 @@ export default function EntityExplorer() {
                 )}
               </TabsContent>
 
-              {/* Sample data */}
-              <TabsContent value="sample" className="mt-0">
+              {/* Data: the entity's rows, read live from its source */}
+              <TabsContent value="data" className="mt-0">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    {previewLoading ? 'Loading rows…' : previewData && previewData.rows.length > 0 ? (
+                  <p className="text-sm text-muted-foreground" aria-live="polite">
+                    {previewLoading && !previewData ? 'Reading rows…' : previewData && previewData.rows.length > 0 ? (
                       <>
-                        <span className="num font-medium text-foreground">{previewData.metadata?.rowCount ?? previewData.rows.length}</span> rows
-                        {previewData.metadata?.durationMs != null && <> · <span className="num">{previewData.metadata.durationMs}</span> ms</>}
-                        {' '}· first 10 shown
+                        {visibleRows.length !== previewData.rows.length && <><span className="num font-medium text-foreground">{visibleRows.length}</span> of </>}
+                        <span className="num font-medium text-foreground">{previewData.rows.length}</span> rows
+                        {previewData.rows.length >= ROW_LIMIT && <> (first {ROW_LIMIT})</>}
+                        {previewData.metadata?.durationMs != null && <> · read in <span className="num">{previewData.metadata.durationMs}</span> ms</>}
                       </>
                     ) : 'No rows'}
                   </p>
-                  <Button variant="outline" size="sm" onClick={() => loadPreview(entity)} disabled={previewLoading}>
-                    <Icon name="refresh" className={previewLoading ? 'animate-spin' : undefined} /> Refresh
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {previewData && previewData.rows.length > 0 && (
+                      <SearchInput value={rowFilter} onChange={setRowFilter} placeholder="Find in these rows" className="w-52 sm:w-64" />
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => loadPreview(entity)} disabled={previewLoading}>
+                      <Icon name="refresh" className={previewLoading ? 'animate-spin' : undefined} /> Refresh
+                    </Button>
+                  </div>
                 </div>
                 {previewLoading && !previewData ? (
                   <div className="space-y-2" aria-busy="true">
-                    {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+                    {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
                   </div>
                 ) : previewData && previewData.rows.length > 0 ? (
-                  <TableShell>
-                    <Table>
-                      <TableHeader>
+                  <TableShell className="max-h-[calc(100vh-330px)] min-h-[320px] overflow-auto">
+                    {/* Plain table: the shared Table wraps itself in a scroll box, which stops the header from sticking. */}
+                    <table className="w-full caption-bottom text-sm">
+                      <TableHeader className="sticky top-0 z-10 bg-card">
                         <TableRow className="hover:bg-transparent">
-                          {previewCols.map(col => <TableHead key={col} className="font-mono">{col}</TableHead>)}
+                          <TableHead className="w-12 text-right text-subtle-foreground">#</TableHead>
+                          {previewCols.map(col => (
+                            <TableHead key={col} className={cn('whitespace-nowrap', typeof previewData.rows[0][col] === 'number' && 'text-right')}>
+                              {humanize(col)}
+                            </TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {previewData.rows.map((row, i) => (
-                          <TableRow key={i}>
-                            {Object.values(row).map((val, j) => (
-                              <TableCell key={j} className="max-w-[240px] truncate whitespace-nowrap py-2 font-mono text-xs text-foreground" title={val == null ? undefined : String(val)}>
-                                {val == null ? <span className="text-subtle-foreground">—</span> : String(val)}
-                              </TableCell>
-                            ))}
+                        {visibleRows.map(({ row, index }) => (
+                          <TableRow key={index}>
+                            <TableCell className="num py-3 text-right text-xs text-subtle-foreground">{index + 1}</TableCell>
+                            {previewCols.map(col => {
+                              const val = row[col];
+                              const text = val == null ? '' : typeof val === 'object' ? JSON.stringify(val) : String(val);
+                              return (
+                                <TableCell key={col} className={cn('max-w-[280px] truncate whitespace-nowrap py-3 text-sm text-foreground', typeof val === 'number' && 'num text-right')} title={text || undefined}>
+                                  {val == null || text === '' ? <span className="text-subtle-foreground">—</span> : text}
+                                </TableCell>
+                              );
+                            })}
                           </TableRow>
                         ))}
+                        {visibleRows.length === 0 && (
+                          <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={previewCols.length + 1} className="py-8 text-center text-sm text-muted-foreground">No row contains “{rowFilter}”.</TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
-                    </Table>
+                    </table>
                   </TableShell>
                 ) : (
                   <EmptyState
                     icon="table"
                     title={entity.isVirtual ? 'No rows returned for this virtual entity' : 'No rows returned'}
                     description={entity.isVirtual
-                      ? 'Check the mapping rules that feed this entity.'
-                      : 'The FDW query returned no rows, or its columns could not be resolved. Check the source connection, the mapping rule and that the FDW table exists.'}
+                      ? 'Check the mapping rules that feed this entity, in the Source tab.'
+                      : 'The source returned no rows, or its columns could not be resolved. The Source tab shows the mapping rule and table behind this entity.'}
                   />
                 )}
               </TabsContent>

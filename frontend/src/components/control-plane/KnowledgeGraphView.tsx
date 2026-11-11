@@ -70,14 +70,14 @@ interface GraphData {
 interface Link { id: string; s: string; t: string; type: string; description: string }
 type P = { x: number; y: number };
 type Pos = Record<string, P>;
-type LayoutMode = 'constellation' | 'lanes' | 'focus';
+type LayoutMode = 'map' | 'constellation' | 'lanes' | 'focus';
 type InspectorTab = 'relationships' | 'fields' | 'vdl' | 'data';
 
 /* ---------------------------------------------------------------- helpers */
 
 const NODE_H = 36;
 const pretty = (s: string) => String(s || '').replace(/_/g, ' ');
-const nodeW = (id: string) => Math.max(124, Math.min(240, 64 + pretty(id).length * 7.3));
+const nodeW = (id: string) => Math.max(132, Math.min(248, 86 + pretty(id).length * 7.4)); // room for icon, risk dot and link count
 const endId = (e: string | { id: string }) => (typeof e === 'string' ? e : e.id);
 
 const REL_LABEL: Record<string, string> = {
@@ -150,6 +150,34 @@ function layoutConstellation(nodes: GraphNode[], links: Link[], systems: string[
     .tick(320);
   const pos: Pos = {};
   for (const s of sim) pos[s.id] = { x: s.x, y: s.y };
+  return pos;
+}
+
+/**
+ * Map: each group (domain or system) is a tidy box listing its entities, most
+ * connected first. Boxes are laid out as masonry columns that fill the canvas
+ * width, so names stay readable at normal size instead of a scattered ring
+ * that has to be zoomed far out.
+ */
+const MAP_COL = 252, MAP_ROW = 46, MAP_PAD_X = 22, MAP_PAD_TOP = 56, MAP_PAD_BOTTOM = 20, MAP_GAP = 32;
+function layoutMap(nodes: GraphNode[], groups: string[], availW: number): Pos {
+  const pos: Pos = {};
+  const boxW = MAP_COL + MAP_PAD_X * 2;
+  const columns = Math.max(1, Math.floor((availW + MAP_GAP) / (boxW + MAP_GAP)));
+  const heights = new Array(columns).fill(0);
+  const boxes = groups
+    .map(g => ({ g, members: nodes.filter(nd => nd.group === g).sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id)) }))
+    .filter(b => b.members.length > 0)
+    .sort((a, b) => b.members.length - a.members.length);
+  for (const b of boxes) {
+    // Next box goes in the shortest column.
+    const c = heights.indexOf(Math.min(...heights));
+    const x = c * (boxW + MAP_GAP), y = heights[c];
+    b.members.forEach((nd, i) => {
+      pos[nd.id] = { x: x + MAP_PAD_X + MAP_COL / 2, y: y + MAP_PAD_TOP + i * MAP_ROW + NODE_H / 2 };
+    });
+    heights[c] = y + MAP_PAD_TOP + b.members.length * MAP_ROW + MAP_PAD_BOTTOM + MAP_GAP;
+  }
   return pos;
 }
 
@@ -278,7 +306,7 @@ export default function KnowledgeGraphView() {
   const [previewData, setPreviewData] = useState<VirtualQueryResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const [mode, setMode] = useState<LayoutMode>('constellation');
+  const [mode, setMode] = useState<LayoutMode>('map');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
   const [traceTo, setTraceTo] = useState<string | null>(null);
@@ -404,9 +432,10 @@ export default function KnowledgeGraphView() {
   const target: Pos = useMemo(() => {
     if (nodes.length === 0) return {};
     if (mode === 'lanes') return layoutLanes(nodes, visibleSystems);
+    if (mode === 'map') return layoutMap(nodes, visibleSystems, size.w ? Math.max(560, size.w - 96) : 1200);
     if (mode === 'focus' && centreId) return layoutFocus(nodes, lineage);
     return layoutConstellation(nodes, allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t)), visibleSystems, aspect);
-  }, [nodes, nodeIds, allLinks, visibleSystems, mode, centreId, aspect, lineage]);
+  }, [nodes, nodeIds, allLinks, visibleSystems, mode, centreId, aspect, lineage, mode === 'map' ? Math.round(size.w / 120) : 0]);
 
   /* -------------------------------------------------- tween to the layout */
 
@@ -465,9 +494,12 @@ export default function KnowledgeGraphView() {
     const b = bboxOf(to, ids);
     const W = el.clientWidth, H = el.clientHeight;
     if (!W || !H) return;
-    const k = Math.max(0.3, Math.min(1.15, (W - 72) / b.w, (H - 200) / b.h));
+    const fitAll = Math.min(1.15, (W - 72) / b.w, (H - 200) / b.h);
+    const fitWidth = Math.min(1, (W - 72) / b.w);
+    const k = fitAll >= 0.62 ? fitAll : Math.max(0.62, fitWidth);
     const tx = W / 2 - 16 - (b.x + b.w / 2) * k;
-    const ty = H / 2 + 12 - (b.y + b.h / 2) * k;
+    const tallerThanView = b.h * k > H - 200;
+    const ty = tallerThanView ? 96 - b.y * k : H / 2 + 12 - (b.y + b.h / 2) * k;
     const t = d3.zoomIdentity.translate(tx, ty).scale(k);
     const sel = d3.select(el);
     if (animate) sel.transition().duration(650).ease(d3.easeCubicOut).call(zoomRef.current.transform as any, t);
@@ -608,7 +640,7 @@ export default function KnowledgeGraphView() {
       const members = nodes.filter(nd => nd.group === sys && pos[nd.id]);
       if (members.length === 0) return null;
       const b = bboxOf(pos, members.map(m => m.id));
-      if (mode === 'lanes') {
+      if (mode === 'lanes' || mode === 'map') {
         const padX = 26, padTop = 54, padBottom = 22;
         return { sys, count: members.length, rect: { x: b.x - padX, y: b.y - padTop, w: b.w + padX * 2, h: b.h + padTop + padBottom }, label: { x: b.x + b.w / 2, y: b.y - 30 } };
       }
@@ -729,7 +761,7 @@ export default function KnowledgeGraphView() {
               if (!g) return null;
               const lit = linkLit(l);
               return (
-                <g key={l.id} opacity={anyFocus ? (lit ? 1 : 0.14) : q ? 0.3 : mode === 'focus' && !(lineage.has(l.s) && lineage.has(l.t)) ? 0.1 : 0.9} style={{ transition: 'opacity 200ms ease' }}>
+                <g key={l.id} opacity={anyFocus ? (lit ? 1 : 0.22) : q ? 0.3 : mode === 'focus' && !(lineage.has(l.s) && lineage.has(l.t)) ? 0.1 : 0.9} style={{ transition: 'opacity 200ms ease' }}>
                   <path d={g.d} fill="none" stroke={lit ? 'hsl(var(--brand-hi))' : 'hsl(var(--border-strong))'} strokeWidth={lit ? 1.6 : 1.1} markerEnd={`url(#${lit ? 'kg-arrow-lit' : 'kg-arrow'})`} />
                   {lit && <path d={g.d} fill="none" stroke="hsl(var(--background))" strokeWidth={1.6} className="flow-line" opacity={0.75} />}
                 </g>
@@ -792,7 +824,7 @@ export default function KnowledgeGraphView() {
                   unmapped ? 'border-dashed border-border-strong' : 'border-border-strong',
                   selected && 'border-brand bg-accent shadow-md ring-2 ring-brand/30',
                   isCentre && !selected && 'border-brand/70',
-                  state === 'dim' && 'opacity-25',
+                  state === 'dim' && 'opacity-45',
                 )}
                 style={{ left: p.x - w / 2, top: p.y - NODE_H / 2, width: w, height: NODE_H, zIndex: selected ? 3 : state === 'lit' ? 2 : 1 }}
               >
@@ -814,9 +846,10 @@ export default function KnowledgeGraphView() {
 
           <div className="pointer-events-auto flex items-center rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur" role="tablist" aria-label="Graph layout">
             {([
-              { id: 'constellation', label: 'Constellation', icon: 'network' },
+              { id: 'map', label: 'Map', icon: 'apps' },
               { id: 'lanes', label: 'Lanes', icon: 'layers' },
               { id: 'focus', label: 'Lineage', icon: 'route' },
+              { id: 'constellation', label: 'Clusters', icon: 'network' },
             ] as const).map(m => (
               <button
                 key={m.id}

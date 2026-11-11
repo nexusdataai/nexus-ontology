@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedNumber } from '@/components/ds/AnimatedNumber';
-import { Icon } from '@/components/ds/Icon';
+import { Icon, type IconName } from '@/components/ds/Icon';
 import { PlatformStack, type LayerId } from '@/components/home/PlatformStack';
 
 /* ----------------------------------------------------------------- helpers */
@@ -53,9 +53,10 @@ const STATUS_TONE: Record<string, string> = {
 /* ------------------------------------------------------------------ pieces */
 
 /** A number with its label, written as text. Becomes a link when onClick is set. */
-function Metric({ value, label, onClick }: { value: React.ReactNode; label: string; onClick?: () => void }) {
+function Metric({ value, label, onClick, icon }: { value: React.ReactNode; label: string; onClick?: () => void; icon?: IconName }) {
   const body = (
     <>
+      {icon && <Icon name={icon} className="h-3.5 w-3.5 shrink-0 self-center text-subtle-foreground" />}
       <span className="num text-md font-medium text-foreground">{value}</span>
       <span className="text-sm text-muted-foreground">{label}</span>
     </>
@@ -87,10 +88,12 @@ function TextLink({ children, onClick }: { children: React.ReactNode; onClick: (
 
 /** One row of the layer list, linked to a plane in the drawing. */
 function LayerRow({
-  id, index, title, description, active, onHover, onOpen, children,
+  id, index, icon, title, description, active, onHover, onOpen, children,
 }: {
   id: LayerId;
   index: string;
+  /** The same icon the sidebar uses for this area. */
+  icon: IconName;
   title: string;
   description: string;
   active: boolean;
@@ -111,10 +114,21 @@ function LayerRow({
     >
       <span className={cn('absolute inset-y-0 left-0 w-0.5 bg-primary transition-transform duration-300 ease-brand-out', active ? 'scale-y-100' : 'scale-y-0')} />
       <div className="flex items-start gap-4">
-        <span className="num w-5 shrink-0 pt-0.5 text-sm text-subtle-foreground">{index}</span>
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-300',
+            active ? 'border-brand/50 bg-brand/10 text-primary dark:text-brand-hi' : 'border-border bg-surface-2 text-foreground',
+          )}
+          aria-hidden="true"
+        >
+          <Icon name={icon} className="h-5 w-5" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-md font-medium text-foreground">{title}</h2>
+            <h2 className="flex items-baseline gap-2 text-md font-medium text-foreground">
+              {title}
+              {index && <span className="num text-xs font-normal text-subtle-foreground">Layer {Number(index)}</span>}
+            </h2>
             {onOpen && <TextLink onClick={onOpen}>Open</TextLink>}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
@@ -253,54 +267,54 @@ export default function HomePage() {
             {/* layers */}
             <div className="divide-y divide-border">
               <LayerRow
-                id="solutions" index="04" title="Solutions" active={active === 'solutions'} onHover={setActive}
+                id="solutions" index="04" icon="apps" title="Solutions" active={active === 'solutions'} onHover={setActive}
                 description="Packaged business applications and the automations behind them."
               >
-                <Metric value={n(appStats.available)} label="active solutions" onClick={() => go('/workspace/apps')} />
-                {appStats.comingSoon > 0 && <Metric value={n(appStats.comingSoon)} label="planned" onClick={() => go('/workspace/apps')} />}
-                <Metric value={n(journeyCount)} label="journeys" onClick={() => go('/workspace/automation')} />
+                <Metric value={n(appStats.available)} label="active solutions" icon="apps" onClick={() => go('/workspace/apps')} />
+                {appStats.comingSoon > 0 && <Metric value={n(appStats.comingSoon)} label="planned" icon="clock" onClick={() => go('/workspace/apps')} />}
+                <Metric value={n(journeyCount)} label="journeys" icon="workflow" onClick={() => go('/workspace/automation')} />
               </LayerRow>
 
               <LayerRow
-                id="reasoning" index="03" title="Reasoning Plane" active={active === 'reasoning'} onHover={setActive}
+                id="reasoning" index="03" icon="brain-ai" title="Reasoning Plane" active={active === 'reasoning'} onHover={setActive}
                 description="ReAct agent that plans, calls tools and checks policy before it acts."
                 onOpen={() => go('/ai-stack/reasoning')}
               >
-                <Metric value="AI Copilot" label="natural language" onClick={() => go('/ai-stack/reasoning', 'copilot')} />
-                <Metric value={<AnimatedNumber value={stats?.tools_count || 14} />} label="ReAct tools" onClick={() => go('/ai-stack/reasoning', 'tools')} />
-                <Metric value="Playground" label="RAG validation" onClick={() => go('/ai-stack/reasoning', 'playground')} />
+                <Metric value="AI Copilot" label="natural language" icon="chat-bot" onClick={() => go('/ai-stack/reasoning', 'copilot')} />
+                <Metric value={<AnimatedNumber value={stats?.tools_count || 14} />} label="ReAct tools" icon="wrench" onClick={() => go('/ai-stack/reasoning', 'tools')} />
+                <Metric value="Playground" label="RAG validation" icon="flask" onClick={() => go('/ai-stack/reasoning', 'playground')} />
               </LayerRow>
 
               <LayerRow
-                id="control" index="02" title="Control Plane" active={active === 'control'} onHover={setActive}
+                id="control" index="02" icon="layers" title="Control Plane" active={active === 'control'} onHover={setActive}
                 description="Enterprise ontology, knowledge graph and semantic index."
                 onOpen={() => go('/ai-stack/control-plane')}
               >
-                <Metric value={n(stats?.onto_schema)} label="schemas" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
-                <Metric value={n(stats?.onto_policy)} label="policies" onClick={() => go('/ai-stack/control-plane', 'policies')} />
-                <Metric value={n(stats?.onto_workflow)} label="workflows" onClick={() => go('/ai-stack/control-plane', 'workflows')} />
-                <Metric value={n(stats?.onto_integration)} label="integrations" onClick={() => go('/ai-stack/control-plane', 'integrations')} />
-                <Metric value={n(stats?.graph_nodes)} label="graph nodes" onClick={() => go('/ai-stack/control-plane', 'explorer')} />
-                <Metric value={n(stats?.total_embeddings)} label="embeddings" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
+                <Metric value={n(stats?.onto_schema)} label="schemas" icon="table" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
+                <Metric value={n(stats?.onto_policy)} label="policies" icon="shield-check" onClick={() => go('/ai-stack/control-plane', 'policies')} />
+                <Metric value={n(stats?.onto_workflow)} label="workflows" icon="workflow" onClick={() => go('/ai-stack/control-plane', 'workflows')} />
+                <Metric value={n(stats?.onto_integration)} label="integrations" icon="link" onClick={() => go('/ai-stack/control-plane', 'integrations')} />
+                <Metric value={n(stats?.graph_nodes)} label="graph nodes" icon="network" onClick={() => go('/ai-stack/control-plane', 'explorer')} />
+                <Metric value={n(stats?.total_embeddings)} label="embeddings" icon="cube" onClick={() => go('/ai-stack/control-plane', 'knowledge')} />
               </LayerRow>
 
               <LayerRow
-                id="data" index="01" title="Data Plane" active={active === 'data'} onHover={setActive}
+                id="data" index="01" icon="database" title="Data Plane" active={active === 'data'} onHover={setActive}
                 description="Virtual data layer over your systems: FDW connections, simulators and files."
                 onOpen={() => go('/ai-stack/data-plane')}
               >
-                <Metric value={n(sourceCount)} label="data sources" />
-                <Metric value={n(stats?.virtual_entities)} label="entities" />
-                <Metric value={n(stats?.mapped_entities)} label="mapped" />
-                <Metric value={n(stats?.mapping_rules_active)} label="mapping rules" />
+                <Metric value={n(sourceCount)} label="data sources" icon="plug" />
+                <Metric value={n(stats?.virtual_entities)} label="entities" icon="cube" />
+                <Metric value={n(stats?.mapped_entities)} label="mapped" icon="link" />
+                <Metric value={n(stats?.mapping_rules_active)} label="mapping rules" icon="route" />
               </LayerRow>
 
               <LayerRow
-                id="ops" index="" title="AI Ops" active={active === 'ops'} onHover={setActive}
+                id="ops" index="" icon="heartbeat" title="AI Ops" active={active === 'ops'} onHover={setActive}
                 description="Checks and monitoring that run alongside every layer."
               >
-                <TextLink onClick={() => go('/operations/diagnostics')}>Diagnostics</TextLink>
-                <TextLink onClick={() => go('/operations/health')}>Health</TextLink>
+                <TextLink onClick={() => go('/operations/diagnostics')}><Icon name="stethoscope" className="h-3.5 w-3.5 text-subtle-foreground" /> Diagnostics</TextLink>
+                <TextLink onClick={() => go('/operations/health')}><Icon name="heartbeat" className="h-3.5 w-3.5 text-subtle-foreground" /> Health</TextLink>
               </LayerRow>
             </div>
           </div>
