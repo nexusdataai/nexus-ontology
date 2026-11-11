@@ -33,6 +33,7 @@ import { SystemLogo, systemName, resolveSystem } from '@/components/ds/SystemLog
 import { DetailSheet, InlineError, KeyValues, SearchInput, StatusPill } from '@/components/ds/kit';
 import { EmptyState } from '@/components/ds/primitives';
 import { cn } from '@/lib/utils';
+import { CHART_COLORS } from '@/components/ds/charts';
 
 /* ------------------------------------------------------------------ types */
 
@@ -70,7 +71,7 @@ interface GraphData {
 interface Link { id: string; s: string; t: string; type: string; description: string }
 type P = { x: number; y: number };
 type Pos = Record<string, P>;
-type LayoutMode = 'map' | 'constellation' | 'lanes' | 'focus';
+type LayoutMode = 'map' | 'network' | 'constellation' | 'lanes' | 'focus';
 type InspectorTab = 'relationships' | 'fields' | 'vdl' | 'data';
 
 /* ---------------------------------------------------------------- helpers */
@@ -178,6 +179,34 @@ function layoutMap(nodes: GraphNode[], groups: string[], availW: number): Pos {
     });
     heights[c] = y + MAP_PAD_TOP + b.members.length * MAP_ROW + MAP_PAD_BOTTOM + MAP_GAP;
   }
+  return pos;
+}
+
+/**
+ * Network: the original Nexus graph, a free force-directed network of circles
+ * sized by how connected each entity is, in the product's colours.
+ */
+const netR = (degree: number) => Math.max(8, Math.min(20, 6 + degree * 2));
+function layoutNetwork(nodes: GraphNode[], links: Link[]): Pos {
+  const n = Math.max(nodes.length, 1);
+  // Start on a circle, so the settled network is round and evenly spread.
+  const sim = nodes.map((nd, i) => {
+    const a = (i / n) * Math.PI * 2;
+    return { id: nd.id, r: netR(nd.degree), x: Math.cos(a) * 320, y: Math.sin(a) * 320 };
+  });
+  const byId = new Map(sim.map(x => [x.id, x]));
+  const simLinks = links.filter(l => byId.has(l.s) && byId.has(l.t)).map(l => ({ source: l.s, target: l.t }));
+  d3.forceSimulation(sim as any)
+    .force('link', d3.forceLink<any, any>(simLinks).id((d: any) => d.id).distance(110))
+    .force('charge', d3.forceManyBody().strength(-220).distanceMax(420))
+    .force('center', d3.forceCenter(0, 0))
+    .force('x', d3.forceX(0).strength(0.1))
+    .force('y', d3.forceY(0).strength(0.12))
+    .force('collide', d3.forceCollide<any>(d => d.r + 30).iterations(2))
+    .stop()
+    .tick(320);
+  const pos: Pos = {};
+  for (const x of sim) pos[x.id] = { x: x.x, y: x.y };
   return pos;
 }
 
@@ -307,6 +336,8 @@ export default function KnowledgeGraphView() {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const [mode, setMode] = useState<LayoutMode>('map');
+  const modeRef = useRef<LayoutMode>('map');
+  modeRef.current = mode;
   const [focusId, setFocusId] = useState<string | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
   const [traceTo, setTraceTo] = useState<string | null>(null);
@@ -407,8 +438,13 @@ export default function KnowledgeGraphView() {
   }, [graphData]);
   const systemOfNode = useMemo(() => new Map((graphData?.nodes || []).map(nd => [nd.id, nd.group])), [graphData]);
   const groupLabel = useCallback((g: string) => (groupBy === 'domain' ? g : systemName(g)), [groupBy]);
+  const groupColour = useCallback((g: string) => {
+    const i = systems.findIndex(x => x.sys === g);
+    return CHART_COLORS[(i < 0 ? 0 : i) % CHART_COLORS.length];
+  }, [systems]);
 
   const nodes = useMemo(() => (graphData?.nodes || []).filter(nd => systemFilters.has(nd.group)), [graphData, systemFilters]);
+  const degreeOf = useMemo(() => new Map((graphData?.nodes || []).map(nd => [nd.id, nd.degree])), [graphData]);
   const nodeIds = useMemo(() => new Set(nodes.map(nd => nd.id)), [nodes]);
   const links = useMemo(
     () => allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t) && (!crossOnly || systemOfNode.get(l.s) !== systemOfNode.get(l.t))),
@@ -432,6 +468,7 @@ export default function KnowledgeGraphView() {
   const target: Pos = useMemo(() => {
     if (nodes.length === 0) return {};
     if (mode === 'lanes') return layoutLanes(nodes, visibleSystems);
+    if (mode === 'network') return layoutNetwork(nodes, allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t)));
     if (mode === 'map') return layoutMap(nodes, visibleSystems, size.w ? Math.max(560, size.w - 96) : 1200);
     if (mode === 'focus' && centreId) return layoutFocus(nodes, lineage);
     return layoutConstellation(nodes, allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t)), visibleSystems, aspect);
@@ -496,7 +533,9 @@ export default function KnowledgeGraphView() {
     if (!W || !H) return;
     const fitAll = Math.min(1.15, (W - 72) / b.w, (H - 200) / b.h);
     const fitWidth = Math.min(1, (W - 72) / b.w);
-    const k = fitAll >= 0.62 ? fitAll : Math.max(0.62, fitWidth);
+    // The network is meant to be seen whole; the boxed layouts stay readable and scroll.
+    const minK = modeRef.current === 'network' ? 0.5 : 0.62;
+    const k = fitAll >= minK ? fitAll : Math.max(minK, fitWidth);
     const tx = W / 2 - 16 - (b.x + b.w / 2) * k;
     const tallerThanView = b.h * k > H - 200;
     const ty = tallerThanView ? 96 - b.y * k : H / 2 + 12 - (b.y + b.h / 2) * k;
@@ -617,6 +656,13 @@ export default function KnowledgeGraphView() {
   const linkGeo = (l: Link) => {
     const a = pos[l.s], b = pos[l.t];
     if (!a || !b) return null;
+    if (mode === 'network') {
+      const ra = netR(degreeOf.get(l.s) || 0), rb = netR(degreeOf.get(l.t) || 0);
+      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy) || 1;
+      const p1 = { x: a.x + (dx / dist) * (ra + 2), y: a.y + (dy / dist) * (ra + 2) };
+      const p2 = { x: b.x - (dx / dist) * (rb + 7), y: b.y - (dy / dist) * (rb + 7) };
+      return { d: `M${p1.x},${p1.y} L${p2.x},${p2.y}`, mid: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 } };
+    }
     const p1 = edgePoint(a, nodeW(l.s), NODE_H, b.x, b.y);
     const p2 = edgePoint(b, nodeW(l.t), NODE_H, a.x, a.y, 9);
     const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -635,7 +681,7 @@ export default function KnowledgeGraphView() {
   };
 
   const territories = useMemo(() => {
-    if (mode === 'focus') return [];
+    if (mode === 'focus' || mode === 'network') return [];
     return visibleSystems.map(sys => {
       const members = nodes.filter(nd => nd.group === sys && pos[nd.id]);
       if (members.length === 0) return null;
@@ -802,6 +848,43 @@ export default function KnowledgeGraphView() {
             const selected = selectedNode?.id === nd.id;
             const isCentre = mode === 'focus' && nd.id === centreId;
             const unmapped = nd.fdwMappingStatus && nd.fdwMappingStatus !== 'mapped';
+            if (mode === 'network') {
+              const r = netR(nd.degree);
+              const boxW = 140;
+              return (
+                <button
+                  key={nd.id}
+                  type="button"
+                  data-graph-ui
+                  onPointerDown={(e) => onNodePointerDown(e, nd.id)}
+                  onPointerMove={onNodePointerMove}
+                  onPointerUp={(e) => onNodePointerUp(e, nd)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(nd); } }}
+                  onMouseEnter={() => setHoveredNode(nd.id)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onFocus={() => setHoveredNode(nd.id)}
+                  onBlur={() => setHoveredNode(null)}
+                  aria-pressed={selected}
+                  aria-label={`${pretty(nd.id)}, ${groupLabel(nd.group)}, ${nd.degree} links`}
+                  className={cn(
+                    'group/n absolute flex cursor-pointer flex-col items-center outline-none transition-opacity duration-200 focus-visible:[&>span:first-child]:ring-2 focus-visible:[&>span:first-child]:ring-ring',
+                    state === 'dim' && 'opacity-35',
+                  )}
+                  style={{ left: p.x - boxW / 2, top: p.y - r, width: boxW, zIndex: selected ? 3 : state === 'lit' ? 2 : 1 }}
+                >
+                  <span
+                    className={cn(
+                      'block shrink-0 rounded-full border-2 transition-[box-shadow,transform] duration-200 group-hover/n:scale-110',
+                      selected ? 'border-foreground shadow-[0_0_0_4px_hsl(var(--brand)/0.25)]' : 'border-background',
+                    )}
+                    style={{ width: r * 2, height: r * 2, background: groupColour(nd.group) }}
+                  />
+                  <span className={cn('mt-1 max-w-full truncate px-1 text-xs', selected || state === 'lit' ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+                    {pretty(nd.id)}
+                  </span>
+                </button>
+              );
+            }
             return (
               <button
                 key={nd.id}
@@ -847,9 +930,10 @@ export default function KnowledgeGraphView() {
           <div className="pointer-events-auto flex items-center rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur" role="tablist" aria-label="Graph layout">
             {([
               { id: 'map', label: 'Map', icon: 'apps' },
+              { id: 'network', label: 'Network', icon: 'network' },
               { id: 'lanes', label: 'Lanes', icon: 'layers' },
               { id: 'focus', label: 'Lineage', icon: 'route' },
-              { id: 'constellation', label: 'Clusters', icon: 'network' },
+              { id: 'constellation', label: 'Clusters', icon: 'target' },
             ] as const).map(m => (
               <button
                 key={m.id}
@@ -901,7 +985,8 @@ export default function KnowledgeGraphView() {
                       on ? 'text-foreground hover:bg-accent' : 'text-subtle-foreground opacity-50 grayscale hover:opacity-80',
                     )}
                   >
-                    {groupBy === 'system' && <SystemLogo system={sys} size="xs" />}
+                    {mode === 'network' && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: groupColour(sys) }} aria-hidden="true" />}
+                    {groupBy === 'system' && mode !== 'network' && <SystemLogo system={sys} size="xs" />}
                     <span className={cn('whitespace-nowrap', groupBy === 'system' && 'hidden sm:inline', !on && 'line-through')}>{groupLabel(sys)}</span>
                     <span className="num text-xs text-muted-foreground">{n}</span>
                   </button>
