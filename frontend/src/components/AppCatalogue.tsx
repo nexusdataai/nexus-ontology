@@ -118,14 +118,14 @@ export function AppCatalogue() {
     return acc;
   }, {});
   const liveCount = apps.filter(a => (a.status || 'available') === 'available').length;
-  const featured = !search && category === 'All' ? orderedForNlp.find(a => (a.status || 'available') === 'available') : undefined;
-  const rest = featured ? orderedForNlp.filter(a => a.solutionId !== featured.solutionId) : orderedForNlp;
+  // Every solution uses the same card, three to a row. Matches for a goal are listed first.
+  const rest = orderedForNlp;
   const openApp = (a: SolutionCatalogEntry) => { if ((a.status || 'available') === 'available') nav(`/apps/${a.solutionId}`); };
 
   return (
     <div className="page">
       {/* Hero: start from the outcome, not from a list */}
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 py-8 shadow-xs sm:px-10 sm:py-12">
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 py-6 shadow-xs sm:px-8 sm:py-7">
         <div
           className="pointer-events-none absolute inset-0 opacity-70 [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_70%)]"
           style={{ backgroundImage: 'radial-gradient(hsl(var(--border-strong)) 1px, transparent 1px)', backgroundSize: '20px 20px' }}
@@ -135,12 +135,12 @@ export function AppCatalogue() {
           <p className="text-sm text-muted-foreground">
             Solutions{!loading && <> · <span className="num text-foreground">{liveCount}</span> ready to run, <span className="num text-foreground">{apps.length}</span> in the catalogue</>}
           </p>
-          <h1 className="mt-3 text-3xl font-medium tracking-tight text-foreground sm:text-4xl">What do you want to improve?</h1>
+          <h1 className="mt-2 text-2xl font-medium tracking-tight text-foreground">What do you want to improve?</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-md">
             Each solution is a packaged business application that runs on your own data and knowledge graph. Describe the outcome and we will point you to the right one.
           </p>
 
-          <div className="mt-6 flex items-center gap-2 rounded-xl border border-border-strong bg-background p-1.5 pl-4 shadow-sm transition-[border-color,box-shadow] duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-ring/25">
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-strong bg-background p-1.5 pl-4 shadow-sm transition-[border-color,box-shadow] duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-ring/25">
             <Icon name="sparkles" className="h-4 w-4 shrink-0 text-primary dark:text-brand-hi" />
             <Input
               value={nlpQuery}
@@ -183,7 +183,7 @@ export function AppCatalogue() {
       </section>
 
       {/* Filters */}
-      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
         <div className="scrollbar-hide -mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1" role="tablist" aria-label="Category">
           {CATEGORIES.filter(c => c === 'All' || loading || counts[c] > 0).map((c) => {
             const on = category === c;
@@ -217,61 +217,20 @@ export function AppCatalogue() {
       )}
 
       {loading && (
-        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="col-span-full h-56 rounded-2xl" />
-          {[0, 1, 2].map(i => <Skeleton key={i} className="h-72 rounded-2xl" />)}
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-80 rounded-2xl" />)}
         </div>
       )}
 
       {!loading && (
-        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {/* Featured: the first ready solution, or the best match for the goal */}
-          {featured && (
-            <article
-              onClick={() => openApp(featured)}
-              className={`rise group col-span-full grid cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,transform] duration-300 ease-brand-out hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-lg lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] ${
-                nlpHitIds.has(featured.solutionId) ? 'border-brand/60 ring-1 ring-brand/30' : 'border-border'
-              }`}
-            >
-              <SolutionCover icon={resolveIcon(featured.icon)} tall className="border-b border-border lg:border-b-0 lg:border-r" />
-              <div className="flex flex-col p-6 sm:p-8">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                    <span className="dot-live text-success" aria-hidden="true" />
-                    {nlpHitIds.has(featured.solutionId) ? 'Best match for your goal' : 'Ready to run'}
-                  </span>
-                  {featured.category && <span>{featured.category}</span>}
-                  {featured.timeToValue && <span>Live in {featured.timeToValue}</span>}
-                </div>
-                <h2 className="mt-3 text-2xl font-medium tracking-tight text-foreground">{featured.title}</h2>
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">{featured.description}</p>
-                {(featured.kpis || []).length > 0 && (
-                  <ul className="mt-5 flex flex-wrap gap-2">
-                    {featured.kpis!.slice(0, 4).map(k => (
-                      <li key={k} className="num rounded-md border border-border bg-surface-2/70 px-2.5 py-1 text-xs text-foreground">{k}</li>
-                    ))}
-                  </ul>
-                )}
-                <div className="min-h-6 flex-1" />
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs text-muted-foreground">
-                    {(featured.entities || []).length > 0 && <>Runs on <span className="num text-foreground">{featured.entities!.length}</span> business entities</>}
-                  </span>
-                  <Button onClick={(e) => { e.stopPropagation(); openApp(featured); }}>
-                    Open solution <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
-                  </Button>
-                </div>
-              </div>
-            </article>
-          )}
-
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {rest.map((app, i) => {
             const nlpMatch = nlpHitIds.has(app.solutionId);
             const available = (app.status || 'available') === 'available';
             return (
               <article
                 key={app.solutionId}
-                style={{ '--i': Math.min(i + 1, 9) } as React.CSSProperties}
+                style={{ '--i': Math.min(i, 9) } as React.CSSProperties}
                 onClick={() => openApp(app)}
                 className={`rise group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,transform] duration-300 ease-brand-out ${
                   available ? 'cursor-pointer hover:-translate-y-1 hover:border-brand/50 hover:shadow-lg' : ''
@@ -280,19 +239,20 @@ export function AppCatalogue() {
                 <SolutionCover icon={resolveIcon(app.icon)} className={`border-b border-border ${available ? '' : 'opacity-50 grayscale'}`} />
                 <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                    <span>{app.category || 'Solution'}</span>
-                    {nlpMatch ? <Badge variant="info">Matches your goal</Badge> : !available ? <Badge variant="neutral">Coming soon</Badge> : null}
+                    <span className="truncate">{app.category || 'Solution'}</span>
+                    {nlpMatch ? <Badge variant="info">Matches your goal</Badge>
+                      : available ? <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-foreground"><span className="dot-live text-success" aria-hidden="true" />Ready to run</span>
+                      : <Badge variant="neutral">Coming soon</Badge>}
                   </div>
-                  <h3 className="mt-2 text-lg font-medium tracking-tight text-foreground">{app.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{app.description}</p>
+                  <h3 className="mt-2 truncate text-lg font-medium tracking-tight text-foreground" title={app.title}>{app.title}</h3>
+                  <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted-foreground">{app.description}</p>
 
-                  {(app.kpis || []).length > 0 && (
-                    <ul className="mt-4 flex flex-wrap gap-1.5">
-                      {app.kpis!.slice(0, 3).map(k => (
-                        <li key={k} className="num rounded-md border border-border bg-surface-2/70 px-2 py-0.5 text-xs text-muted-foreground">{k}</li>
-                      ))}
-                    </ul>
-                  )}
+                  {/* One line of targets on every card, so the cards line up. */}
+                  <ul className="mt-4 flex h-6 flex-wrap gap-1.5 overflow-hidden">
+                    {(app.kpis || []).slice(0, 3).map(k => (
+                      <li key={k} className="num whitespace-nowrap rounded-md border border-border bg-surface-2/70 px-2 py-0.5 text-xs text-muted-foreground">{k}</li>
+                    ))}
+                  </ul>
 
                   <div className="min-h-5 flex-1" />
                   <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
