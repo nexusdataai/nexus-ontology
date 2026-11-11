@@ -6,7 +6,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { Icon } from '@/components/ds/Icon';
@@ -43,6 +42,7 @@ interface Preview { rows: PreviewRow[]; metadata?: { rowCount?: number; duration
 // partition: by `domain` or by `scorProcess` (Plan/Source/Make/…).
 type GroupAxis = 'domain' | 'scor';
 const GROUP_AXIS_LABEL: Record<GroupAxis, string> = { domain: 'Domain', scor: 'SCOR process' };
+const GROUP_AXIS_PLURAL: Record<GroupAxis, string> = { domain: 'domains', scor: 'SCOR processes' };
 
 const groupKeyOf = (e: SchemaEntity, axis: GroupAxis): string => {
   const raw = axis === 'domain' ? e.domain : e.scorProcess;
@@ -104,6 +104,8 @@ export default function EntityExplorer() {
   const [bottomPanelExpanded, setBottomPanelExpanded] = useState(true);
 
   const [groupAxis, setGroupAxis] = useState<GroupAxis>('domain');
+  // The group filter is folded away by default so the entity list is visible straight away.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -251,14 +253,14 @@ export default function EntityExplorer() {
         <ResizablePanel defaultSize={70} minSize={40} className="min-h-0">
           <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 gap-0 px-2 pt-2">
             {/* Left: entity list */}
-            <ResizablePanel defaultSize={22} minSize={14} maxSize={38} className="min-h-0 min-w-0">
-              <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+            <ResizablePanel defaultSize={26} minSize={16} maxSize={40} className="min-h-0 min-w-0">
+              <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border">
                 <CardHeader className="shrink-0 space-y-0 px-3 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-md font-medium">Entities</CardTitle>
                     <Pill className="num bg-muted text-muted-foreground">{filteredEntities.length}</Pill>
                   </div>
-                  <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Search entities" className="mt-2.5" aria-label="Search entities" />
+                  <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Search entities" className="mt-2.5 sm:w-full" aria-label="Search entities" />
                   {/* Group-by axis */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-1 text-xs">
                     <span className="text-muted-foreground">Group by</span>
@@ -278,7 +280,29 @@ export default function EntityExplorer() {
                     ))}
                   </div>
                   {allGroups.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setFiltersOpen(o => !o)}
+                      aria-expanded={filtersOpen}
+                      className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                    >
+                      <Icon name="filter" className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Show {GROUP_AXIS_PLURAL[groupAxis]}</span>
+                      <span className={cn('num ml-auto shrink-0', selectedGroups.size < allGroups.length && 'font-medium text-warning')}>
+                        {selectedGroups.size < allGroups.length ? `${selectedGroups.size} of ${allGroups.length}` : 'All'}
+                      </span>
+                      <Icon name={filtersOpen ? 'chevron-up' : 'chevron-down'} className="h-3.5 w-3.5 shrink-0" />
+                    </button>
+                  )}
+                  {allGroups.length > 0 && filtersOpen && (
+                    <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGroups(new Set(selectedGroups.size === allGroups.length ? [] : allGroups))}
+                        className="rounded-md border border-dashed border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {selectedGroups.size === allGroups.length ? 'None' : 'All'}
+                      </button>
                       {allGroups.map(key => (
                         <button
                           key={key}
@@ -298,7 +322,7 @@ export default function EntityExplorer() {
                   )}
                 </CardHeader>
                 <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-                  <ScrollArea className="min-h-0 flex-1">
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                     {loading ? (
                       <div className="flex justify-center p-4"><Loading /></div>
                     ) : (
@@ -337,11 +361,16 @@ export default function EntityExplorer() {
                           </div>
                         ))}
                         {filteredEntities.length === 0 && (
-                          <div className="p-4 text-center text-sm text-muted-foreground">{entities.length === 0 ? 'No entities loaded' : 'No matches'}</div>
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            {entities.length === 0 ? 'No entities loaded' : 'No matches'}
+                            {entities.length > 0 && selectedGroups.size < allGroups.length && (
+                              <button type="button" onClick={() => setSelectedGroups(new Set(allGroups))} className="mt-1 block w-full text-xs text-primary underline dark:text-brand-hi">Show all {GROUP_AXIS_PLURAL[groupAxis]}</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
-                  </ScrollArea>
+                  </div>
                 </CardContent>
               </Card>
             </ResizablePanel>
@@ -349,8 +378,8 @@ export default function EntityExplorer() {
             <ResizableHandle withHandle className="mx-1" />
 
             {/* Centre: schema */}
-            <ResizablePanel defaultSize={50} minSize={28} className="min-h-0 min-w-0">
-              <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+            <ResizablePanel defaultSize={46} minSize={28} className="min-h-0 min-w-0">
+              <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border">
                 {selectedEntity ? (
                   <>
                     <CardHeader className="shrink-0 space-y-0 border-b bg-muted/20 px-4 py-3">
@@ -412,7 +441,7 @@ export default function EntityExplorer() {
             {/* Right: Relationships | Data layer */}
             <ResizablePanel defaultSize={28} minSize={18} maxSize={42} className="min-h-0 min-w-0">
               {selectedEntity ? (
-                <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+                <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border">
                   <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: selectedEntity.domain ? groupColour(groupKeyOf(selectedEntity, groupAxis)) : 'hsl(var(--muted-foreground))' }} />
                     <span className="flex-1 truncate text-sm font-medium text-foreground">{selectedEntity.name}</span>
@@ -429,7 +458,7 @@ export default function EntityExplorer() {
                     </button>
                   </div>
                   <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-                    <ScrollArea className="min-h-0 flex-1">
+                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                       <div className="space-y-3 px-3 py-3 pb-4">
                         <div className="flex flex-wrap gap-1">
                           {domainPill(selectedEntity)}
@@ -522,7 +551,7 @@ export default function EntityExplorer() {
                           )
                         )}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (

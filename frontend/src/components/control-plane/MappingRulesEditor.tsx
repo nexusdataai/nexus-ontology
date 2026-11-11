@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Icon } from '@/components/ds/Icon';
 import { SearchInput } from '@/components/ds/kit';
@@ -342,7 +341,7 @@ export default function MappingRulesEditor() {
                 <CardTitle className="text-md font-medium">Mapping rules</CardTitle>
                 <Pill className="num bg-muted text-muted-foreground">{filteredRules.length}</Pill>
               </div>
-              <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Filter rules" className="mt-2.5" aria-label="Filter rules" />
+              <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Filter rules" className="mt-2.5 sm:w-full" aria-label="Filter rules" />
               <div className="mt-2 flex items-center gap-1">
                 <Button variant="ghost" size="sm" className="h-8 px-2" onClick={handleAutoMap} disabled={autoMapping} title="Create mapping rules automatically">
                   {autoMapping ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="sparkles" className="h-3.5 w-3.5" />}Auto-map
@@ -362,7 +361,7 @@ export default function MappingRulesEditor() {
               )}
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-              <ScrollArea className="min-h-0 flex-1">
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                 {loading ? (
                   <div className="flex justify-center p-4"><Spinner className="text-muted-foreground" /></div>
                 ) : (
@@ -403,7 +402,7 @@ export default function MappingRulesEditor() {
                     )}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </ResizablePanel>
@@ -430,7 +429,7 @@ export default function MappingRulesEditor() {
                 </div>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-                <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                   <div className="space-y-4 pt-1">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
@@ -518,7 +517,7 @@ export default function MappingRulesEditor() {
                       </div>
                     </div>
                   </div>
-                </ScrollArea>
+                </div>
               </CardContent>
             </Card>
           ) : (
