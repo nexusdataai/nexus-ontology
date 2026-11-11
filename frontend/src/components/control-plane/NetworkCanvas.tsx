@@ -47,6 +47,11 @@ const words = (s: string) => String(s || '').replace(/_/g, ' ');
 const radius = (degree: number) => Math.max(11, Math.min(26, 9 + degree * 2.5));
 const shortName = (id: string) => (id.length > 24 ? `${id.slice(0, 22)}…` : id);
 
+/** Screen space taken by the toolbar above and the domain bar below the canvas. */
+const TOP_INSET = 112, BOTTOM_INSET = 100;
+/** Room (in graph units) kept around the network when scrolling. */
+const PAD_X = 160, PAD_TOP = 240, PAD_BOTTOM = 220;
+
 type SimNode = NetworkNode & d3.SimulationNodeDatum & { r: number };
 type SimLink = d3.SimulationLinkDatum<SimNode> & NetworkLink;
 
@@ -61,28 +66,46 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
   const simNodesRef = useRef<SimNode[]>([]);
   const [, setTick] = useState(0);
   const [hover, setHover] = useState<string | null>(null);
+  const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
   const nodeKey = nodes.map(n => n.id).join('|');
   const linkKey = links.map(l => l.id).join('|');
 
-  const fitToContent = (animate = true) => {
+  /** The network's outline in graph units, with a little room for names. */
+  const worldBounds = () => {
+    const pts = simNodesRef.current;
+    if (pts.length === 0) return null;
+    const xs = pts.map(p => p.x || 0), ys = pts.map(p => p.y || 0);
+    return { x0: Math.min(...xs) - 60, x1: Math.max(...xs) + 60, y0: Math.min(...ys) - 50, y1: Math.max(...ys) + 60 };
+  };
+
+  /** Keep the network reachable: scrolling stops with a margin around it. */
+  const updateExtent = () => {
+    const b = worldBounds();
+    if (!b || !zoomRef.current) return;
+    zoomRef.current.translateExtent([[b.x0 - PAD_X, b.y0 - PAD_TOP], [b.x1 + PAD_X, b.y1 + PAD_BOTTOM]]);
+  };
+
+  /**
+   * Centre the network in the space between the toolbar and the domain bar.
+   * On open it uses a readable size (scroll to see the rest); "whole" fits
+   * everything on screen, for the Fit to screen button.
+   */
+  const fitToContent = (animate = true, whole = false) => {
     const svg = svgRef.current;
     const zoom = zoomRef.current;
-    const pts = simNodesRef.current;
-    if (!svg || !zoom || pts.length === 0) return;
+    const b = worldBounds();
+    if (!svg || !zoom || !b) return;
     const W = svg.clientWidth, H = svg.clientHeight;
     if (!W || !H) return;
-    const xs = pts.map(p => p.x || 0), ys = pts.map(p => p.y || 0);
-    const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 50, y1 = Math.max(...ys) + 50;
-    // Leave room for the toolbar above and the domain bar below.
-    const fitAll = Math.min(1.3, (W - 80) / (x1 - x0), (H - 190) / (y1 - y0));
-    // Never shrink below a readable size; if it cannot all fit, start at the top.
-    const minK = 0.55;
-    const k = Math.max(minK, fitAll);
-    const ty = fitAll < minK ? 120 - y0 * k : H / 2 + 10 - ((y0 + y1) / 2) * k;
-    const t = d3.zoomIdentity.translate(W / 2 - ((x0 + x1) / 2) * k, ty).scale(k);
+    updateExtent();
+    const availH = Math.max(160, H - TOP_INSET - BOTTOM_INSET);
+    const fitAll = Math.min(1.3, (W - 80) / (b.x1 - b.x0), availH / (b.y1 - b.y0));
+    const k = whole ? Math.max(0.2, fitAll) : Math.max(0.55, fitAll);
+    const cx = W / 2, cy = TOP_INSET + availH / 2;
+    const t = d3.zoomIdentity.translate(cx - ((b.x0 + b.x1) / 2) * k, cy - ((b.y0 + b.y1) / 2) * k).scale(k);
     const sel = d3.select(svg);
     if (animate) sel.transition().duration(600).call(zoom.transform, t);
     else sel.call(zoom.transform, t);
@@ -90,7 +113,7 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
   useImperativeHandle(ref, () => ({
     zoomBy: (f: number) => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().duration(250).call(zoomRef.current.scaleBy, f); },
-    fit: () => fitToContent(true),
+    fit: () => fitToContent(true, true),
   }));
 
   // Zoom and pan.
@@ -99,11 +122,30 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
     if (!svg) return;
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.2, 5])
-      .filter((event: MouseEvent) => (event.type === 'wheel' ? true : !event.button && !(event.target as Element).closest?.('[data-net-node]')))
-      .on('zoom', (event) => { if (gRef.current) gRef.current.setAttribute('transform', event.transform.toString()); });
+      // A mouse-wheel notch zooms gently; small trackpad pinch steps keep d3's stronger response.
+      .wheelDelta((e: WheelEvent) => -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002) * (Math.abs(e.deltaY) < 50 ? 10 : 1))
+      .filter((event: MouseEvent) => (event.type === 'wheel' ? event.ctrlKey || event.metaKey : !event.button && !(event.target as Element).closest?.('[data-net-node]')))
+      .on('zoom', (event) => {
+        if (gRef.current) gRef.current.setAttribute('transform', event.transform.toString());
+        setView({ x: event.transform.x, y: event.transform.y, k: event.transform.k });
+      });
     zoomRef.current = zoom;
     d3.select(svg).call(zoom).on('dblclick.zoom', null);
-    return () => { d3.select(svg).on('.zoom', null); };
+
+    // Plain wheel or two-finger swipe moves the network, like scrolling a page.
+    // Shift + wheel moves it sideways. Ctrl/Cmd + wheel (or a pinch) zooms, above.
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? svg.clientHeight : 1;
+      let dx = e.deltaX * unit, dy = e.deltaY * unit;
+      if (e.shiftKey && dx === 0) { dx = dy; dy = 0; }
+      const k = d3.zoomTransform(svg).k;
+      zoom.translateBy(d3.select(svg), -dx / k, -dy / k);
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => { d3.select(svg).on('.zoom', null); svg.removeEventListener('wheel', onWheel); };
   }, []);
 
   // Physics: a live force simulation, as in the original, with more room
@@ -132,7 +174,7 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
       .on('tick', () => setTick(t => t + 1));
     // Once the first settle finishes, frame the whole network.
     let framed = prev.size !== 0;
-    sim.on('end', () => { if (!framed) { framed = true; fitToContent(true); } });
+    sim.on('end', () => { updateExtent(); if (!framed) { framed = true; fitToContent(true); } });
     simRef.current = sim;
     // Settle most of the way before the first paint, then let it finish live.
     if (prev.size === 0) {
@@ -324,6 +366,8 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
         </g>
       </svg>
 
+      <NetScrollbars svgRef={svgRef} zoomRef={zoomRef} view={view} bounds={worldBounds()} />
+
       {/* hover card, as in the original */}
       {hoverNode && (
         <div key={hoverNode.id} className="net-card pointer-events-none absolute left-3 top-28 z-10 w-64 rounded-xl border border-border bg-popover px-3.5 py-2.5 text-sm shadow-lg sm:left-4" role="status">
@@ -390,3 +434,76 @@ const NET_CSS = `
   .net-canvas .net-ease, .net-canvas .net-dot, .net-canvas .net-halo { transition: none; }
 }
 `;
+
+/* ------------------------------------------------------------ scrollbars */
+
+interface ScrollbarProps {
+  svgRef: React.RefObject<SVGSVGElement>;
+  zoomRef: React.MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>;
+  view: { x: number; y: number; k: number };
+  bounds: { x0: number; x1: number; y0: number; y1: number } | null;
+}
+
+/** Thin scrollbars on the right and bottom edges; drag them to move the network. */
+function NetScrollbars({ svgRef, zoomRef, view, bounds }: ScrollbarProps) {
+  const svg = svgRef.current;
+  const dragRef = useRef<{ axis: 'x' | 'y'; last: number; ratio: number } | null>(null);
+  if (!svg || !bounds) return null;
+  const W = svg.clientWidth, H = svg.clientHeight;
+  if (!W || !H) return null;
+
+  // The scrollable area on screen: the network plus the room kept around it.
+  const left = (bounds.x0 - PAD_X) * view.k + view.x;
+  const top = (bounds.y0 - PAD_TOP) * view.k + view.y;
+  const width = (bounds.x1 - bounds.x0 + PAD_X * 2) * view.k;
+  const height = (bounds.y1 - bounds.y0 + PAD_TOP + PAD_BOTTOM) * view.k;
+
+  const vTrack = Math.max(60, H - TOP_INSET - 200);
+  const hTrack = Math.max(60, W - 96);
+  const showV = height > H + 2;
+  const showH = width > W + 2;
+  const vThumb = Math.max(32, vTrack * Math.min(1, H / height));
+  const hThumb = Math.max(32, hTrack * Math.min(1, W / width));
+  const vPos = Math.min(1, Math.max(0, -top / Math.max(1, height - H)));
+  const hPos = Math.min(1, Math.max(0, -left / Math.max(1, width - W)));
+
+  const start = (axis: 'x' | 'y') => (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    const ratio = axis === 'y' ? (height - H) / Math.max(1, vTrack - vThumb) : (width - W) / Math.max(1, hTrack - hThumb);
+    dragRef.current = { axis, last: axis === 'y' ? e.clientY : e.clientX, ratio };
+  };
+  const move = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || !zoomRef.current) return;
+    const now = d.axis === 'y' ? e.clientY : e.clientX;
+    const delta = (now - d.last) * d.ratio;
+    d.last = now;
+    const k = d3.zoomTransform(svg).k;
+    if (d.axis === 'y') zoomRef.current.translateBy(d3.select(svg), 0, -delta / k);
+    else zoomRef.current.translateBy(d3.select(svg), -delta / k, 0);
+  };
+  const end = (e: React.PointerEvent) => {
+    dragRef.current = null;
+    try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+  };
+  const thumb = 'absolute rounded-full bg-muted-foreground/35 transition-colors hover:bg-muted-foreground/60 active:bg-muted-foreground/70 touch-none';
+
+  return (
+    <>
+      {showV && (
+        <div className="absolute right-1.5 z-10 w-1.5 rounded-full bg-muted/40" style={{ top: TOP_INSET, height: vTrack }} aria-hidden="true">
+          <div className={cn(thumb, 'left-0 w-1.5 cursor-ns-resize')} style={{ top: vPos * (vTrack - vThumb), height: vThumb }}
+            onPointerDown={start('y')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
+        </div>
+      )}
+      {showH && (
+        <div className="absolute left-3 z-10 h-1.5 rounded-full bg-muted/40" style={{ bottom: BOTTOM_INSET - 18, width: hTrack }} aria-hidden="true">
+          <div className={cn(thumb, 'top-0 h-1.5 cursor-ew-resize')} style={{ left: hPos * (hTrack - hThumb), width: hThumb }}
+            onPointerDown={start('x')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
+        </div>
+      )}
+    </>
+  );
+}

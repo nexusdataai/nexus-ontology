@@ -938,7 +938,7 @@ export default function KnowledgeGraphView() {
               })}
             </div>
             <p className="hidden px-1 text-xs text-muted-foreground md:block">
-              <span className="num text-foreground">{nodes.length}</span> entities, <span className="num text-foreground">{links.length}</span> relationships. Drag to move, scroll to zoom, select an entity to inspect it.
+              <span className="num text-foreground">{nodes.length}</span> entities, <span className="num text-foreground">{links.length}</span> relationships. {mode === 'network' ? 'Scroll to move, Ctrl + scroll to zoom' : 'Drag to move, scroll to zoom'}, select an entity to inspect it.
             </p>
           </div>
 
