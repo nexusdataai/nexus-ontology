@@ -1,7 +1,8 @@
 /**
  * Shared layout for the three "Usage and cost" screens (end usage, data
- * protection, cost). These screens show sample figures until the backend
- * provides real ones, and they say so in one clear line at the top.
+ * protection, cost). The backend does not report these figures yet, so the
+ * screens show no numbers: each one lists what it will report and says, in
+ * one clear line at the top, that it is not connected.
  */
 import * as React from 'react';
 import { Icon } from '@/components/ds/Icon';
@@ -16,12 +17,18 @@ export function OpsPreview({ title, description, coming, children }: { title: st
       </header>
       <p className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-2/60 px-4 py-3 text-sm text-muted-foreground">
         <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-primary dark:text-brand-hi" />
-        <span><span className="font-medium text-foreground">Sample figures.</span> {coming}</span>
+        <span><span className="font-medium text-foreground">Not connected yet.</span> {coming}</span>
       </p>
       {children}
     </div>
   );
 }
+
+/** The value shown for a figure the backend does not report yet. */
+export const NOT_CONNECTED = <span className="text-subtle-foreground">Not connected</span>;
+
+/** A list of figures a screen will report, none of them available yet. */
+export const pending = (labels: string[]): KV[] => labels.map(label => ({ label, value: NOT_CONNECTED }));
 
 /** A titled list of facts, optionally with a headline number and an action. */
 export function OpsFacts({ title, headline, unit, note, items, action, index = 0 }: { title: string; headline?: React.ReactNode; unit?: string; note?: React.ReactNode; items: KV[]; action?: React.ReactNode; index?: number }) {

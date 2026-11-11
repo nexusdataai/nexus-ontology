@@ -59,16 +59,20 @@ interface SourceDef {
   desc: string;
   verticals: string[];
   simulatorKey: string;
-  entities: number;
 }
 
-const SAMPLE_SOURCES: SourceDef[] = [
-  { id: 'sample-crm', name: 'Salesforce CRM', type: 'FDW', status: 'connected', desc: 'Customer accounts, pipeline, contracts', verticals: ['crm', 'supply_chain'], simulatorKey: 'simulator', entities: 6 },
-  { id: 'sample-erp', name: 'Oracle ERP', type: 'FDW', status: 'connected', desc: 'Finance, AR/AP, general ledger', verticals: ['crm', 'supply_chain'], simulatorKey: 'oracle', entities: 12 },
-  { id: 'sample-sap', name: 'SAP S/4HANA', type: 'FDW', status: 'connected', desc: 'Inventory, supply chain, production', verticals: ['supply_chain'], simulatorKey: 'sap', entities: 20 },
-  { id: 'sample-drive', name: 'Google Drive', type: 'CLOUD_DRIVE', status: 'connected', desc: 'Contracts, reports, documents', verticals: ['supply_chain'], simulatorKey: 'external', entities: 2 },
-  { id: 'sample-files', name: 'File Uploads', type: 'FILE_UPLOAD', status: 'connected', desc: 'Invoices, lab reports, CSV files', verticals: ['supply_chain'], simulatorKey: 'external', entities: 2 },
-  { id: 'sample-social', name: 'Social Listening', type: 'SOCIAL_LISTENING', status: 'connected', desc: 'Market signals, sentiment', verticals: ['supply_chain'], simulatorKey: 'external', entities: 3 },
+/**
+ * The source systems the platform ships adapters for. Whether each one is
+ * reachable, how many tables it has and whether it runs on the simulator or
+ * a real system all come from the backend; nothing here is a figure.
+ */
+const BUILT_IN_SOURCES: SourceDef[] = [
+  { id: 'sample-crm', name: 'Salesforce CRM', type: 'FDW', status: 'checking', desc: 'Customer accounts, pipeline, contracts', verticals: ['crm', 'supply_chain'], simulatorKey: 'simulator' },
+  { id: 'sample-erp', name: 'Oracle ERP', type: 'FDW', status: 'checking', desc: 'Finance, AR/AP, general ledger', verticals: ['crm', 'supply_chain'], simulatorKey: 'oracle' },
+  { id: 'sample-sap', name: 'SAP S/4HANA', type: 'FDW', status: 'checking', desc: 'Inventory, supply chain, production', verticals: ['supply_chain'], simulatorKey: 'sap' },
+  { id: 'sample-drive', name: 'Google Drive', type: 'CLOUD_DRIVE', status: 'checking', desc: 'Contracts, reports, documents', verticals: ['supply_chain'], simulatorKey: 'external' },
+  { id: 'sample-files', name: 'File Uploads', type: 'FILE_UPLOAD', status: 'checking', desc: 'Invoices, lab reports, CSV files', verticals: ['supply_chain'], simulatorKey: 'external' },
+  { id: 'sample-social', name: 'Social Listening', type: 'SOCIAL_LISTENING', status: 'checking', desc: 'Market signals, sentiment', verticals: ['supply_chain'], simulatorKey: 'external' },
 ];
 
 interface SimStatus { table_count: number; total_rows: number; tables_with_data: number }
@@ -112,6 +116,7 @@ export default function DataPlanePage() {
     simulator: 6, real: 0,
   });
   const [simStats, setSimStats] = useState<Record<string, SimStatus>>({});
+  const [simFailed, setSimFailed] = useState<Record<string, boolean>>({});
   const [pipelinesBySource, setPipelinesBySource] = useState<Record<string, PipelineInfo>>({});
 
   const loadPlanes = async () => {
@@ -154,7 +159,7 @@ export default function DataPlanePage() {
           ...prev,
           [key]: { table_count: tables.length, total_rows: 0, tables_with_data: tables.length },
         })))
-        .catch(() => {});
+        .catch(() => setSimFailed(prev => ({ ...prev, [key]: true })));
     }
     etlPipelineService.listPipelines()
       .then((res: any) => {
@@ -186,11 +191,13 @@ export default function DataPlanePage() {
   const getRecordLabel = (src: SourceDef) => {
     const stats = simStats[src.simulatorKey];
     if (stats) {
+      // Drive, uploads and social listening are read from one shared store.
+      const shared = src.simulatorKey === 'external' ? ' in the shared external store' : '';
       return stats.total_rows > 0
-        ? `${stats.table_count} tables · ${stats.total_rows.toLocaleString()} rows`
-        : `${stats.table_count} tables`;
+        ? `${stats.table_count} tables${shared} · ${stats.total_rows.toLocaleString()} rows`
+        : `${stats.table_count} tables${shared}`;
     }
-    return `${src.entities} entities`;
+    return simFailed[src.simulatorKey] ? 'Could not be read' : 'Counting tables';
   };
 
   const getSimulatorSource = (src: SourceDef, mode: string) => {
@@ -199,12 +206,19 @@ export default function DataPlanePage() {
   };
 
   const allSourcesRaw = [
-    ...planes.map(p => ({ id: p.id, name: p.name, type: p.type, status: p.status, desc: `${p.type} data source`, real: true, verticals: ['crm'] as string[], simulatorKey: 'simulator', entities: 0 })),
-    ...SAMPLE_SOURCES.filter(s => !planes.some(p => p.name === s.name)).map(s => ({ ...s, real: false })),
+    ...planes.map(p => ({ id: p.id, name: p.name, type: p.type, status: p.status, desc: `${p.type} data source`, real: true, verticals: ['crm'] as string[], simulatorKey: 'simulator' })),
+    ...BUILT_IN_SOURCES.filter(s => !planes.some(p => p.name === s.name)).map(s => ({
+      ...s,
+      real: false,
+      // Connected only once its tables have actually been read.
+      status: simStats[s.simulatorKey] ? 'connected' : simFailed[s.simulatorKey] ? 'unreachable' : 'checking',
+    })),
   ];
   const allSources = vertical === 'all' ? allSourcesRaw : allSourcesRaw.filter(s => s.verticals?.includes(vertical));
   const connectedCount = allSources.filter(s => s.status === 'connected').length;
   const totalCount = allSources.length;
+  const shownModes = allSources.map(s => (s.real ? 'real' : getSourceMode(s.id)));
+  const shownSummary = { simulator: shownModes.filter(m => m !== 'real').length, real: shownModes.filter(m => m === 'real').length };
   const [dpTab, setDpTab] = useUrlTab('sources');
 
   const openSource = (src: { id: string }) => {
@@ -278,9 +292,9 @@ export default function DataPlanePage() {
                 title="Source modes are changed in Settings"
                 className="group inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
-                <span><span className="num font-medium text-foreground">{modeSummary.simulator}</span> simulator</span>
+                <span><span className="num font-medium text-foreground">{shownSummary.simulator}</span> simulator</span>
                 <span aria-hidden="true">·</span>
-                <span><span className="num font-medium text-foreground">{modeSummary.real}</span> real</span>
+                <span><span className="num font-medium text-foreground">{shownSummary.real}</span> real</span>
                 <Icon name="sliders" className="h-3.5 w-3.5 text-subtle-foreground group-hover:text-foreground" />
               </button>
             </div>

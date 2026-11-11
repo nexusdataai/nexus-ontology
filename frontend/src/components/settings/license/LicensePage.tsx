@@ -34,45 +34,6 @@ import { FeatureAccessList } from './FeatureAccessList';
 
 const PAGE_SIZE = 10;
 
-// Sample features for demo (in production, these would come from backend)
-const SAMPLE_FEATURES: FeatureAccessItem[] = [
-  {
-    feature_id: 'basic_deployment',
-    feature_name: 'Basic Deployment',
-    description: 'Deploy single-instance applications',
-    required_tier: 'basic',
-    is_allowed: true
-  },
-  {
-    feature_id: 'multi_env',
-    feature_name: 'Multi-Environment Support',
-    description: 'Deploy to dev, staging, and production environments',
-    required_tier: 'professional',
-    is_allowed: false
-  },
-  {
-    feature_id: 'advanced_monitoring',
-    feature_name: 'Advanced Monitoring',
-    description: 'Real-time metrics and alerting',
-    required_tier: 'professional',
-    is_allowed: false
-  },
-  {
-    feature_id: 'sso_integration',
-    feature_name: 'SSO Integration',
-    description: 'SAML 2.0 and OAuth 2.0 single sign-on',
-    required_tier: 'enterprise',
-    is_allowed: false
-  },
-  {
-    feature_id: 'audit_compliance',
-    feature_name: 'Audit & Compliance',
-    description: 'Detailed audit logs and compliance reporting',
-    required_tier: 'enterprise',
-    is_allowed: false
-  }
-];
-
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -106,7 +67,8 @@ export function LicensePage() {
   });
 
   // Features state
-  const [features] = useState<FeatureAccessItem[]>(SAMPLE_FEATURES);
+  // The backend does not list licensed features yet, so none are shown.
+  const [features] = useState<FeatureAccessItem[]>([]);
   const [isLoadingFeatures] = useState(false);
 
   // Active tab

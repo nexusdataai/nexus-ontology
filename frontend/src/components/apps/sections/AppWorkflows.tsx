@@ -65,7 +65,7 @@ export function AppWorkflows({ app }: Props) {
             {[
               { name: 'Copilot Journey', desc: 'AI-guided dynamic automation', path: '/workspace/automation' },
               { name: 'Journey Builder', desc: 'Design custom step sequences', path: '/workspace/automation' },
-              { name: 'Plugin Framework', desc: 'Register YAML-defined plugins', path: '/workspace/tools' },
+              { name: 'Plugin Framework', desc: 'Register YAML-defined plugins', path: '/ai-stack/reasoning?tab=tools' },
             ].map(a => (
               <div key={a.name} className="flex items-center justify-between p-2 rounded hover:bg-muted/30 cursor-pointer" onClick={() => nav(a.path)}>
                 <div>

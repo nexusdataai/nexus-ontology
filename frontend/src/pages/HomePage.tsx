@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { BUILT_IN_SOURCE_IDS } from '@/config/builtInSources';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { APP_REGISTRY } from '@/config/appRegistry';
@@ -40,6 +41,21 @@ function timeAgo(iso?: string) {
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
 }
+
+/**
+ * Status to show for a journey, the same rule the journeys list uses: the
+ * backend keeps a journey at "pending" after its runs have finished, so the
+ * runs decide when there are any.
+ */
+const journeyStatus = (j: any): string => {
+  const status = String(j.status || 'created').toLowerCase();
+  if (status !== 'created' && status !== 'pending') return status;
+  const total = Number(j.totalJobs) || 0, done = Number(j.completedJobs) || 0, failed = Number(j.failedJobs) || 0;
+  if (total > done + failed) return 'running';
+  if (done > 0) return 'completed';
+  if (failed > 0) return 'failed';
+  return 'created';
+};
 
 const STATUS_TONE: Record<string, string> = {
   running: 'text-primary dark:text-brand-hi',
@@ -209,7 +225,8 @@ export default function HomePage() {
   const systems: [string, number][] = stats?.entities_by_system
     ? Object.entries(stats.entities_by_system as Record<string, number>).sort((x, y) => y[1] - x[1])
     : [];
-  const sourceCount = systems.length || 6;
+  // The same sources the Data Plane page lists.
+  const sourceCount = BUILT_IN_SOURCE_IDS.length;
   const maxSystem = Math.max(1, ...systems.map(s => s[1]));
 
   const recent = useMemo(() => {
@@ -330,12 +347,12 @@ export default function HomePage() {
               <p className="py-6 text-sm text-muted-foreground">No journeys yet. Create one in AI Automation.</p>
             )}
             {recent.map(j => {
-              const status = String(j.status || 'created').toLowerCase();
+              const status = journeyStatus(j);
               return (
-                <button key={j.id} type="button" onClick={() => nav(`/workspace/automation?journeyId=${encodeURIComponent(j.id)}`)} className={rowBtn}>
+                <button key={j.journeyId || j.id} type="button" onClick={() => nav(`/workspace/automation?journeyId=${encodeURIComponent(j.journeyId || j.id)}`)} className={rowBtn}>
                   <span className={cn(status === 'running' ? 'dot-live' : 'inline-block h-2 w-2 rounded-full bg-current', 'shrink-0', STATUS_TONE[status] || 'text-subtle-foreground')} aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground group-hover/r:underline group-hover/r:underline-offset-4">{j.name || j.id}</span>
+                    <span className="block truncate text-sm font-medium text-foreground group-hover/r:underline group-hover/r:underline-offset-4">{j.name || j.journeyId || j.id}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {typeLabel(j.type)} · <span className="capitalize">{status}</span>
                     </span>

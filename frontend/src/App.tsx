@@ -47,7 +47,6 @@ const DataPlaneExplorer = lazyPage(() => import("./pages/DataPlaneExplorer"));
 const DataPlanePage = lazyPage(() => import("./pages/ai-stack/DataPlanePage"));
 const ControlPlanePage = lazyPage(() => import("./pages/ai-stack/ControlPlanePage"));
 const ReasoningPage = lazyPage(() => import("./pages/ai-stack/ReasoningPage"));
-const ToolsCataloguePage = lazyPage(() => import("./pages/workspace/ToolsCataloguePage"));
 const AppCataloguePage = lazyPage(() => import("./pages/workspace/AppCataloguePage"));
 const AIAutomationPage = lazyPage(() => import("./pages/workspace/AIAutomationPage"));
 const AppPage = lazyPage(() => import("./pages/apps/AppPage"));
@@ -124,7 +123,7 @@ const AuthRoutes = () => {
         <Route path="/workspace/apps" element={<P><AppCataloguePage /></P>} />
         <Route path="/apps/:appId" element={<P><AppPage /></P>} />
         <Route path="/workspace/automation" element={<P><AIAutomationPage /></P>} />
-        <Route path="/workspace/tools" element={<P><ToolsCataloguePage /></P>} />
+        <Route path="/workspace/tools" element={<Navigate to="/ai-stack/reasoning?tab=tools" replace />} />
         {/* Legacy /tools shortcut -> Reasoning page's Tool Builder tab */}
         <Route path="/tools" element={<Navigate to="/ai-stack/reasoning?tab=builder" replace />} />
         <Route path="/tools/:toolId" element={<Navigate to="/ai-stack/reasoning?tab=builder" replace />} />

@@ -1,233 +1,144 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Settings,
-  BarChart3,
-  ShieldAlert,
-  Coins,
-  Mail,
-  Bell,
-  TrendingDown,
-  Play,
-  type LucideIcon,
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { apiClient } from '@/services/apiClient';
 import type { AppConfig } from '@/config/appRegistry';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Icon } from '@/components/ds/Icon';
+import { Chips, SearchInput, StatusPill, Toolbar, ToolbarSpacer } from '@/components/ds/kit';
+import { EmptyState } from '@/components/ds/primitives';
 
-interface Tool {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  status: 'Available' | 'Coming Soon';
-  icon: LucideIcon;
-  inputs: string[];
-  outputs: string[];
+interface Props { app: AppConfig; }
+
+interface RegistryTool {
+  toolId: string;
+  description?: string;
+  group?: string;
+  toolKind?: string;
+  riskLevel?: string;
+  requiresApproval?: boolean;
+  connectorApi?: string | null;
 }
 
-// Per-Solution tool registry. Each app curates its own toolset, grounded in
-// its ontology entities. Apps without an entry render the empty state.
-const APP_TOOLS: Record<string, Tool[]> = {
-  'order-to-cash': [
-    {
-      id: 'order-match-verifier',
-      name: 'Order Match Verifier',
-      description:
-        'Three-way match between Opportunity, Delivery, and Invoice -- flags mismatches with reason codes.',
-      category: 'Analysis',
-      status: 'Available',
-      icon: ShieldAlert,
-      inputs: ['Opportunity', 'Delivery_Document', 'AR_Invoice'],
-      outputs: ['match_status', 'mismatch_reason', 'discrepancy_amount'],
-    },
-    {
-      id: 'order-anomaly-scorer',
-      name: 'Order Anomaly Scorer',
-      description:
-        'Scores orders for cycle-time deviation, missing delivery, and missing invoice signals.',
-      category: 'Analysis',
-      status: 'Available',
-      icon: BarChart3,
-      inputs: ['Opportunity', 'Opportunity_Line_Item', 'Delivery_Document'],
-      outputs: ['anomaly_score', 'risk_rank', 'flagged_dimensions'],
-    },
-    {
-      id: 'ar-cash-flow-projector',
-      name: 'AR Cash Flow Projector',
-      description:
-        'Projects cash inflows from open AR invoices using historical payment patterns and aging buckets.',
-      category: 'Analysis',
-      status: 'Available',
-      icon: Coins,
-      inputs: ['AR_Invoice', 'Account'],
-      outputs: ['projected_inflow', 'payment_probability', 'dso_impact'],
-    },
-    {
-      id: 'o2c-alert-generator',
-      name: 'O2C Alert Generator',
-      description:
-        'Evaluates O2C alert rules (invoice mismatch > 5%, 3+ day delays, leakage thresholds) and emits alerts.',
-      category: 'Automation',
-      status: 'Available',
-      icon: Bell,
-      inputs: ['match_status', 'anomaly_score'],
-      outputs: ['Alert', 'Action_Recommendation'],
-    },
-    {
-      id: 'dunning-notice-composer',
-      name: 'Dunning Notice Composer',
-      description:
-        'Generates aging-bucket-aware dunning notices for overdue invoices and logs communications.',
-      category: 'Automation',
-      status: 'Available',
-      icon: Mail,
-      inputs: ['Account', 'AR_Invoice', 'Aging_Bucket'],
-      outputs: ['Dunning_Notice', 'Communication_Log'],
-    },
-    {
-      id: 'dso-optimizer',
-      name: 'DSO Optimizer',
-      description:
-        'Analyzes payment patterns and recommends levers to reduce Days Sales Outstanding.',
-      category: 'Enhancement',
-      status: 'Coming Soon',
-      icon: TrendingDown,
-      inputs: ['AR_Invoice', 'AR_Payment', 'Account'],
-      outputs: ['Optimization_Plan', 'Recommended_Levers', 'DSO_Forecast'],
-    },
-  ],
+/**
+ * The group each solution's tools are registered under in the tool registry.
+ * The supply-chain solutions share one group.
+ */
+const GROUP_OF: Record<string, string> = {
+  'order-to-cash': 'o2c',
+  'customer-360': 'customer-360',
+  'esg-sustainability': 'esg',
+  'demand-forecasting': 'supply-chain',
+  'inventory-optimization': 'supply-chain',
+  'procurement-analytics': 'supply-chain',
+  'production-quality': 'supply-chain',
+  'supply-chain-risk': 'supply-chain',
 };
 
-interface Props {
-  app: AppConfig;
-}
+type Kind = 'all' | 'read' | 'write';
+const isWrite = (t: RegistryTool) => t.toolKind === 'mutate' || /write/i.test(t.riskLevel || '');
+const nameOf = (id: string) => id.replace(/[_-]+/g, ' ').replace(/^\w/, c => c.toUpperCase());
+const riskWord = (r?: string) => String(r || '').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 
+/** Tools: the agent tools registered for this solution, read from the tool registry. */
 export function AppToolsCatalogue({ app }: Props) {
-  const tools = APP_TOOLS[app.id] || [];
-  const categories = ['All', ...Array.from(new Set(tools.map((t) => t.category)))];
-  const [activeCategory, setActiveCategory] = useState('All');
-  const visible =
-    activeCategory === 'All' ? tools : tools.filter((t) => t.category === activeCategory);
+  const nav = useNavigate();
+  const [tools, setTools] = useState<RegistryTool[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState('');
+  const [kind, setKind] = useState<Kind>('all');
+  const group = GROUP_OF[app.id];
+
+  const load = () => {
+    setTools(null);
+    setFailed(false);
+    apiClient.get<any>('/api/v1/tools-registry')
+      .then(d => {
+        const items: RegistryTool[] = Array.isArray(d) ? d : d?.items || [];
+        setTools(group ? items.filter(t => t.group === group) : []);
+      })
+      .catch(() => { setFailed(true); setTools([]); });
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [app.id]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (tools || [])
+      .filter(t => kind === 'all' || (kind === 'write') === isWrite(t))
+      .filter(t => !q || `${t.toolId} ${t.description || ''} ${t.connectorApi || ''}`.toLowerCase().includes(q))
+      .sort((a, b) => a.toolId.localeCompare(b.toolId));
+  }, [tools, query, kind]);
+
+  const writes = (tools || []).filter(isWrite).length;
+  const shared = group === 'supply-chain';
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <div
-          className={`w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br ${app.color}`}
-        >
-          <Settings className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">
-            {app.shortName} Tools Catalogue
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Tools curated for the {app.name} Solution -- each grounded in this app's ontology
-            entities.
+    <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg font-medium tracking-tight text-foreground">Tools</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            The agent tools registered for {app.name}{shared ? ', shared with the other supply-chain solutions' : ''}. This list comes from the tool registry.
           </p>
         </div>
-      </div>
+        <Button variant="outline" onClick={() => nav('/ai-stack/reasoning?tab=tools-reg')}>
+          Open tool registry <Icon name="arrow-right" className="h-3.5 w-3.5" />
+        </Button>
+      </header>
 
-      {tools.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
-          No tools curated yet for the {app.shortName} Solution.
+      {tools === null ? (
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
+      ) : failed ? (
+        <EmptyState
+          icon="alert-triangle"
+          title="The tool registry could not be read"
+          description="Check that the backend is running, then try again."
+          action={<Button variant="outline" onClick={load}>Try again</Button>}
+        />
+      ) : tools.length === 0 ? (
+        <EmptyState icon="wrench" title="No tools registered for this solution" description="Tools appear here once they are registered under this solution in the tool registry." />
       ) : (
         <>
-          <div className="flex flex-wrap gap-2 border-b border-border pb-4">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={activeCategory === category ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveCategory(category)}
-                className={
-                  activeCategory === category
-                    ? 'bg-primary text-white hover:bg-primary/90'
-                    : 'hover:bg-primary/10'
-                }
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
+          <Toolbar>
+            <Chips<Kind>
+              label="Tool kind"
+              value={kind}
+              onChange={setKind}
+              options={[
+                { value: 'all', label: 'All', count: tools.length },
+                { value: 'read', label: 'Read', count: tools.length - writes },
+                { value: 'write', label: 'Write', count: writes },
+              ]}
+            />
+            <ToolbarSpacer />
+            <SearchInput value={query} onChange={setQuery} placeholder="Search tools" />
+          </Toolbar>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {visible.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <Card
-                  key={tool.id}
-                  className="relative overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <CardHeader className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                        <Icon className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge
-                          className={
-                            tool.status === 'Available'
-                              ? 'bg-primary text-white'
-                              : 'bg-border-strong text-white'
-                          }
-                        >
-                          {tool.status}
-                        </Badge>
-                        <Badge variant="outline">{tool.category}</Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{tool.name}</CardTitle>
-                      <CardDescription className="text-sm mt-2">
-                        {tool.description}
-                      </CardDescription>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-medium text-foreground">⚡ Inputs</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {tool.inputs.map((input, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">
-                            {input}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-medium text-foreground">▶ Outputs</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {tool.outputs.map((output, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">
-                            {output}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      className={`w-full text-white ${
-                        tool.status === 'Available'
-                          ? 'bg-primary hover:bg-primary/90'
-                          : 'bg-border-strong cursor-not-allowed'
-                      }`}
-                      disabled={tool.status === 'Coming Soon'}
-                    >
-                      <Play className="h-3 w-3 mr-2" />
-                      {tool.status === 'Available' ? 'Try Tool' : 'Coming Soon'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          {visible.length === 0 ? (
+            <EmptyState icon="search" title="No tools match" description="Try a different search or kind." />
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              {visible.map(t => (
+                <li key={t.toolId} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-4">
+                  <div className="min-w-0 flex-1 basis-80">
+                    <p className="truncate text-sm font-medium text-foreground">{nameOf(t.toolId)}</p>
+                    <p className="mt-0.5 font-mono text-xs text-subtle-foreground">{t.toolId}</p>
+                    {t.description && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{t.description}</p>}
+                    {t.connectorApi && <p className="mt-1.5 text-xs text-muted-foreground">Calls <span className="font-mono text-foreground">{t.connectorApi}</span></p>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <StatusPill tone={isWrite(t) ? 'warning' : 'neutral'}>{isWrite(t) ? 'Write' : 'Read'}</StatusPill>
+                    {t.riskLevel && <StatusPill tone="neutral" className="font-normal text-muted-foreground">{riskWord(t.riskLevel)}</StatusPill>}
+                    {t.requiresApproval && <StatusPill tone="info">Needs approval</StatusPill>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>

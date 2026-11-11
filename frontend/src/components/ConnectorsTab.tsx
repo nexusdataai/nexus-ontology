@@ -6,21 +6,6 @@ import { SystemLogo } from '@/components/ds/SystemLogo';
 import GoogleDriveConnectorSettings from './settings/GoogleDriveConnectorSettings';
 import { ConnectorDetailView } from './connectors/ConnectorDetailView';
 import type { TargetSystem } from '@/services/connectorApiService';
-import SalesforceConnector from './SalesforceConnector';
-import Office365Connector from './Office365Connector';
-import KnowledgeBase from './KnowledgeBase';
-import BSSStudioConnector from './BSSStudioConnector';
-
-// Connectors that ship a full configuration UI (carried over from the legacy
-// ToolsCatalogue). Selecting these tiles renders the rich component instead
-// of the generic ConnectorDetailView. Components are no-prop and the Back
-// link is rendered by ConnectorsTab around them.
-const RICH_COMPONENTS: Record<string, React.ComponentType> = {
-  'salesforce': SalesforceConnector,
-  'office365': Office365Connector,
-  'knowledge-base': KnowledgeBase,
-  'bss-studio': BSSStudioConnector,
-};
 
 interface Connector {
   id: string;
@@ -45,7 +30,7 @@ const CONNECTORS: Connector[] = [
   {
     id: 'office365', name: 'Office 365 Connector',
     description: 'Integrate with Microsoft Office 365 and Teams for communication analytics.',
-    status: 'Available',
+    status: 'Coming Soon',
     inputs: ['Azure AD Registration'], outputs: ['Teams Data', 'Email Analytics', 'Calendar Insights'],
   },
   {
@@ -57,7 +42,7 @@ const CONNECTORS: Connector[] = [
   {
     id: 'bss-studio', name: 'Langflow Connector',
     description: 'Set schedules for BSS Flow jobs like cron jobs, test invocations, and monitor executions with diagnostic messages.',
-    status: 'Available',
+    status: 'Coming Soon',
     inputs: ['Lambda Configuration', 'Schedule Settings', 'API Endpoints'], outputs: ['Job Schedules', 'Execution Logs', 'Diagnostic Reports'],
   },
   {
@@ -126,24 +111,6 @@ export function ConnectorsTab() {
 
   if (activeConnector === 'google-drive') {
     return <GoogleDriveConnectorSettings onBack={() => setActiveConnector(null)} />;
-  }
-
-  if (activeConnector && RICH_COMPONENTS[activeConnector]) {
-    const RichComponent = RICH_COMPONENTS[activeConnector];
-    return (
-      <div>
-        <div className="mx-auto w-full max-w-[1440px] px-4 pt-5 sm:px-6 sm:pt-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => setActiveConnector(null)}
-            className="-ml-1 inline-flex items-center gap-1 rounded-sm px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Icon name="chevron-left" className="h-3.5 w-3.5" /> All connectors
-          </button>
-        </div>
-        <RichComponent />
-      </div>
-    );
   }
 
   if (activeConnector) {

@@ -115,7 +115,9 @@ export function LicenseStatusCard({
           <div className="min-w-0">
             <h3 className="text-xl font-medium tracking-tight text-foreground">No license yet</h3>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              {status?.activation_instructions || 'Enter a license key below to activate this installation.'}
+              {status?.activation_instructions && !/\/api\/|^(POST|GET|PUT)/i.test(status.activation_instructions)
+                ? status.activation_instructions
+                : 'Enter a license key below to activate this installation.'}
             </p>
           </div>
           <StatusIndicator status="not_activated" />

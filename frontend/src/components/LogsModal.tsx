@@ -211,11 +211,6 @@ export default function LogsModal({
       // Track if we found real logs from API
       const foundRealLogs = logEntries.length > 0;
       
-      // If no real logs found, generate realistic mock logs for the specific step
-      if (logEntries.length === 0) {
-        logEntries = generateRealisticLogs(stepName, selectedJobId, stageId);
-      }
-      
       // Ensure logs have required properties
       logEntries = logEntries.map(log => ({
         timestamp: log.timestamp || new Date().toISOString(),
@@ -240,98 +235,12 @@ export default function LogsModal({
       console.error('❌ Error loading logs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load logs');
       
-      // Show realistic mock logs even on error
-      const mockLogs = generateRealisticLogs(stepName, selectedJobId, stageId);
-      setLogs(mockLogs);
-      
-      // Set count to 0 since API call failed - don't count mock logs
+      // Never invent log lines: an empty list shows "No logs found".
+      setLogs([]);
       onLogCountUpdate?.(0);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const generateRealisticLogs = (stepName: string, jobId: string, stageId: string): LogEntry[] => {
-    const now = new Date();
-    const logs: LogEntry[] = [];
-    
-    // Generate step-specific logs based on the stage and step
-    const stepSpecificLogs = getStepSpecificLogs(stepName, stageId);
-    
-    stepSpecificLogs.forEach((logTemplate, index) => {
-      const timestamp = new Date(now.getTime() - (stepSpecificLogs.length - index) * 30000);
-      logs.push({
-        timestamp: timestamp.toISOString(),
-        level: logTemplate.level,
-        message: logTemplate.message.replace('{jobId}', jobId).replace('{stepName}', stepName),
-        component: stageId,
-        step: stepName,
-        details: logTemplate.details
-      });
-    });
-    
-    return logs;
-  };
-
-  const getStepSpecificLogs = (stepName: string, stageId: string) => {
-    const baseJobId = selectedJobId || 'JOB-UNKNOWN';
-    
-    switch (stageId) {
-      case 'raw_analysis':
-        if (stepName.toLowerCase().includes('schema')) {
-          return [
-            { level: 'info' as const, message: `Starting schema file parsing for {stepName}`, details: { jobId: baseJobId } },
-            { level: 'info' as const, message: `Found 15 table definitions in schema files`, details: { tableCount: 15 } },
-            { level: 'success' as const, message: `Successfully parsed customer_profile table`, details: { table: 'customer_profile' } },
-            { level: 'success' as const, message: `Successfully parsed billing_account table`, details: { table: 'billing_account' } },
-            { level: 'warn' as const, message: `Deprecated column found in legacy_data table`, details: { column: 'old_status' } },
-            { level: 'info' as const, message: `Extracted 47 column definitions`, details: { columnCount: 47 } },
-            { level: 'success' as const, message: `Schema parsing completed successfully`, details: { duration: '5m 12s' } }
-          ];
-        } else if (stepName.toLowerCase().includes('relationship')) {
-          return [
-            { level: 'info' as const, message: `Starting relationship discovery for {stepName}`, details: { jobId: baseJobId } },
-            { level: 'info' as const, message: `Analyzing foreign key constraints`, details: { constraintCount: 23 } },
-            { level: 'success' as const, message: `Found relationship: customer -> billing_account`, details: { type: 'one-to-many' } },
-            { level: 'success' as const, message: `Found relationship: billing_account -> invoice`, details: { type: 'one-to-many' } },
-            { level: 'info' as const, message: `Discovered 12 table relationships`, details: { relationshipCount: 12 } },
-            { level: 'success' as const, message: `Relationship discovery completed`, details: { duration: '3m 45s' } }
-          ];
-        }
-        break;
-        
-      case 'stripped_schema':
-        return [
-          { level: 'info' as const, message: `Starting stripped document creation for {stepName}`, details: { jobId: baseJobId } },
-          { level: 'info' as const, message: `Removing vendor-specific elements`, details: { removedCount: 8 } },
-          { level: 'info' as const, message: `Standardizing data types`, details: { convertedTypes: 15 } },
-          { level: 'success' as const, message: `Created clean schema structure`, details: { tables: 15 } },
-          { level: 'success' as const, message: `Stripped document generation completed`, details: { duration: '2m 30s' } }
-        ];
-        
-      case 'data_mapping':
-        return [
-          { level: 'info' as const, message: `Starting TMF schema mapping for {stepName}`, details: { jobId: baseJobId } },
-          { level: 'info' as const, message: `Loading TMF632 Party Management schema`, details: { version: 'v4.1.0' } },
-          { level: 'success' as const, message: `Mapped customer_profile to TMF632.Individual`, details: { confidence: 0.95 } },
-          { level: 'success' as const, message: `Mapped company_profile to TMF632.Organization`, details: { confidence: 0.92 } },
-          { level: 'warn' as const, message: `Partial mapping for legacy_status field`, details: { confidence: 0.7 } },
-          { level: 'info' as const, message: `Completed 87% field mapping`, details: { mappedFields: 41, totalFields: 47 } },
-          { level: 'success' as const, message: `TMF schema mapping completed`, details: { duration: '8m 15s' } }
-        ];
-        
-      default:
-        return [
-          { level: 'info' as const, message: `Starting {stepName} execution`, details: { jobId: baseJobId } },
-          { level: 'info' as const, message: `Processing stage: ${stageId}`, details: { stage: stageId } },
-          { level: 'success' as const, message: `{stepName} completed successfully`, details: { duration: '4m 20s' } }
-        ];
-    }
-    
-    return [
-      { level: 'info' as const, message: `Starting {stepName} execution`, details: { jobId: baseJobId } },
-      { level: 'success' as const, message: `{stepName} completed successfully`, details: { duration: '2m 15s' } }
-    ];
   };
 
   const getLevelIcon = (level: string) => {
@@ -506,7 +415,7 @@ export default function LogsModal({
               <div className="flex items-center justify-center h-32">
                 <div className="text-center text-muted-foreground">
                   <XCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No logs found</p>
+                  <p>{logs.length > 0 ? 'No logs match' : 'No logs were recorded for this step'}</p>
                   {logs.length > 0 && <p className="text-sm">Try adjusting your search or filter</p>}
                 </div>
               </div>

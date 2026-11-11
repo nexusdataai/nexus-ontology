@@ -170,8 +170,6 @@ class TransformationJourneyService {
         version: 1,
         lastUpdated: journeyStatus.updatedAt ? new Date(journeyStatus.updatedAt) : now,
         tags: ['tmf-oda', 'transformation'],
-        customerName: 'Sample Customer',
-        projectCode: 'TMF-001',
         environmentType: 'development'
       },
       history: []
@@ -187,12 +185,10 @@ class TransformationJourneyService {
     const totalJobs = parseInt(aggregates.totalJobs) || 0;
     const completedJobs = parseInt(aggregates.completedJobs) || 0;
     
-    // Estimate tables based on job count - rough calculation
-    // Assuming each job processes multiple tables, with some variation
-    const baseTableCount = Math.max(totalJobs * 350, 5000); // Minimum 5000 tables
-    const variation = Math.floor(Math.random() * 5000); // Add some realistic variation
-    
-    return baseTableCount + variation;
+    // The backend does not report a table count for a journey, so none is
+    // shown: a made-up estimate would read as a real figure.
+    void totalJobs;
+    return 0;
   }
 
   /**
@@ -274,8 +270,6 @@ class TransformationJourneyService {
         version: 1,
         lastUpdated: now,
         tags: ['tmf-oda', 'transformation'],
-        customerName: 'Sample Customer',
-        projectCode: 'TMF-001',
         environmentType: 'development'
       },
       history: []
@@ -380,7 +374,6 @@ class TransformationJourneyService {
         lastUpdated: now,
         tags: ['tmf-oda', 'transformation'],
         customerName: summary.customerName,
-        projectCode: 'TMF-001',
         environmentType: 'development'
       },
       history: []

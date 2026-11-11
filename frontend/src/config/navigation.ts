@@ -78,7 +78,6 @@ const SUB_TITLES: { prefix: string; title: string }[] = [
   { prefix: '/dashboard/view', title: 'Dashboard' },
   { prefix: '/views/builder', title: 'View builder' },
   { prefix: '/views/', title: 'View' },
-  { prefix: '/workspace/tools', title: 'Tools catalogue' },
 ];
 
 export interface Crumb {
