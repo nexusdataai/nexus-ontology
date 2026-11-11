@@ -309,8 +309,8 @@ export default function KnowledgeGraphView() {
   const [previewData, setPreviewData] = useState<VirtualQueryResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const [mode, setMode] = useState<LayoutMode>('map');
-  const modeRef = useRef<LayoutMode>('map');
+  const [mode, setMode] = useState<LayoutMode>('network');
+  const modeRef = useRef<LayoutMode>('network');
   modeRef.current = mode;
   const [focusId, setFocusId] = useState<string | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
@@ -873,8 +873,8 @@ export default function KnowledgeGraphView() {
 
           <div className="pointer-events-auto flex items-center rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur" role="tablist" aria-label="Graph layout">
             {([
-              { id: 'map', label: 'Map', icon: 'apps' },
               { id: 'network', label: 'Network', icon: 'network' },
+              { id: 'map', label: 'Map', icon: 'apps' },
               { id: 'lanes', label: 'Lanes', icon: 'layers' },
               { id: 'focus', label: 'Lineage', icon: 'route' },
               { id: 'constellation', label: 'Clusters', icon: 'target' },

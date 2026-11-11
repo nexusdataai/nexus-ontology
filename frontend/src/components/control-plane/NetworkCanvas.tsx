@@ -9,6 +9,7 @@
  */
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { cn } from '@/lib/utils';
 
 export interface NetworkNode {
   id: string;
@@ -43,8 +44,8 @@ const EDGE_TYPE_COLOUR: Record<string, string> = {
 };
 const edgeColour = (type: string) => EDGE_TYPE_COLOUR[type] || 'hsl(var(--muted-foreground))';
 const words = (s: string) => String(s || '').replace(/_/g, ' ');
-const radius = (degree: number) => Math.max(8, Math.min(20, 6 + degree * 2));
-const shortName = (id: string) => (id.length > 18 ? `${id.slice(0, 16)}..` : id);
+const radius = (degree: number) => Math.max(11, Math.min(26, 9 + degree * 2.5));
+const shortName = (id: string) => (id.length > 24 ? `${id.slice(0, 22)}…` : id);
 
 type SimNode = NetworkNode & d3.SimulationNodeDatum & { r: number };
 type SimLink = d3.SimulationLinkDatum<SimNode> & NetworkLink;
@@ -76,8 +77,12 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
     const xs = pts.map(p => p.x || 0), ys = pts.map(p => p.y || 0);
     const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 50, y1 = Math.max(...ys) + 50;
     // Leave room for the toolbar above and the domain bar below.
-    const k = Math.max(0.4, Math.min(1.2, (W - 80) / (x1 - x0), (H - 190) / (y1 - y0)));
-    const t = d3.zoomIdentity.translate(W / 2 - ((x0 + x1) / 2) * k, H / 2 + 10 - ((y0 + y1) / 2) * k).scale(k);
+    const fitAll = Math.min(1.3, (W - 80) / (x1 - x0), (H - 190) / (y1 - y0));
+    // Never shrink below a readable size; if it cannot all fit, start at the top.
+    const minK = 0.55;
+    const k = Math.max(minK, fitAll);
+    const ty = fitAll < minK ? 120 - y0 * k : H / 2 + 10 - ((y0 + y1) / 2) * k;
+    const t = d3.zoomIdentity.translate(W / 2 - ((x0 + x1) / 2) * k, ty).scale(k);
     const sel = d3.select(svg);
     if (animate) sel.transition().duration(600).call(zoom.transform, t);
     else sel.call(zoom.transform, t);
@@ -118,12 +123,12 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
     simNodesRef.current = simNodes;
 
     const sim = d3.forceSimulation<SimNode>(simNodes)
-      .force('link', d3.forceLink<SimNode, SimLink>(simLinks).id(d => d.id).distance(175))
-      .force('charge', d3.forceManyBody().strength(-560).distanceMax(700))
+      .force('link', d3.forceLink<SimNode, SimLink>(simLinks).id(d => d.id).distance(190))
+      .force('charge', d3.forceManyBody().strength(-700).distanceMax(800))
       .force('center', d3.forceCenter(0, 0))
       .force('x', d3.forceX(0).strength(0.05))
       .force('y', d3.forceY(0).strength(0.06))
-      .force('collide', d3.forceCollide<SimNode>(d => d.r + 44).iterations(3))
+      .force('collide', d3.forceCollide<SimNode>(d => d.r + 52).iterations(3))
       .on('tick', () => setTick(t => t + 1));
     // Once the first settle finishes, frame the whole network.
     let framed = prev.size !== 0;
@@ -176,6 +181,7 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
   /* ------------------------------------------------------------ highlight */
 
+  const [legendType, setLegendType] = useState<string | null>(null);
   const focusId = selectedId;
   const connected = useMemo(() => {
     const s = new Set<string>();
@@ -189,14 +195,15 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
   }, [focusId, links]);
   const matches = (n: NetworkNode) => !query || n.id.toLowerCase().includes(query) || n.domain.toLowerCase().includes(query);
   const nodeOpacity = (n: NetworkNode) => (focusId ? (connected.has(n.id) ? 1 : 0.3) : query ? (matches(n) ? 1 : 0.15) : 1);
-  const linkOn = (l: NetworkLink) => !!focusId && (l.s === focusId || l.t === focusId);
+  const touches = (l: NetworkLink, id: string | null) => !!id && (l.s === id || l.t === id);
 
   const pos = new Map(simNodesRef.current.map(n => [n.id, n]));
   const hoverNode = hover ? nodes.find(n => n.id === hover) : null;
   const usedTypes = [...new Set(links.map(l => l.type))].sort();
 
   return (
-    <div className="absolute inset-0">
+    <div className="net-canvas absolute inset-0">
+      <style>{NET_CSS}</style>
       <svg
         ref={svgRef}
         className="h-full w-full cursor-grab touch-none select-none active:cursor-grabbing"
@@ -206,34 +213,48 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
       >
         <defs>
           {Object.entries({ ...EDGE_TYPE_COLOUR, other: 'hsl(var(--muted-foreground))' }).map(([type, colour]) => (
-            <marker key={type} id={`net-arrow-${type}`} viewBox="0 -5 10 10" refX="10" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+            <marker key={type} id={`net-arrow-${type}`} viewBox="0 -5 10 10" refX="10" refY="0" markerWidth="5" markerHeight="5" orient="auto">
               <path d="M0,-5L10,0L0,5" fill={colour} />
             </marker>
           ))}
         </defs>
         <g ref={gRef}>
           {/* relationships */}
-          <g>
+          <g className="net-lines">
             {links.map(l => {
               const a = pos.get(l.s), b = pos.get(l.t);
               if (!a || !b || a.x == null || b.x == null || a.y == null || b.y == null) return null;
               const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy) || 1;
-              const x1 = a.x + (dx / dist) * a.r, y1 = a.y + (dy / dist) * a.r;
-              const x2 = b.x - (dx / dist) * (b.r + 3), y2 = b.y - (dy / dist) * (b.r + 3);
-              const on = linkOn(l);
-              const opacity = focusId ? (on ? 0.9 : 0.15) : query ? 0.2 : 0.5;
+              const x1 = a.x + (dx / dist) * (a.r + 1), y1 = a.y + (dy / dist) * (a.r + 1);
+              const x2 = b.x - (dx / dist) * (b.r + 4), y2 = b.y - (dy / dist) * (b.r + 4);
+              const selectedLink = touches(l, focusId);
+              const hovered = touches(l, hover);
+              const legendOn = legendType === l.type;
+              const on = selectedLink || hovered || legendOn;
+              const opacity = legendType ? (legendOn ? 0.95 : 0.06)
+                : focusId ? (selectedLink ? 0.9 : hovered ? 0.6 : 0.12)
+                : hovered ? 0.95 : query ? 0.2 : 0.5;
+              const labelOpacity = legendType ? (legendOn ? 1 : 0)
+                : focusId ? (selectedLink ? 1 : hovered ? 0.7 : 0.08)
+                : hovered ? 1 : query ? 0.15 : 0.75;
               const type = EDGE_TYPE_COLOUR[l.type] ? l.type : 'other';
+              const colour = edgeColour(l.type);
               return (
                 <g key={l.id}>
-                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={edgeColour(l.type)} strokeOpacity={opacity} strokeWidth={on ? 2.5 : 1.5} markerEnd={`url(#net-arrow-${type})`} />
+                  <line className="net-ease" x1={x1} y1={y1} x2={x2} y2={y2} stroke={colour} style={{ strokeOpacity: opacity }} strokeWidth={on ? 2.6 : 1.6} markerEnd={`url(#net-arrow-${type})`} />
+                  {selectedLink && (
+                    <line className="net-flow" x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(var(--background))" strokeOpacity={0.7} strokeWidth={1.6} strokeDasharray="3 9" strokeLinecap="round" />
+                  )}
                   <text
+                    className="net-ease"
                     x={(x1 + x2) / 2}
                     y={(y1 + y2) / 2}
-                    dy={-4}
+                    dy={-5}
                     textAnchor="middle"
-                    fill={edgeColour(l.type)}
-                    fontSize={on ? 11 : 9}
-                    opacity={focusId ? (on ? 1 : 0.1) : query ? 0.15 : 0.7}
+                    fill={colour}
+                    fontSize={on ? 12 : 11}
+                    fontWeight={on ? 500 : 400}
+                    style={{ opacity: labelOpacity }}
                     pointerEvents="none"
                   >
                     {words(l.type)}
@@ -245,17 +266,19 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
           {/* entities */}
           <g>
-            {nodes.map(n => {
+            {nodes.map((n, i) => {
               const p = pos.get(n.id);
               if (!p || p.x == null || p.y == null) return null;
               const selected = n.id === selectedId;
+              const isHover = n.id === hover;
+              const colour = colourOf(n.group);
               return (
                 <g
                   key={n.id}
                   data-net-node
                   transform={`translate(${p.x},${p.y})`}
-                  opacity={nodeOpacity(n)}
-                  className="cursor-pointer outline-none"
+                  style={{ opacity: nodeOpacity(n) }}
+                  className="net-ease net-node cursor-pointer outline-none"
                   tabIndex={0}
                   role="button"
                   aria-pressed={selected}
@@ -269,15 +292,31 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
                   onFocus={() => setHover(n.id)}
                   onBlur={() => setHover(null)}
                 >
-                  <circle
-                    r={p.r}
-                    fill={colourOf(n.group)}
-                    stroke={selected ? 'hsl(var(--foreground))' : 'hsl(var(--background))'}
-                    strokeWidth={selected ? 3 : 2}
-                  />
-                  <text y={p.r + 13} textAnchor="middle" fontSize={11} fill={selected ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'} fontWeight={selected ? 600 : 400} pointerEvents="none">
-                    {shortName(words(n.id))}
-                  </text>
+                  <g className="net-pop" style={{ animationDelay: `${Math.min(i * 14, 700)}ms` }}>
+                    {selected && <circle className="net-pulse" r={p.r + 5} fill="none" stroke={colour} strokeWidth={2} />}
+                    <circle className="net-halo" r={p.r + 7} fill={colour} style={{ opacity: isHover || selected ? 0.22 : 0 }} />
+                    <circle
+                      className="net-dot"
+                      r={p.r}
+                      fill={colour}
+                      stroke={selected ? 'hsl(var(--foreground))' : 'hsl(var(--background))'}
+                      strokeWidth={selected ? 3.5 : 2.5}
+                    />
+                    <text
+                      y={p.r + 18}
+                      textAnchor="middle"
+                      fontSize={13}
+                      fill={selected || isHover ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
+                      fontWeight={selected ? 600 : isHover ? 500 : 400}
+                      paintOrder="stroke"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      strokeLinejoin="round"
+                      pointerEvents="none"
+                    >
+                      {shortName(words(n.id))}
+                    </text>
+                  </g>
                 </g>
               );
             })}
@@ -287,28 +326,41 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
 
       {/* hover card, as in the original */}
       {hoverNode && (
-        <div className="pointer-events-none absolute left-3 top-16 z-10 w-56 rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg sm:left-4" role="status">
+        <div key={hoverNode.id} className="net-card pointer-events-none absolute left-3 top-28 z-10 w-64 rounded-xl border border-border bg-popover px-3.5 py-2.5 text-sm shadow-lg sm:left-4" role="status">
           <p className="flex items-center gap-2 font-medium text-foreground">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colourOf(hoverNode.group) }} />
+            <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: colourOf(hoverNode.group) }} />
             <span className="truncate">{words(hoverNode.id)}</span>
           </p>
           <p className="mt-1 text-muted-foreground">{hoverNode.domain}</p>
-          <p className="mt-1 text-muted-foreground">
-            {hoverNode.fieldCount != null && <><span className="num">{hoverNode.fieldCount}</span> fields · </>}
-            <span className="num">{hoverNode.degree}</span> links
+          <p className="mt-0.5 text-muted-foreground">
+            {hoverNode.fieldCount != null && <><span className="num text-foreground">{hoverNode.fieldCount}</span> fields · </>}
+            <span className="num text-foreground">{hoverNode.degree}</span> links
             {hoverNode.riskLevel && <> · {hoverNode.riskLevel} risk</>}
           </p>
         </div>
       )}
 
-      {/* edge-type legend, as in the original */}
-      <div className="pointer-events-none absolute bottom-24 left-3 z-10 rounded-lg border border-border bg-popover/90 px-3 py-2 text-xs shadow-sm backdrop-blur sm:left-4" aria-label="Relationship types">
-        <p className="mb-1 font-medium text-muted-foreground">Edge types</p>
-        <ul className="space-y-1">
+      {/* edge-type legend, as in the original; hover a type to see only those lines */}
+      <div className="absolute bottom-24 left-3 z-10 rounded-xl border border-border bg-popover/90 px-3.5 py-2.5 text-sm shadow-sm backdrop-blur sm:left-4" aria-label="Relationship types">
+        <p className="mb-1.5 font-medium text-foreground">Edge types</p>
+        <ul className="space-y-0.5">
           {usedTypes.map(t => (
-            <li key={t} className="flex items-center gap-2 text-muted-foreground">
-              <span className="h-0.5 w-4 rounded-full" style={{ background: edgeColour(t) }} />
-              {words(t)}
+            <li key={t}>
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-md px-1.5 py-0.5 text-left transition-colors duration-150',
+                  legendType === t ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
+                )}
+                onMouseEnter={() => setLegendType(t)}
+                onMouseLeave={() => setLegendType(null)}
+                onFocus={() => setLegendType(t)}
+                onBlur={() => setLegendType(null)}
+                aria-label={`Highlight ${words(t)} relationships`}
+              >
+                <span className={cn('h-[3px] rounded-full transition-all duration-200', legendType === t ? 'w-6' : 'w-4')} style={{ background: edgeColour(t) }} />
+                {words(t)}
+              </button>
             </li>
           ))}
         </ul>
@@ -316,3 +368,25 @@ export const NetworkCanvas = forwardRef<NetworkHandle, Props>(function NetworkCa
     </div>
   );
 });
+
+/** Micro-animations for the network; all switched off for reduced motion. */
+const NET_CSS = `
+.net-canvas .net-ease { transition: opacity 260ms ease, stroke-opacity 260ms ease, stroke-width 200ms ease; }
+.net-canvas .net-pop { transform-box: fill-box; transform-origin: center; animation: net-pop 520ms cubic-bezier(.2,.9,.3,1.25) both; }
+.net-canvas .net-lines { animation: net-fade 700ms ease 350ms both; }
+.net-canvas .net-dot { transform-box: fill-box; transform-origin: center; transition: transform 200ms cubic-bezier(.2,.9,.3,1.3), stroke-width 200ms ease; }
+.net-canvas .net-node:hover .net-dot, .net-canvas .net-node:focus-visible .net-dot { transform: scale(1.14); }
+.net-canvas .net-halo { transition: opacity 220ms ease; }
+.net-canvas .net-pulse { transform-box: fill-box; transform-origin: center; animation: net-pulse 1.8s ease-out infinite; }
+.net-canvas .net-flow { animation: net-flow 900ms linear infinite; }
+.net-canvas .net-card { animation: net-card 180ms ease-out both; }
+@keyframes net-pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes net-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes net-pulse { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.7); } }
+@keyframes net-flow { from { stroke-dashoffset: 12; } to { stroke-dashoffset: 0; } }
+@keyframes net-card { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .net-canvas .net-pop, .net-canvas .net-lines, .net-canvas .net-pulse, .net-canvas .net-flow, .net-canvas .net-card { animation: none; }
+  .net-canvas .net-ease, .net-canvas .net-dot, .net-canvas .net-halo { transition: none; }
+}
+`;
