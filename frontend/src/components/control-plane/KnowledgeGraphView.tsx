@@ -34,6 +34,7 @@ import { DetailSheet, InlineError, KeyValues, SearchInput, StatusPill } from '@/
 import { EmptyState } from '@/components/ds/primitives';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS } from '@/components/ds/charts';
+import { NetworkCanvas, type NetworkHandle } from './NetworkCanvas';
 
 /* ------------------------------------------------------------------ types */
 
@@ -182,34 +183,6 @@ function layoutMap(nodes: GraphNode[], groups: string[], availW: number): Pos {
   return pos;
 }
 
-/**
- * Network: the original Nexus graph, a free force-directed network of circles
- * sized by how connected each entity is, in the product's colours.
- */
-const netR = (degree: number) => Math.max(8, Math.min(20, 6 + degree * 2));
-function layoutNetwork(nodes: GraphNode[], links: Link[]): Pos {
-  const n = Math.max(nodes.length, 1);
-  // Start on a circle, so the settled network is round and evenly spread.
-  const sim = nodes.map((nd, i) => {
-    const a = (i / n) * Math.PI * 2;
-    return { id: nd.id, r: netR(nd.degree), x: Math.cos(a) * 320, y: Math.sin(a) * 320 };
-  });
-  const byId = new Map(sim.map(x => [x.id, x]));
-  const simLinks = links.filter(l => byId.has(l.s) && byId.has(l.t)).map(l => ({ source: l.s, target: l.t }));
-  d3.forceSimulation(sim as any)
-    .force('link', d3.forceLink<any, any>(simLinks).id((d: any) => d.id).distance(110))
-    .force('charge', d3.forceManyBody().strength(-220).distanceMax(420))
-    .force('center', d3.forceCenter(0, 0))
-    .force('x', d3.forceX(0).strength(0.1))
-    .force('y', d3.forceY(0).strength(0.12))
-    .force('collide', d3.forceCollide<any>(d => d.r + 30).iterations(2))
-    .stop()
-    .tick(320);
-  const pos: Pos = {};
-  for (const x of sim) pos[x.id] = { x: x.x, y: x.y };
-  return pos;
-}
-
 function layoutLanes(nodes: GraphNode[], systems: string[]): Pos {
   const pos: Pos = {};
   const laneW = 244, rowH = 50;
@@ -318,6 +291,7 @@ export default function KnowledgeGraphView() {
   const isDesktop = useIsDesktop();
   const wrapRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<HTMLDivElement, unknown> | null>(null);
+  const netRef = useRef<NetworkHandle>(null);
 
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -444,7 +418,6 @@ export default function KnowledgeGraphView() {
   }, [systems]);
 
   const nodes = useMemo(() => (graphData?.nodes || []).filter(nd => systemFilters.has(nd.group)), [graphData, systemFilters]);
-  const degreeOf = useMemo(() => new Map((graphData?.nodes || []).map(nd => [nd.id, nd.degree])), [graphData]);
   const nodeIds = useMemo(() => new Set(nodes.map(nd => nd.id)), [nodes]);
   const links = useMemo(
     () => allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t) && (!crossOnly || systemOfNode.get(l.s) !== systemOfNode.get(l.t))),
@@ -468,7 +441,7 @@ export default function KnowledgeGraphView() {
   const target: Pos = useMemo(() => {
     if (nodes.length === 0) return {};
     if (mode === 'lanes') return layoutLanes(nodes, visibleSystems);
-    if (mode === 'network') return layoutNetwork(nodes, allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t)));
+    if (mode === 'network') return {};
     if (mode === 'map') return layoutMap(nodes, visibleSystems, size.w ? Math.max(560, size.w - 96) : 1200);
     if (mode === 'focus' && centreId) return layoutFocus(nodes, lineage);
     return layoutConstellation(nodes, allLinks.filter(l => nodeIds.has(l.s) && nodeIds.has(l.t)), visibleSystems, aspect);
@@ -656,13 +629,6 @@ export default function KnowledgeGraphView() {
   const linkGeo = (l: Link) => {
     const a = pos[l.s], b = pos[l.t];
     if (!a || !b) return null;
-    if (mode === 'network') {
-      const ra = netR(degreeOf.get(l.s) || 0), rb = netR(degreeOf.get(l.t) || 0);
-      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy) || 1;
-      const p1 = { x: a.x + (dx / dist) * (ra + 2), y: a.y + (dy / dist) * (ra + 2) };
-      const p2 = { x: b.x - (dx / dist) * (rb + 7), y: b.y - (dy / dist) * (rb + 7) };
-      return { d: `M${p1.x},${p1.y} L${p2.x},${p2.y}`, mid: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 } };
-    }
     const p1 = edgePoint(a, nodeW(l.s), NODE_H, b.x, b.y);
     const p2 = edgePoint(b, nodeW(l.t), NODE_H, a.x, a.y, 9);
     const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -786,8 +752,23 @@ export default function KnowledgeGraphView() {
         }}
         onClick={(e) => { if (e.target === e.currentTarget) selectNode(null); }}
       >
+        {mode === 'network' && (
+          <div data-graph-ui className="absolute inset-0">
+            <NetworkCanvas
+              ref={netRef}
+              nodes={nodes.map(nd => ({ id: nd.id, group: nd.group, domain: nd.domain || '', degree: nd.degree, fieldCount: nd.fieldCount, riskLevel: nd.riskLevel }))}
+              links={links}
+              colourOf={groupColour}
+              groupLabel={groupLabel}
+              selectedId={selectedNode?.id || null}
+              onSelect={(id) => (id ? selectById(id) : selectNode(null))}
+              query={q}
+            />
+          </div>
+        )}
+
         {/* links and territories */}
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+        <svg className={cn('pointer-events-none absolute inset-0 h-full w-full', mode === 'network' && 'hidden')} aria-hidden="true">
           <defs>
             <marker id="kg-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M1,1 L9,5 L1,9" fill="none" stroke="hsl(var(--border-strong))" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -817,7 +798,7 @@ export default function KnowledgeGraphView() {
         </svg>
 
         {/* nodes and labels */}
-        <div className="absolute left-0 top-0 h-0 w-0" style={{ transform: worldTransform, transformOrigin: '0 0' }}>
+        <div className={cn('absolute left-0 top-0 h-0 w-0', mode === 'network' && 'hidden')} style={{ transform: worldTransform, transformOrigin: '0 0' }}>
           {territories.map(t => (
             <div key={t.sys} className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap" style={{ left: t.label.x, top: t.label.y }}>
               {groupBy === 'system' && <SystemLogo system={t.sys} size="sm" />}
@@ -848,43 +829,6 @@ export default function KnowledgeGraphView() {
             const selected = selectedNode?.id === nd.id;
             const isCentre = mode === 'focus' && nd.id === centreId;
             const unmapped = nd.fdwMappingStatus && nd.fdwMappingStatus !== 'mapped';
-            if (mode === 'network') {
-              const r = netR(nd.degree);
-              const boxW = 140;
-              return (
-                <button
-                  key={nd.id}
-                  type="button"
-                  data-graph-ui
-                  onPointerDown={(e) => onNodePointerDown(e, nd.id)}
-                  onPointerMove={onNodePointerMove}
-                  onPointerUp={(e) => onNodePointerUp(e, nd)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(nd); } }}
-                  onMouseEnter={() => setHoveredNode(nd.id)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onFocus={() => setHoveredNode(nd.id)}
-                  onBlur={() => setHoveredNode(null)}
-                  aria-pressed={selected}
-                  aria-label={`${pretty(nd.id)}, ${groupLabel(nd.group)}, ${nd.degree} links`}
-                  className={cn(
-                    'group/n absolute flex cursor-pointer flex-col items-center outline-none transition-opacity duration-200 focus-visible:[&>span:first-child]:ring-2 focus-visible:[&>span:first-child]:ring-ring',
-                    state === 'dim' && 'opacity-35',
-                  )}
-                  style={{ left: p.x - boxW / 2, top: p.y - r, width: boxW, zIndex: selected ? 3 : state === 'lit' ? 2 : 1 }}
-                >
-                  <span
-                    className={cn(
-                      'block shrink-0 rounded-full border-2 transition-[box-shadow,transform] duration-200 group-hover/n:scale-110',
-                      selected ? 'border-foreground shadow-[0_0_0_4px_hsl(var(--brand)/0.25)]' : 'border-background',
-                    )}
-                    style={{ width: r * 2, height: r * 2, background: groupColour(nd.group) }}
-                  />
-                  <span className={cn('mt-1 max-w-full truncate px-1 text-xs', selected || state === 'lit' ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                    {pretty(nd.id)}
-                  </span>
-                </button>
-              );
-            }
             return (
               <button
                 key={nd.id}
@@ -1001,9 +945,9 @@ export default function KnowledgeGraphView() {
           <div className="pointer-events-auto absolute bottom-[72px] right-0 flex shrink-0 flex-col items-end gap-2 md:bottom-[64px]">
             <div className="flex flex-col rounded-xl border border-border bg-popover/95 p-1 shadow-md backdrop-blur">
               {([
-                { label: 'Zoom in', icon: 'plus', run: () => zoomBy(1.35) },
-                { label: 'Zoom out', icon: 'minus', run: () => zoomBy(0.74) },
-                { label: 'Fit to screen', icon: 'expand', run: () => fit(posRef.current) },
+                { label: 'Zoom in', icon: 'plus', run: () => (mode === 'network' ? netRef.current?.zoomBy(1.35) : zoomBy(1.35)) },
+                { label: 'Zoom out', icon: 'minus', run: () => (mode === 'network' ? netRef.current?.zoomBy(0.74) : zoomBy(0.74)) },
+                { label: 'Fit to screen', icon: 'expand', run: () => (mode === 'network' ? netRef.current?.fit() : fit(posRef.current)) },
               ] as const).map(b => (
                 <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label}
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -1015,7 +959,7 @@ export default function KnowledgeGraphView() {
         </div>
 
         {/* minimap */}
-        <svg data-graph-ui className="pointer-events-none absolute right-3 top-3 hidden h-[92px] w-[136px] rounded-xl border border-border bg-popover/95 shadow-md backdrop-blur sm:right-4 sm:top-4 2xl:block" viewBox={`${world.x - 60} ${world.y - 60} ${world.w + 120} ${world.h + 120}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <svg data-graph-ui className={cn('pointer-events-none absolute right-3 top-3 hidden h-[92px] w-[136px] rounded-xl border border-border bg-popover/95 shadow-md backdrop-blur sm:right-4 sm:top-4', mode !== 'network' && '2xl:block')} viewBox={`${world.x - 60} ${world.y - 60} ${world.w + 120} ${world.h + 120}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               {nodes.map(nd => pos[nd.id] && (
                 <rect key={nd.id} x={pos[nd.id].x - 26} y={pos[nd.id].y - 9} width={52} height={18} rx={9}
                   fill={selectedNode?.id === nd.id ? 'hsl(var(--brand-hi))' : 'hsl(var(--muted-foreground))'} opacity={selectedNode?.id === nd.id ? 1 : 0.45} />
