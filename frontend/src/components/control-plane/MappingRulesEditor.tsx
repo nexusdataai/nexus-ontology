@@ -1,16 +1,18 @@
+/**
+ * Data Plane → Mapping rules. Papu's original layout (rule list | editor |
+ * summary and data), drawn in the product theme: Geist type, theme colours,
+ * the shared icon set, in-app confirm dialogs and toasts.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Icon } from '@/components/ds/Icon';
-import { EmptyState } from '@/components/ds/primitives';
-import { Chips, CodeBlock, Field, InlineError, KeyValues, SearchInput, StatusPill } from '@/components/ds/kit';
-import { SystemLogo, systemName } from '@/components/ds/SystemLogo';
+import { SearchInput } from '@/components/ds/kit';
+import { confirmDialog } from '@/components/ds/confirm';
 import { cn } from '@/lib/utils';
 import { MappingAuditPanel } from './MappingAuditPanel';
 import {
@@ -25,16 +27,28 @@ import { fdwService } from '@/services/fdwService';
 import { apiClient } from '@/services/apiClient';
 import { virtualQueryService } from '@/services/virtualQueryService';
 import type { ForeignTableInfo, ColumnInfo } from '@/types/fdwTypes';
-import { confirmDialog } from '@/components/ds/confirm';
+
+const STATUS_STYLES: Record<string, string> = {
+  draft: 'bg-warning/15 text-warning',
+  active: 'bg-success/15 text-success',
+  inactive: 'bg-muted text-muted-foreground',
+};
+const SYSTEM_COLOUR: Record<string, string> = {
+  Salesforce: 'hsl(var(--chart-1))',
+  Oracle: 'hsl(var(--chart-5))',
+  SAP: 'hsl(var(--chart-4))',
+};
 
 const TRANSFORM_OPTIONS = ['none', 'upper', 'lower', 'trim', 'string'];
-const TRANSFORM_LABEL: Record<string, string> = {
-  none: 'No transform', upper: 'Upper case', lower: 'Lower case', trim: 'Trim spaces', string: 'To text',
-};
-const STATUS_OPTIONS = ['draft', 'active', 'inactive'] as const;
+/** Rows loaded by Preview. */
+const PREVIEW_LIMIT = 10;
 
-/** Radix Select cannot hold an empty value; this stands for "not chosen". */
-const NONE = '__none__';
+const SELECT = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
+const TEXTAREA = 'w-full resize-none rounded-lg border border-input bg-background p-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+interface SchemaField { name: string; dataType?: string }
+interface SchemaEntity { name: string; system?: string; fields?: SchemaField[] }
+type PreviewRow = Record<string, unknown>;
 
 interface EditState {
   id?: string;
@@ -70,9 +84,8 @@ function makeEditState(rule?: MappingRule | null): EditState {
   };
 }
 
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/_/g, '');
-}
+const normalize = (s: string) => s.toLowerCase().replace(/_/g, '');
+const errorText = (e: unknown, fallback: string): string => (e instanceof Error && e.message ? e.message : fallback);
 
 function getSourceParam(schema: string): string | undefined {
   if (schema === 'oracle_erp') return 'oracle';
@@ -82,92 +95,46 @@ function getSourceParam(schema: string): string | undefined {
   return undefined;
 }
 
-const errorText = (e: unknown, fallback: string): string =>
-  e instanceof Error && e.message ? e.message : fallback;
-
-/** One mono select cell of the field-mapping table. */
-function FieldSelect({ value, onChange, options, placeholder, label }: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; hint?: string }[];
-  placeholder: string;
-  label: string;
-}) {
-  // Keep the saved value visible even while (or if) the option list is missing.
-  const items = value && !options.some(o => o.value === value) ? [{ value }, ...options] : options;
-  return (
-    <Select value={value || undefined} onValueChange={(v) => onChange(v === NONE ? '' : v)}>
-      <SelectTrigger aria-label={label} className="h-8 w-full min-w-0 px-2.5 font-mono text-xs">
-        <SelectValue placeholder={<span className="font-sans text-subtle-foreground">{placeholder}</span>} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={NONE} className="text-muted-foreground">Not set</SelectItem>
-        {items.map(o => (
-          <SelectItem key={o.value} value={o.value} className="font-mono text-xs">
-            {o.value}{o.hint && <span className="ml-2 font-sans text-muted-foreground">{o.hint}</span>}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+function Pill({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <span className={cn('inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-xs font-medium', className)}>{children}</span>;
 }
-
-function SectionTitle({ title, hint, action }: { title: string; hint?: string; action?: React.ReactNode }) {
-  return (
-    <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-      <div className="min-w-0">
-        <h3 className="text-md font-medium text-foreground">{title}</h3>
-        {hint && <p className="mt-0.5 text-sm text-muted-foreground">{hint}</p>}
-      </div>
-      {action}
-    </div>
-  );
+function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
+  return <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-muted-foreground">{children}</label>;
+}
+function Spinner({ className }: { className?: string }) {
+  return <Icon name="spinner" className={cn('h-4 w-4 animate-spin', className)} />;
 }
 
 export default function MappingRulesEditor() {
   const [rules, setRules] = useState<MappingRule[]>([]);
   const [selectedRule, setSelectedRule] = useState<MappingRule | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
-  const [schemaEntities, setSchemaEntities] = useState<any[]>([]);
+  const [schemaEntities, setSchemaEntities] = useState<SchemaEntity[]>([]);
   const [fdwTables, setFdwTables] = useState<ForeignTableInfo[]>([]);
   const [sourceColumns, setSourceColumns] = useState<ColumnInfo[]>([]);
-  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [previewMeta, setPreviewMeta] = useState<{ durationMs: number; rowCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [autoMapping, setAutoMapping] = useState(false);
   const [autoMapResult, setAutoMapResult] = useState<AutoMapResponse | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
-  // Presentation only.
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [previewing, setPreviewing] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [browseOpen, setBrowseOpen] = useState(false);
-  // A saved rule opens as a read-only overview; editing is a separate step.
-  const [editing, setEditing] = useState(false);
-  const [flowFilter, setFlowFilter] = useState<'all' | 'renamed' | 'transformed'>('all');
-  // A few real rows of the entity, to show an example value next to each field.
-  const [exampleRows, setExampleRows] = useState<any[]>([]);
 
   const loadRules = useCallback(async () => {
     setLoading(true);
-    setLoadError(null);
     try {
-      const data = await mappingRuleService.list();
-      setRules(data);
-    } catch (e) {
-      setRules([]);
-      setLoadError(errorText(e, 'Mapping rules could not be loaded.'));
-    }
+      setRules(await mappingRuleService.list());
+    } catch { setRules([]); }
     finally { setLoading(false); }
   }, []);
 
   const handleAutoMap = async () => {
     if (!(await confirmDialog({
-      title: 'Re-run auto-mapping?',
-      description: 'This deletes the existing auto-mapped rules and re-creates them by matching schema entities to the actual FDW and simulator tables. Manually created rules are not affected.',
+      title: 'Re-create the automatic mapping rules?',
+      description: 'Existing auto-mapped rules are deleted and created again by matching schema entities to the FDW and simulator tables. Rules created by hand are not affected.',
       confirmLabel: 'Auto-map',
     }))) return;
     setAutoMapping(true);
@@ -175,11 +142,8 @@ export default function MappingRulesEditor() {
     try {
       const result = await mappingRuleService.autoMap(true);
       setAutoMapResult(result);
-      if (result.errors > 0) toast.warning(`Auto-map finished with ${result.errors} ${result.errors === 1 ? 'error' : 'errors'}`, { description: `${result.created} created, ${result.skipped} skipped.` });
-      else toast.success('Auto-map finished', { description: `${result.created} created, ${result.skipped} skipped.` });
       await loadRules();
     } catch (e) {
-      console.error('Auto-map failed', e);
       setAutoMapResult({ created: 0, skipped: 0, errors: 1, details: [{ entity: 'all', status: 'error', reason: String(e) }] });
       toast.error('Auto-map failed', { description: errorText(e, 'The request did not complete.') });
     } finally {
@@ -189,7 +153,7 @@ export default function MappingRulesEditor() {
 
   useEffect(() => {
     loadRules();
-    apiClient.get('/api/v1/control-plane/entities').then(setSchemaEntities).catch(() => {});
+    apiClient.get<SchemaEntity[]>('/api/v1/control-plane/entities').then(list => setSchemaEntities(list || [])).catch(() => {});
     Promise.all([
       fdwService.listTables().catch(() => [] as ForeignTableInfo[]),
       fdwService.listTables(undefined, 'simulator').catch(() => [] as ForeignTableInfo[]),
@@ -209,19 +173,9 @@ export default function MappingRulesEditor() {
   const selectRule = (rule: MappingRule) => {
     setSelectedRule(rule);
     setEditState(makeEditState(rule));
-    setEditing(false);
-    setFlowFilter('all');
-    setExampleRows([]);
-    if (rule.virtualEntity) {
-      virtualQueryService.queryEntity({ virtualEntity: rule.virtualEntity, limit: 5 })
-        .then(r => setExampleRows(r.rows || []))
-        .catch(() => setExampleRows([]));
-    }
     setSourceColumns([]);
     setPreviewRows([]);
     setShowPreview(false);
-    setPreviewError(null);
-    setBrowseOpen(false);
     if (rule.sourceSchema && rule.sourceTable) {
       fdwService.getColumns(rule.sourceSchema, rule.sourceTable, getSourceParam(rule.sourceSchema))
         .then(setSourceColumns).catch(() => {});
@@ -231,57 +185,35 @@ export default function MappingRulesEditor() {
   const handleNew = () => {
     setSelectedRule(null);
     setEditState(makeEditState());
-    setEditing(true);
-    setExampleRows([]);
     setSourceColumns([]);
     setPreviewRows([]);
     setShowPreview(false);
-    setPreviewError(null);
-    setBrowseOpen(false);
   };
 
   const updateField = <K extends keyof EditState>(key: K, value: EditState[K]) => {
-    setEditState(prev => prev ? { ...prev, [key]: value } : prev);
+    setEditState(prev => (prev ? { ...prev, [key]: value } : prev));
   };
 
   const updateFieldMap = (index: number, key: keyof FieldMap, value: string) => {
-    setEditState(prev => {
-      if (!prev) return prev;
-      const maps = prev.fieldMaps.map((f, i) => i === index ? { ...f, [key]: value } : f);
-      return { ...prev, fieldMaps: maps };
-    });
+    setEditState(prev => (prev ? { ...prev, fieldMaps: prev.fieldMaps.map((f, i) => (i === index ? { ...f, [key]: value } : f)) } : prev));
   };
-
   const addFieldMap = () => {
-    setEditState(prev => {
-      if (!prev) return prev;
-      return { ...prev, fieldMaps: [...prev.fieldMaps, { sourceField: '', targetField: '' }] };
-    });
+    setEditState(prev => (prev ? { ...prev, fieldMaps: [...prev.fieldMaps, { sourceField: '', targetField: '' }] } : prev));
   };
-
   const removeFieldMap = (index: number) => {
-    setEditState(prev => {
-      if (!prev) return prev;
-      return { ...prev, fieldMaps: prev.fieldMaps.filter((_, i) => i !== index) };
-    });
+    setEditState(prev => (prev ? { ...prev, fieldMaps: prev.fieldMaps.filter((_, i) => i !== index) } : prev));
   };
 
   const handleVirtualEntityChange = (entityName: string) => {
-    const entity = schemaEntities.find((e: any) => e.name === entityName);
+    const entity = schemaEntities.find(e => e.name === entityName);
     if (!entity) return;
-    const targetFields: FieldMap[] = (entity.fields || []).map((f: any) => ({
-      sourceField: '',
-      targetField: f.name,
-    }));
-    setEditState(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        virtualEntity: entityName,
-        sourceSystem: entity.system || '',
-        fieldMaps: targetFields.length > 0 ? targetFields : [{ sourceField: '', targetField: '' }],
-      };
-    });
+    const targetFields: FieldMap[] = (entity.fields || []).map(f => ({ sourceField: '', targetField: f.name }));
+    setEditState(prev => (prev ? {
+      ...prev,
+      virtualEntity: entityName,
+      sourceSystem: entity.system || '',
+      fieldMaps: targetFields.length > 0 ? targetFields : [{ sourceField: '', targetField: '' }],
+    } : prev));
   };
 
   const handleSourceTableChange = async (tableKey: string) => {
@@ -289,18 +221,13 @@ export default function MappingRulesEditor() {
     const dotIdx = tableKey.indexOf('.');
     const schema = tableKey.substring(0, dotIdx);
     const table = tableKey.substring(dotIdx + 1);
-    setEditState(prev => {
-      if (!prev) return prev;
-      return { ...prev, sourceSchema: schema, sourceTable: table, sourceType: 'FDW' };
-    });
+    setEditState(prev => (prev ? { ...prev, sourceSchema: schema, sourceTable: table, sourceType: 'FDW' } : prev));
     try {
-      const cols = await fdwService.getColumns(schema, table, getSourceParam(schema));
-      setSourceColumns(cols);
+      setSourceColumns(await fdwService.getColumns(schema, table, getSourceParam(schema)));
     } catch { setSourceColumns([]); }
   };
 
   const handleAutoMatch = () => {
-    if (!editState) return;
     setEditState(prev => {
       if (!prev) return prev;
       const maps = prev.fieldMaps.map(fm => {
@@ -326,7 +253,6 @@ export default function MappingRulesEditor() {
         const updated = await mappingRuleService.update(editState.id, payload);
         setSelectedRule(updated);
         setEditState(makeEditState(updated));
-        setEditing(false);
       } else {
         const payload: CreateMappingRuleRequest = {
           name: editState.name, virtualEntity: editState.virtualEntity,
@@ -339,15 +265,12 @@ export default function MappingRulesEditor() {
         const created = await mappingRuleService.create(payload);
         setSelectedRule(created);
         setEditState(makeEditState(created));
-        setEditing(false);
       }
       toast.success('Mapping rule saved');
       await loadRules();
     } catch (e) {
-      console.error('Save failed', e);
       toast.error('The rule was not saved', { description: errorText(e, 'The request did not complete.') });
-    }
-    finally { setSaving(false); }
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
@@ -359,7 +282,6 @@ export default function MappingRulesEditor() {
       toast.success('Mapping rule deleted');
       await loadRules();
     } catch (e) {
-      console.error('Delete failed', e);
       toast.error('The rule was not deleted', { description: errorText(e, 'The request did not complete.') });
     }
   };
@@ -367,501 +289,366 @@ export default function MappingRulesEditor() {
   const handlePreview = async () => {
     if (!editState?.virtualEntity) return;
     setPreviewing(true);
-    setPreviewError(null);
     try {
       const targetFields = editState.fieldMaps.filter(fm => fm.targetField).map(fm => fm.targetField);
       const resp = await virtualQueryService.queryEntity({
         virtualEntity: editState.virtualEntity,
         fields: targetFields.length > 0 ? targetFields : undefined,
-        limit: 5,
+        limit: PREVIEW_LIMIT,
       });
-      setPreviewRows(resp.rows || []);
+      setPreviewRows((resp.rows || []) as PreviewRow[]);
       setPreviewMeta({ durationMs: resp.metadata?.durationMs || 0, rowCount: resp.metadata?.rowCount || resp.rows?.length || 0 });
-      setShowPreview(true);
-    } catch (e) {
+    } catch {
       setPreviewRows([]);
       setPreviewMeta(null);
-      setShowPreview(true);
-      setPreviewError(errorText(e, 'The preview query failed.'));
     } finally {
+      setShowPreview(true);
       setPreviewing(false);
     }
   };
 
-  const filteredRules = rules.filter(r =>
-    !searchFilter || `${r.name} ${r.virtualEntity} ${r.sourceTable}`.toLowerCase().includes(searchFilter.toLowerCase())
+  const filteredRules = useMemo(
+    () => rules.filter(r => !searchFilter || r.name.toLowerCase().includes(searchFilter.toLowerCase()) || (r.virtualEntity || '').toLowerCase().includes(searchFilter.toLowerCase())),
+    [rules, searchFilter],
   );
 
-  const entityFields: any[] = editState?.virtualEntity
-    ? (schemaEntities.find((e: any) => e.name === editState.virtualEntity)?.fields || [])
+  const entityFields: SchemaField[] = editState?.virtualEntity
+    ? (schemaEntities.find(e => e.name === editState.virtualEntity)?.fields || [])
     : [];
 
-  const sourceTableKey = editState?.sourceSchema && editState?.sourceTable
-    ? `${editState.sourceSchema}.${editState.sourceTable}` : '';
+  const sourceTableKey = editState?.sourceSchema && editState?.sourceTable ? `${editState.sourceSchema}.${editState.sourceTable}` : '';
 
   const fieldLookup = new Map<string, string>();
-  if (editState) {
-    editState.fieldMaps.forEach(fm => {
-      if (fm.sourceField && fm.targetField) fieldLookup.set(fm.sourceField, fm.targetField);
-    });
-  }
+  editState?.fieldMaps.forEach(fm => { if (fm.sourceField && fm.targetField) fieldLookup.set(fm.sourceField, fm.targetField); });
 
   const groupedRules = useMemo(() => {
     const groups: Record<string, MappingRule[]> = {};
-    for (const r of filteredRules) {
-      const sys = r.sourceSystem || 'Other';
-      if (!groups[sys]) groups[sys] = [];
-      groups[sys].push(r);
-    }
+    for (const r of filteredRules) (groups[r.sourceSystem || 'Other'] ??= []).push(r);
     return groups;
   }, [filteredRules]);
 
   const mappedCount = editState?.fieldMaps.filter(fm => fm.sourceField && fm.targetField).length ?? 0;
-
-  // The editor is never blank: open the first rule of the list after load.
-  useEffect(() => {
-    if (loading || editState) return;
-    const first = Object.values(groupedRules)[0]?.[0];
-    if (first) selectRule(first);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, editState, groupedRules]);
-
-  const entityOptions: string[] = schemaEntities.map((e: any) => e.name);
-  if (editState?.virtualEntity && !entityOptions.includes(editState.virtualEntity)) entityOptions.unshift(editState.virtualEntity);
-  const tableOptions: string[] = fdwTables.map(t => `${t.schemaName}.${t.tableName}`);
-  if (sourceTableKey && !tableOptions.includes(sourceTableKey)) tableOptions.unshift(sourceTableKey);
-
-  const sourceOptions = sourceColumns.map(c => ({ value: c.columnName, hint: c.dataType }));
-  const targetOptions = entityFields.map((f: any) => ({ value: f.name as string, hint: f.dataType as string }));
-
-  /* ------------------------------------------------------------- the list */
-
-  const list = (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 space-y-2.5 border-b border-border p-3">
-        <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Search rules" className="sm:w-full" />
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" onClick={handleNew} className="border-brand/40 text-primary hover:border-brand/70 hover:bg-brand/10 dark:text-brand-hi">
-            <Icon name="plus" /> New rule
-          </Button>
-          <div className="flex-1" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="px-2" aria-label="More actions">
-                <Icon name={autoMapping ? 'spinner' : 'more'} className={autoMapping ? 'animate-spin' : undefined} /> More
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onSelect={handleAutoMap} disabled={autoMapping}>
-                <Icon name="sparkles" />
-                <span className="flex flex-col">
-                  <span>Auto-map</span>
-                  <span className="text-xs text-muted-foreground">Create rules from matching source tables</span>
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setAuditOpen(true)}>
-                <Icon name="clipboard" />
-                <span className="flex flex-col">
-                  <span>Audit coverage</span>
-                  <span className="text-xs text-muted-foreground">Which entities have a working rule</span>
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {autoMapResult && (
-          autoMapResult.errors > 0 ? (
-            <InlineError className="text-xs">
-              <p className="font-medium">Auto-map: {autoMapResult.created} created, {autoMapResult.skipped} skipped, {autoMapResult.errors} {autoMapResult.errors === 1 ? 'error' : 'errors'}</p>
-              {autoMapResult.details.filter(d => d.status === 'error').slice(0, 3).map((d, i) => (
-                <p key={i} className="mt-0.5 break-words">{d.entity}{d.reason ? `: ${d.reason}` : ''}</p>
-              ))}
-              <button type="button" onClick={() => setAutoMapResult(null)} className="mt-1 underline underline-offset-4">Dismiss</button>
-            </InlineError>
-          ) : (
-            <div className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface-2/70 px-3 py-2 text-xs text-muted-foreground">
-              <span><StatusPill tone="success" className="mr-1.5">Auto-map finished</StatusPill>{autoMapResult.created} created, {autoMapResult.skipped} skipped</span>
-              <button type="button" onClick={() => setAutoMapResult(null)} aria-label="Dismiss" className="mt-0.5 text-subtle-foreground hover:text-foreground">
-                <Icon name="close" className="h-3 w-3" />
-              </button>
-            </div>
-          )
-        )}
-      </div>
-
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="space-y-3 p-3" aria-busy="true">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <Skeleton className="h-4 w-3/5" />
-                <Skeleton className="h-3 w-4/5" />
-              </div>
-            ))}
-          </div>
-        ) : loadError ? (
-          <div className="p-3"><InlineError onRetry={loadRules}>{loadError}</InlineError></div>
-        ) : filteredRules.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {rules.length === 0 ? 'No mapping rules yet.' : 'No rules match this search.'}
-          </p>
-        ) : (
-          <div className="pb-3">
-            {Object.entries(groupedRules).map(([system, items], gi) => (
-              <section key={system} className="rise" style={{ '--i': Math.min(gi, 8) } as React.CSSProperties}>
-                <h3 className="flex items-center gap-2 px-4 pb-1.5 pt-4 text-xs font-medium text-muted-foreground">
-                  <SystemLogo system={system} size="xs" />
-                  <span className="truncate">{systemName(system)}</span>
-                  <span className="num ml-auto font-normal text-subtle-foreground">{items.length}</span>
-                </h3>
-                <ul className="px-2">
-                  {items.map(rule => {
-                    const on = selectedRule?.id === rule.id;
-                    return (
-                      <li key={rule.id}>
-                        <button
-                          type="button"
-                          onClick={() => selectRule(rule)}
-                          aria-current={on ? 'true' : undefined}
-                          className={cn(
-                            'block w-full rounded-md px-2 py-2 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                            on ? 'bg-accent' : 'hover:bg-accent/60',
-                          )}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className={cn('truncate text-sm text-foreground', on && 'font-medium')}>{humanize(rule.virtualEntity || rule.name)}</span>
-                            {rule.status !== 'active' && <StatusPill status={rule.status} className="font-normal text-muted-foreground" />}
-                          </span>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">from {rule.sourceTable || 'no table'}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {!loading && !loadError && rules.length > 0 && (
-        <div className="shrink-0 border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          <span className="num">{filteredRules.length}</span> of <span className="num">{rules.length}</span> rules
-        </div>
-      )}
-    </div>
-  );
-
-  /* ----------------------------------------------------------- the editor */
+  const noFieldMaps = !!editState && editState.fieldMaps.length === 0;
+  const summaryMaps = editState?.fieldMaps.filter(fm => fm.sourceField || fm.targetField) || [];
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="hidden min-h-0 border-r border-border bg-sidebar/40 lg:block" aria-label="Mapping rules">{list}</aside>
-
-      <Sheet open={browseOpen} onOpenChange={setBrowseOpen}>
-        <SheetContent side="left" className="flex w-full flex-col gap-0 p-0 sm:max-w-sm">
-          <div className="border-b border-border px-4 pb-3 pt-4 pr-12">
-            <SheetTitle className="text-md font-medium">Mapping rules</SheetTitle>
-            <SheetDescription className="sr-only">Choose a mapping rule to edit</SheetDescription>
-          </div>
-          <div className="min-h-0 flex-1">{list}</div>
-        </SheetContent>
-      </Sheet>
-
-      <div className="flex min-h-0 min-w-0 flex-col">
-        <div className="shrink-0 border-b border-border px-4 py-2 lg:hidden">
-          <Button variant="outline" size="sm" className="w-full justify-between" onClick={() => setBrowseOpen(true)}>
-            <span className="flex min-w-0 items-center gap-2">
-              <Icon name="list" className="h-3.5 w-3.5" />
-              <span className="truncate">{editState ? (editState.name || 'New rule') : 'Browse rules'}</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-normal text-muted-foreground">
-              <span className="num">{rules.length}</span>
-              <Icon name="chevron-down" className="h-3.5 w-3.5" />
-            </span>
-          </Button>
-        </div>
-
-        {!editState ? (
-          loading ? (
-            <div className="space-y-4 p-5 sm:p-6" aria-busy="true">
-              <Skeleton className="h-8 w-72 max-w-full" />
-              <Skeleton className="h-9 w-full max-w-2xl" />
-              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
-            </div>
-          ) : (
-            <div className="space-y-4 p-5 sm:p-6">
-              {loadError && <InlineError onRetry={loadRules}>{loadError}</InlineError>}
-              <EmptyState
-                icon="shuffle"
-                title="No mapping rules yet"
-                description="A mapping rule connects a source table to a virtual entity, field by field. Create one by hand or let auto-map propose them."
-                action={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button size="sm" onClick={handleNew}><Icon name="plus" /> New rule</Button>
-                    <Button size="sm" variant="outline" onClick={handleAutoMap} disabled={autoMapping}>
-                      <Icon name={autoMapping ? 'spinner' : 'sparkles'} className={autoMapping ? 'animate-spin' : undefined} /> Auto-map
-                    </Button>
-                  </div>
-                }
-              />
-            </div>
-          )
-        ) : (
-          editState.id && !editing ? (
-            <RuleOverview
-              state={editState}
-              rule={selectedRule}
-              sourceColumns={sourceColumns}
-              exampleRows={exampleRows}
-              filter={flowFilter}
-              onFilter={setFlowFilter}
-              onEdit={() => setEditing(true)}
-            />
-          ) : (
-          <>
-            {/* Sticky editor header */}
-            <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3 sm:px-6">
-              <div className="min-w-0 flex-1 basis-64">
-                <Input
-                  value={editState.name}
-                  onChange={e => updateField('name', e.target.value)}
-                  placeholder="Rule name"
-                  aria-label="Rule name"
-                  className="-ml-2 h-9 border-transparent bg-transparent px-2 text-lg font-medium tracking-tight shadow-none hover:border-border focus-visible:border-ring"
-                />
-                <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                  {editState.sourceSystem && <SystemLogo system={editState.sourceSystem} size="xs" />}
-                  <span className="truncate font-mono">{sourceTableKey || 'No source table'}</span>
-                  <Icon name="arrow-right" className="h-3 w-3 shrink-0 text-subtle-foreground" />
-                  <span className="truncate">{editState.virtualEntity || 'No entity'}</span>
-                  {!editState.id && <span className="shrink-0 text-subtle-foreground">· Not saved yet</span>}
-                </p>
+    <div className="flex h-full min-h-0 flex-col">
+      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1 gap-0 px-2 py-2">
+        {/* ===== Left: rule list ===== */}
+        <ResizablePanel defaultSize={22} minSize={14} maxSize={38} className="min-h-0 min-w-0">
+          <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+            <CardHeader className="shrink-0 space-y-0 px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-md font-medium">Mapping rules</CardTitle>
+                <Pill className="num bg-muted text-muted-foreground">{filteredRules.length}</Pill>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Select value={editState.status} onValueChange={(v) => updateField('status', v as EditState['status'])}>
-                  <SelectTrigger className="h-8 w-[124px] px-2.5 text-xs" aria-label="Rule status"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}><StatusPill status={s} /></SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {editState.id && (
-                  <Button variant="ghost" size="sm" onClick={handleDelete} className="hover:bg-destructive/10 hover:text-destructive">
-                    <Icon name="trash" /> Delete
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedRule) { setEditState(makeEditState(selectedRule)); setEditing(false); }
-                    else if (rules[0]) selectRule(rules[0]);
-                  }}
-                >
-                  Cancel
+              <SearchInput value={searchFilter} onChange={setSearchFilter} placeholder="Filter rules" className="mt-2.5" aria-label="Filter rules" />
+              <div className="mt-2 flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="h-8 px-2" onClick={handleAutoMap} disabled={autoMapping} title="Create mapping rules automatically">
+                  {autoMapping ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="sparkles" className="h-3.5 w-3.5" />}Auto-map
                 </Button>
-                <Button size="sm" onClick={handleSave} disabled={saving || !editState.name}>
-                  <Icon name={saving ? 'spinner' : 'check'} className={saving ? 'animate-spin' : undefined} /> Save rule
+                <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setAuditOpen(true)} title="Check mapping coverage">
+                  <Icon name="clipboard" className="h-3.5 w-3.5" />Audit
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8 px-2" onClick={handleNew}>
+                  <Icon name="plus" className="h-3.5 w-3.5" />New
                 </Button>
               </div>
-            </header>
-
-            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-              <div className="grid xl:grid-cols-[minmax(0,1fr)_340px]">
-                {/* Form */}
-                <div className="min-w-0 space-y-9 px-4 py-6 sm:px-6">
-                  <section>
-                    <SectionTitle
-                      title="Source and target"
-                      hint={editState.id ? 'The entity and source table are fixed once a rule is created.' : 'Choose the virtual entity to fill and the source table it reads from.'}
-                    />
-                    <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-                      <Field label="Virtual entity">
-                        <Select value={editState.virtualEntity || undefined} onValueChange={handleVirtualEntityChange} disabled={!!editState.id}>
-                          <SelectTrigger aria-label="Virtual entity"><SelectValue placeholder="Select an entity" /></SelectTrigger>
-                          <SelectContent>
-                            {entityOptions.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Source table">
-                        <Select value={sourceTableKey || undefined} onValueChange={handleSourceTableChange} disabled={!!editState.id}>
-                          <SelectTrigger aria-label="Source table" className="font-mono text-xs"><SelectValue placeholder={<span className="font-sans text-sm">Select a table</span>} /></SelectTrigger>
-                          <SelectContent>
-                            {tableOptions.map(key => <SelectItem key={key} value={key} className="font-mono text-xs">{key}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    </div>
-                  </section>
-
-                  <section>
-                    <SectionTitle
-                      title="Field mapping"
-                      hint={editState.fieldMaps.length === 0 ? 'No field mapping is set, so every source column is read under its own name. Add fields only where a column must be renamed or transformed.' : `${mappedCount} of ${editState.fieldMaps.length} fields mapped. Each source column fills one entity field.`}
-                      action={
-                        <Button variant="ghost" size="sm" onClick={handleAutoMatch} disabled={sourceColumns.length === 0} title="Fill empty source fields where the names match">
-                          <Icon name="bolt" /> Auto-match
-                        </Button>
-                      }
-                    />
-                    <div className="scroll-thin overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-                      <div className="min-w-[620px]">
-                        <div className="grid grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)_150px_32px] items-center gap-2 border-b border-border bg-surface-2/60 px-3 py-2 text-xs font-medium text-muted-foreground">
-                          <span>Source field</span>
-                          <span />
-                          <span>Entity field</span>
-                          <span>Transform</span>
-                          <span />
+              {autoMapResult && (
+                <div className={cn('mt-2 rounded-lg p-2.5 text-sm', autoMapResult.errors > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success')} role="status">
+                  <div className="font-medium">Auto-map: {autoMapResult.created} created, {autoMapResult.skipped} skipped{autoMapResult.errors > 0 && `, ${autoMapResult.errors} errors`}</div>
+                  <button type="button" onClick={() => setAutoMapResult(null)} className="mt-0.5 text-xs underline opacity-80 hover:opacity-100">Dismiss</button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+              <ScrollArea className="min-h-0 flex-1">
+                {loading ? (
+                  <div className="flex justify-center p-4"><Spinner className="text-muted-foreground" /></div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {Object.entries(groupedRules).map(([system, items]) => (
+                      <div key={system}>
+                        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SYSTEM_COLOUR[system] || 'hsl(var(--muted-foreground))' }} />
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{system}</span>
+                          <span className="num ml-auto text-xs text-muted-foreground">{items.length}</span>
                         </div>
-                        {editState.fieldMaps.map((fm, idx) => (
-                          <div key={idx} className="grid grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)_150px_32px] items-center gap-2 border-b border-border px-3 py-1.5">
-                            <FieldSelect
-                              label={`Source field, row ${idx + 1}`}
-                              value={fm.sourceField}
-                              onChange={v => updateFieldMap(idx, 'sourceField', v)}
-                              options={sourceOptions}
-                              placeholder="Source column"
-                            />
-                            <Icon name="arrow-right" className={cn('h-3.5 w-3.5 justify-self-center', fm.sourceField && fm.targetField ? 'text-primary dark:text-brand-hi' : 'text-subtle-foreground')} />
-                            <FieldSelect
-                              label={`Entity field, row ${idx + 1}`}
-                              value={fm.targetField}
-                              onChange={v => updateFieldMap(idx, 'targetField', v)}
-                              options={targetOptions}
-                              placeholder="Entity field"
-                            />
-                            <Select value={fm.transform || 'none'} onValueChange={v => updateFieldMap(idx, 'transform', v === 'none' ? '' : v)}>
-                              <SelectTrigger aria-label={`Transform, row ${idx + 1}`} className="h-8 px-2.5 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {TRANSFORM_OPTIONS.map(t => <SelectItem key={t} value={t}>{TRANSFORM_LABEL[t] || t}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => removeFieldMap(idx)}
-                              disabled={editState.fieldMaps.length <= 1}
-                              aria-label={`Remove row ${idx + 1}`}
-                              className="hover:bg-destructive/10 hover:text-destructive"
+                        {items.map(rule => {
+                          const on = selectedRule?.id === rule.id;
+                          return (
+                            <button
+                              key={rule.id}
+                              type="button"
+                              onClick={() => selectRule(rule)}
+                              aria-pressed={on}
+                              className={cn('w-full border-l-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/50', on ? 'border-brand bg-brand/10' : 'border-transparent')}
                             >
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="truncate text-sm font-medium text-foreground">{rule.name}</span>
+                                <Pill className={STATUS_STYLES[rule.status]}>{rule.status}</Pill>
+                              </div>
+                              <div className="mt-0.5 text-xs text-muted-foreground">{rule.virtualEntity}</div>
+                              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                <Icon name="database" className="h-3 w-3" />
+                                <span className="truncate font-mono">{rule.sourceTable}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {filteredRules.length === 0 && (
+                      <div className="p-4 text-center text-sm text-muted-foreground">{rules.length === 0 ? 'No mapping rules yet' : 'No matches'}</div>
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle className="mx-1" />
+
+        {/* ===== Centre: editor ===== */}
+        <ResizablePanel defaultSize={50} minSize={30} className="min-h-0 min-w-0">
+          {editState ? (
+            <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+              <CardHeader className="shrink-0 space-y-0 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="truncate text-md font-medium">{editState.id ? editState.name : 'New mapping rule'}</CardTitle>
+                  {editState.id && <Pill className={STATUS_STYLES[editState.status]}>{editState.status}</Pill>}
+                  <div className="flex-1" />
+                  {editState.id && (
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleDelete}>
+                      <Icon name="trash" className="h-3.5 w-3.5" />Delete
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={handleSave} disabled={saving || !editState.name}>
+                    {saving ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="check" className="h-3.5 w-3.5" />}Save
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+                <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="mr-name">Name</Label>
+                        <Input id="mr-name" value={editState.name} onChange={e => updateField('name', e.target.value)} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label htmlFor="mr-entity">Virtual entity</Label>
+                        <select id="mr-entity" value={editState.virtualEntity} onChange={e => handleVirtualEntityChange(e.target.value)} className={SELECT} disabled={!!editState.id}>
+                          <option value="">Select entity…</option>
+                          {editState.virtualEntity && !schemaEntities.some(e => e.name === editState.virtualEntity) && <option value={editState.virtualEntity}>{editState.virtualEntity}</option>}
+                          {schemaEntities.map(ent => <option key={ent.name} value={ent.name}>{ent.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="mr-source">Source table (FDW)</Label>
+                      <select id="mr-source" value={sourceTableKey} onChange={e => handleSourceTableChange(e.target.value)} className={cn(SELECT, 'font-mono')} disabled={!!editState.id}>
+                        <option value="">Select table…</option>
+                        {sourceTableKey && !fdwTables.some(t => `${t.schemaName}.${t.tableName}` === sourceTableKey) && <option value={sourceTableKey}>{sourceTableKey}</option>}
+                        {fdwTables.map(t => { const key = `${t.schemaName}.${t.tableName}`; return <option key={key} value={key}>{key}</option>; })}
+                      </select>
+                    </div>
+
+                    <div className="rounded-xl border border-border">
+                      <div className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-foreground">
+                        Field mappings <span className="num font-normal text-muted-foreground">({editState.fieldMaps.length})</span>
+                        <div className="flex-1" />
+                        <button type="button" onClick={handleAutoMatch} disabled={sourceColumns.length === 0} title="Fill empty source fields where the names match"
+                          className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:hover:no-underline dark:text-brand-hi">
+                          <Icon name="bolt" className="h-3.5 w-3.5" />Auto-match
+                        </button>
+                        <button type="button" onClick={addFieldMap} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                          <Icon name="plus" className="h-3.5 w-3.5" />Add
+                        </button>
+                      </div>
+                      <div className="divide-y divide-border border-t border-border">
+                        {noFieldMaps && (
+                          <p className="px-3 py-2.5 text-sm text-muted-foreground">No field mapping is set, so every source column is read under its own name. Add fields only where a column must be renamed or transformed.</p>
+                        )}
+                        {editState.fieldMaps.map((fm, idx) => (
+                          <div key={idx} className="flex items-center gap-2 px-3 py-2">
+                            <select aria-label={`Source field ${idx + 1}`} value={fm.sourceField} onChange={e => updateFieldMap(idx, 'sourceField', e.target.value)} className={cn(SELECT, 'h-8 flex-1 font-mono')}>
+                              <option value="">source…</option>
+                              {fm.sourceField && !sourceColumns.some(c => c.columnName === fm.sourceField) && <option value={fm.sourceField}>{fm.sourceField}</option>}
+                              {sourceColumns.map(c => <option key={c.columnName} value={c.columnName}>{c.columnName} ({c.dataType})</option>)}
+                            </select>
+                            <Icon name="arrow-right" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <select aria-label={`Entity field ${idx + 1}`} value={fm.targetField} onChange={e => updateFieldMap(idx, 'targetField', e.target.value)} className={cn(SELECT, 'h-8 flex-1 font-mono')}>
+                              <option value="">target…</option>
+                              {fm.targetField && !entityFields.some(f => f.name === fm.targetField) && <option value={fm.targetField}>{fm.targetField}</option>}
+                              {entityFields.map(f => <option key={f.name} value={f.name}>{f.name}{f.dataType ? ` (${f.dataType})` : ''}</option>)}
+                            </select>
+                            <select aria-label={`Transform ${idx + 1}`} value={fm.transform || 'none'} onChange={e => updateFieldMap(idx, 'transform', e.target.value === 'none' ? '' : e.target.value)} className={cn(SELECT, 'h-8 w-24')}>
+                              {TRANSFORM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <Button variant="ghost" size="sm" onClick={() => removeFieldMap(idx)} className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive" disabled={editState.fieldMaps.length <= 1} aria-label={`Remove field mapping ${idx + 1}`}>
                               <Icon name="trash" className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         ))}
-                        <button
-                          type="button"
-                          onClick={addFieldMap}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                        >
-                          <Icon name="plus" className="h-3.5 w-3.5" /> Add field
-                        </button>
                       </div>
                     </div>
-                  </section>
 
-                  <section>
-                    <SectionTitle title="Logic" hint="Optional SQL applied when the rule runs." />
-                    <div className="max-w-3xl space-y-4">
-                      <Field label="Business logic (SQL)" hint="An expression evaluated per row, for example to derive a status.">
-                        <Textarea
-                          value={editState.businessLogic}
-                          onChange={e => updateField('businessLogic', e.target.value)}
-                          rows={4}
-                          spellCheck={false}
-                          className="resize-y font-mono text-xs"
-                          placeholder="CASE WHEN status = 'A' THEN 'Active' ELSE 'Inactive' END"
-                        />
-                      </Field>
-                      <Field label="Row filter (WHERE clause)" hint="Only rows that match are read from the source table.">
-                        <Textarea
-                          value={editState.filterExpression}
-                          onChange={e => updateField('filterExpression', e.target.value)}
-                          rows={3}
-                          spellCheck={false}
-                          className="resize-y font-mono text-xs"
-                          placeholder="active = true AND deleted_at IS NULL"
-                        />
-                      </Field>
+                    <div>
+                      <Label htmlFor="mr-logic">Business logic (SQL)</Label>
+                      <textarea id="mr-logic" value={editState.businessLogic} onChange={e => updateField('businessLogic', e.target.value)} className={cn(TEXTAREA, 'h-20')} placeholder="e.g. CASE WHEN status = 'A' THEN 'Active' ELSE 'Inactive' END" />
                     </div>
-                  </section>
-                </div>
 
-                {/* Aside: preview + summary */}
-                <aside className="min-w-0 space-y-7 border-t border-border px-4 py-6 sm:px-6 xl:border-l xl:border-t-0 xl:px-5">
-                  <section>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h3 className="text-md font-medium text-foreground">Preview</h3>
-                      <Button variant="outline" size="sm" onClick={handlePreview} disabled={!editState.virtualEntity || previewing}>
-                        <Icon name={previewing ? 'spinner' : 'eye'} className={previewing ? 'animate-spin' : undefined} /> Preview
-                      </Button>
+                    <div>
+                      <Label htmlFor="mr-filter">Filter expression (WHERE clause)</Label>
+                      <textarea id="mr-filter" value={editState.filterExpression} onChange={e => updateField('filterExpression', e.target.value)} className={cn(TEXTAREA, 'h-16')} placeholder="e.g. active = true AND deleted_at IS NULL" />
                     </div>
-                    {previewing ? (
-                      <div className="space-y-2" aria-busy="true">
-                        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+
+                    <div>
+                      <Label>Status</Label>
+                      <div className="flex w-fit items-center gap-0.5 overflow-hidden rounded-lg border border-border p-0.5" role="radiogroup" aria-label="Status">
+                        {(['draft', 'active', 'inactive'] as const).map(s => (
+                          <button key={s} type="button" role="radio" aria-checked={editState.status === s} onClick={() => updateField('status', s)}
+                            className={cn('rounded-md px-3 py-1 text-sm capitalize transition-colors', editState.status === s ? STATUS_STYLES[s] : 'text-muted-foreground hover:bg-muted')}>
+                            {s}
+                          </button>
+                        ))}
                       </div>
-                    ) : !showPreview ? (
-                      <p className="text-sm text-muted-foreground">
-                        {editState.virtualEntity ? 'Load five sample rows to check the mapping.' : 'Choose a virtual entity to preview its rows.'}
-                      </p>
-                    ) : previewError ? (
-                      <InlineError onRetry={handlePreview}>{previewError}</InlineError>
-                    ) : previewRows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">The query returned no rows.</p>
-                    ) : (
-                      <>
-                        {previewMeta && (
-                          <p className="mb-2 text-xs text-muted-foreground">
-                            <span className="num">{previewMeta.rowCount}</span> rows · <span className="num">{previewMeta.durationMs}</span> ms
-                          </p>
-                        )}
-                        <div className="scroll-thin overflow-x-auto rounded-lg border border-border">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b border-border bg-surface-2/60">
-                                {Object.keys(previewRows[0]).map(col => (
-                                  <th key={col} className="whitespace-nowrap px-2.5 py-1.5 text-left font-medium text-muted-foreground">
-                                    <span className="font-mono">{col}</span>
-                                    {fieldLookup.get(col) && <span className="block font-normal text-subtle-foreground">to {fieldLookup.get(col)}</span>}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {previewRows.map((row, i) => (
-                                <tr key={i} className="border-b border-border last:border-b-0">
-                                  {Object.values(row).map((val, j) => (
-                                    <td key={j} className="max-w-[160px] truncate whitespace-nowrap px-2.5 py-1.5 font-mono text-foreground">{String(val ?? '')}</td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-                  </section>
-
-                  <section>
-                    <h3 className="mb-1 text-md font-medium text-foreground">Summary</h3>
-                    <KeyValues
-                      items={[
-                        { label: 'Source system', value: editState.sourceSystem ? systemName(editState.sourceSystem) : '—' },
-                        { label: 'Source table', value: sourceTableKey || '—', mono: !!sourceTableKey },
-                        { label: 'Source type', value: editState.sourceType },
-                        { label: 'Virtual entity', value: editState.virtualEntity || '—' },
-                        { label: 'Fields mapped', value: editState.fieldMaps.length === 0 ? 'All columns, as they are' : <span className="num">{mappedCount} of {editState.fieldMaps.length}</span> },
-                        { label: 'Status', value: <StatusPill status={editState.status} /> },
-                      ]}
-                    />
-                  </section>
-                </aside>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+              <div className="text-center">
+                <Icon name="database" className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                <p>Select a mapping rule or create a new one</p>
               </div>
             </div>
-          </>
-          )
-        )}
-      </div>
+          )}
+        </ResizablePanel>
+
+        <ResizableHandle withHandle className="mx-1" />
+
+        {/* ===== Right: summary and data ===== */}
+        <ResizablePanel defaultSize={28} minSize={18} maxSize={42} className="min-h-0 min-w-0">
+          {editState ? (
+            <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+              <CardHeader className="shrink-0 space-y-0 px-3 py-3">
+                <CardTitle className="truncate text-md font-medium">{editState.id ? editState.name : 'New rule'}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
+                  <div className="space-y-4 pt-1">
+                    {/* Mapping summary */}
+                    <div className="space-y-2 rounded-xl border border-border p-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Icon name="database" className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate font-mono text-muted-foreground">{editState.sourceSchema ? `${editState.sourceSchema}.` : ''}{editState.sourceTable || '…'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Icon name="arrow-right" className="h-4 w-4 text-primary dark:text-brand-hi" />
+                        <span className="truncate font-medium text-foreground">{editState.virtualEntity || '…'}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-2 text-xs text-muted-foreground">
+                        {noFieldMaps ? <span>All columns, as they are</span> : <>
+                          <span><span className="num text-foreground">{editState.fieldMaps.length}</span> fields</span>
+                          <span><span className="num text-foreground">{mappedCount}</span> mapped</span>
+                        </>}
+                        <Pill className={STATUS_STYLES[editState.status]}>{editState.status}</Pill>
+                      </div>
+                    </div>
+
+                    {/* Field mapping summary */}
+                    <div>
+                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Field mapping summary</p>
+                      <div className="divide-y divide-border rounded-xl border border-border">
+                        {summaryMaps.map((fm, i) => (
+                          <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 text-sm">
+                            <span className="flex-1 truncate font-mono text-muted-foreground">{fm.sourceField || '—'}</span>
+                            <Icon name="arrow-right" className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            <span className="flex-1 truncate font-mono font-medium text-foreground">{fm.targetField || '—'}</span>
+                            {fm.transform && fm.transform !== 'none' && <Pill className="border border-border text-muted-foreground">{fm.transform}</Pill>}
+                          </div>
+                        ))}
+                        {summaryMaps.length === 0 && (
+                          <div className="p-3 text-center text-sm text-muted-foreground">{noFieldMaps ? 'Every source column is read as it is' : 'No field mappings configured'}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Data */}
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Data</p>
+                        <Button variant="outline" size="sm" className="h-8" onClick={handlePreview} disabled={!editState.virtualEntity || previewing}>
+                          {previewing ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="eye" className="h-3.5 w-3.5" />}Preview
+                        </Button>
+                      </div>
+                      {showPreview ? (
+                        <div className="overflow-hidden rounded-xl border border-border">
+                          {previewMeta && (
+                            <div className="flex gap-3 bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
+                              <span><span className="num">{previewMeta.rowCount}</span> rows</span>
+                              <span><span className="num">{previewMeta.durationMs}</span> ms</span>
+                            </div>
+                          )}
+                          {previewRows.length > 0 ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-muted/30">
+                                    {Object.keys(previewRows[0]).map(col => (
+                                      <th key={`src-${col}`} className="whitespace-nowrap px-2.5 py-1.5 text-left text-xs font-normal text-muted-foreground">{col}</th>
+                                    ))}
+                                  </tr>
+                                  <tr className="bg-muted/10">
+                                    {Object.keys(previewRows[0]).map(col => (
+                                      <th key={`tgt-${col}`} className="whitespace-nowrap px-2.5 py-1.5 text-left text-xs font-medium text-foreground">{fieldLookup.get(col) || '—'}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {previewRows.map((row, i) => (
+                                    <tr key={i} className="hover:bg-muted/20">
+                                      {Object.values(row).map((val, j) => (
+                                        <td key={j} className="max-w-[180px] truncate whitespace-nowrap px-2.5 py-1.5 font-mono text-foreground">{String(val ?? '')}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="p-3 text-center text-sm text-muted-foreground">No rows returned</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">Click Preview to load the data</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border">
+              <CardHeader className="shrink-0 space-y-0 px-3 py-3">
+                <CardTitle className="text-md font-medium">Details</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-1 items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <Icon name="layers" className="mx-auto mb-2 h-6 w-6 opacity-40" />
+                  <p className="text-sm">Select a rule to see details</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <MappingAuditPanel
         open={auditOpen}
@@ -872,176 +659,6 @@ export default function MappingRulesEditor() {
           if (rule) selectRule(rule);
         }}
       />
-    </div>
-  );
-}
-
-/* ----------------------------------------------------------------- overview */
-
-const humanize = (s: string): string => String(s || '').replace(/_/g, ' ');
-const sameName = (a?: string, b?: string) => !!a && !!b && normalize(a) === normalize(b);
-
-/**
- * Read-only view of a saved rule: where the data comes from, where it goes,
- * and the fields in plain words, with a real example value for each.
- * Editing is one click away (Edit rule).
- */
-function RuleOverview({ state, rule, sourceColumns, exampleRows, filter, onFilter, onEdit }: {
-  state: EditState;
-  rule: MappingRule | null;
-  sourceColumns: ColumnInfo[];
-  exampleRows: any[];
-  filter: 'all' | 'renamed' | 'transformed';
-  onFilter: (f: 'all' | 'renamed' | 'transformed') => void;
-  onEdit: () => void;
-}) {
-  const sourceKey = state.sourceSchema && state.sourceTable ? `${state.sourceSchema}.${state.sourceTable}` : '';
-  const explicit = state.fieldMaps.filter(f => f.sourceField || f.targetField);
-  // No field list means every source column is read under its own name.
-  const rows = explicit.length > 0
-    ? explicit.map(f => ({ source: f.sourceField, target: f.targetField, transform: f.transform && f.transform !== 'none' ? f.transform : '' }))
-    : sourceColumns.map(c => ({ source: c.columnName, target: c.columnName, transform: '' }));
-  const renamed = rows.filter(r => r.source && r.target && !sameName(r.source, r.target)).length;
-  const transformed = rows.filter(r => r.transform).length;
-  const shown = rows.filter(r =>
-    filter === 'all' ? true : filter === 'renamed' ? (r.source && r.target && !sameName(r.source, r.target)) : !!r.transform);
-  const example = (field: string) => {
-    for (const row of exampleRows) {
-      const key = Object.keys(row).find(k => k === field) ?? Object.keys(row).find(k => sameName(k, field));
-      const v = key ? row[key] : undefined;
-      if (v != null && v !== '') return typeof v === 'object' ? JSON.stringify(v) : String(v);
-    }
-    return '';
-  };
-  const summary = rows.length === 0
-    ? 'Every column of the source table is read under its own name.'
-    : renamed === 0 && transformed === 0
-      ? `All ${rows.length} fields are copied as they are.`
-      : [`${rows.length} fields`, renamed ? `${renamed} renamed` : '', transformed ? `${transformed} transformed` : '', `${rows.length - renamed - transformed > 0 ? `${rows.length - renamed - transformed} copied as they are` : ''}`].filter(Boolean).join(' · ');
-
-  return (
-    <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-6 sm:px-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">{humanize(state.virtualEntity) || state.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">How this entity is filled from its source system.</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <StatusPill status={state.status} />
-            <Button variant="outline" size="sm" onClick={onEdit}><Icon name="edit" /> Edit rule</Button>
-          </div>
-        </header>
-
-        {/* Where the data comes from, and where it goes */}
-        <section aria-label="Data flow" className="grid items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-            <p className="text-xs text-muted-foreground">Source</p>
-            <p className="mt-1.5 flex items-center gap-2 text-md font-medium text-foreground">
-              {state.sourceSystem && <SystemLogo system={state.sourceSystem} size="sm" />}
-              {state.sourceSystem ? systemName(state.sourceSystem) : 'Source table'}
-            </p>
-            <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={sourceKey}>{sourceKey || 'No table'}</p>
-            <p className="mt-2 text-xs text-subtle-foreground">{state.sourceType} · read in place</p>
-          </div>
-          <div className="flex items-center justify-center text-subtle-foreground" aria-hidden="true">
-            <Icon name="arrow-right" className="h-5 w-5 rotate-90 sm:rotate-0" />
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-            <p className="text-xs text-muted-foreground">Virtual entity</p>
-            <p className="mt-1.5 flex items-center gap-2 text-md font-medium text-foreground">
-              <Icon name="cube" className="h-4 w-4 text-primary dark:text-brand-hi" />
-              {humanize(state.virtualEntity)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">{summary}</p>
-          </div>
-        </section>
-
-        {/* Fields in plain words */}
-        <section>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-md font-medium text-foreground">Fields</h3>
-            {(renamed > 0 || transformed > 0) && (
-              <Chips
-                label="Show fields"
-                value={filter}
-                onChange={onFilter}
-                options={[
-                  { value: 'all', label: 'All', count: rows.length },
-                  ...(renamed > 0 ? [{ value: 'renamed' as const, label: 'Renamed', count: renamed }] : []),
-                  ...(transformed > 0 ? [{ value: 'transformed' as const, label: 'Transformed', count: transformed }] : []),
-                ]}
-              />
-            )}
-          </div>
-          {rows.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-              The source table's columns could not be read, so they are not listed here. The rule still reads every column under its own name.
-            </p>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-              <div className="scroll-thin overflow-x-auto">
-                <table className="w-full min-w-[560px] text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-2/60 text-left text-xs text-muted-foreground">
-                      <th className="px-4 py-2.5 font-medium">In the source</th>
-                      <th className="w-8" aria-hidden="true" />
-                      <th className="px-4 py-2.5 font-medium">In the entity</th>
-                      <th className="px-4 py-2.5 font-medium">Example value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shown.map((r, i) => {
-                      const same = sameName(r.source, r.target);
-                      const value = example(r.target || r.source);
-                      return (
-                        <tr key={`${r.source}-${r.target}-${i}`} className="border-b border-border last:border-b-0">
-                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.source || <span className="text-subtle-foreground">not set</span>}</td>
-                          <td className="text-subtle-foreground"><Icon name="arrow-right" className="h-3.5 w-3.5" /></td>
-                          <td className="px-4 py-3">
-                            <span className={cn('font-mono text-xs', same ? 'text-muted-foreground' : 'text-foreground')}>{r.target || <span className="text-subtle-foreground">not set</span>}</span>
-                            {!same && r.source && r.target && <span className="ml-2 text-xs text-primary dark:text-brand-hi">renamed</span>}
-                            {r.transform && <span className="ml-2 text-xs text-warning">{r.transform}</span>}
-                          </td>
-                          <td className="max-w-[260px] truncate px-4 py-3 text-foreground" title={value || undefined}>
-                            {value || <span className="text-subtle-foreground">—</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {(state.filterExpression || state.businessLogic) && (
-          <section className="space-y-4">
-            <h3 className="text-md font-medium text-foreground">Logic</h3>
-            {state.filterExpression && (
-              <div>
-                <p className="mb-1.5 text-xs text-muted-foreground">Only rows where</p>
-                <CodeBlock>{state.filterExpression}</CodeBlock>
-              </div>
-            )}
-            {state.businessLogic && (
-              <div>
-                <p className="mb-1.5 text-xs text-muted-foreground">Business logic</p>
-                <CodeBlock>{state.businessLogic}</CodeBlock>
-              </div>
-            )}
-          </section>
-        )}
-
-        <KeyValues
-          className="border-t border-border pt-2"
-          items={[
-            { label: 'Rule name', value: state.name },
-            ...(rule?.updatedAt ? [{ label: 'Last changed', value: new Date(rule.updatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }] : []),
-          ]}
-        />
-      </div>
     </div>
   );
 }
