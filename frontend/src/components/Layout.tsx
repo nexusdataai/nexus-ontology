@@ -11,6 +11,7 @@ import { LogoMark } from '@/components/ds/Logo';
 import { Kbd } from '@/components/ds/primitives';
 import { Icon } from '@/components/ds/Icon';
 import { PageErrorBoundary } from '@/components/ds/PageErrorBoundary';
+import { PlatformSwitcher } from '@/components/ds/PlatformSwitcher';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -99,6 +100,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
               <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search" className={cn(iconBtn, 'md:hidden')}>
                 <Icon name="search" className="h-[18px] w-[18px]" />
               </button>
+              <PlatformSwitcher />
               <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className={iconBtn}>
                 <span key={theme} className="animate-scale-in">
                   <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-[18px] w-[18px]" />

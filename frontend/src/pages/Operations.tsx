@@ -1,3 +1,4 @@
+import { ConnectedPlatforms } from '@/components/operations/ConnectedPlatforms';
 import React from 'react';
 import Layout from '@/components/Layout';
 import { PageTabsBar, useUrlTab, type TabSection } from '@/components/ds/PageTabs';
@@ -20,6 +21,7 @@ const SECTIONS: TabSection[] = [
     { value: 'cost', label: 'Cost' },
   ] },
   { label: 'Test reports', icon: 'flask', items: [{ value: 'test-reports', label: 'Test reports' }] },
+  { label: 'Platforms', icon: 'apps', items: [{ value: 'platforms', label: 'Connected platforms' }] },
 ];
 
 const Operations: React.FC = () => {
@@ -39,6 +41,8 @@ const Operations: React.FC = () => {
         return <CostSection />;
       case 'test-reports':
         return <TestReportsPanel />;
+      case 'platforms':
+        return <ConnectedPlatforms />;
       case 'monitoring':
       default:
         return <AiHealthMonitoringPanel />;
