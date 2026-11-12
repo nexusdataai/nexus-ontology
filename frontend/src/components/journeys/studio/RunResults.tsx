@@ -83,7 +83,7 @@ export function RunResults({ job, steps, fallbackNumber, noun, actions }: RunRes
       <div className="min-w-0">
         <h3 className="text-sm font-medium text-foreground">Time by step</h3>
         {times.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">Step timings appear here once a run has finished.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{status === 'completed' || status === 'failed' ? 'This run did not record how long each step took.' : 'Step timings appear here once the run has finished.'}</p>
         ) : (
           <ol className="mt-3 space-y-2.5">
             {times.map((t, i) => (

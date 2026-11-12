@@ -55,7 +55,7 @@ export function AppOverview({ app, onNavigate }: Props) {
   const available = app.status === 'available';
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-10 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="page-end mx-auto w-full max-w-[1400px] space-y-10 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       {/* Identity and the one-line state */}
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
         <div className="flex min-w-0 items-start gap-4">

@@ -582,6 +582,25 @@ export function JourneyStudioView({ journeyId, onBack, hideBackButton, hideStats
             currentSteps.forEach((step: any) => {
               fetchLogsForStep(step.id, jid);
             });
+            // Show what the latest run did. Without this the stage records,
+            // which stay "pending" between runs, would mark every step as not
+            // started even though the run finished.
+            callProcessingJourneyService.getJobStatus(journeyId, jid).then((res: any) => {
+              const raw = res?.data ?? res ?? {};
+              const results = raw.step_results || raw.stepResults || {};
+              setStepStates(prev => {
+                const next = { ...prev };
+                currentSteps.forEach((step: any) => {
+                  const sr = results[step.id];
+                  if (!sr?.status) return;
+                  const st = String(sr.status).toLowerCase();
+                  const status = (st === 'in_progress' ? 'running' : st) as 'pending' | 'running' | 'completed' | 'failed';
+                  if (!['pending', 'running', 'completed', 'failed'].includes(status)) return;
+                  next[step.id] = { ...(prev[step.id] || { logsCount: 0 }), status, progress: status === 'completed' ? 100 : (Number(sr.progress) || 0) };
+                });
+                return next;
+              });
+            }).catch(() => { /* keep the stage states */ });
           }
         }
       } else {

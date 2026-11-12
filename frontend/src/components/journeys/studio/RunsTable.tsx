@@ -62,7 +62,7 @@ export function RunsTable({ jobs, steps, selectedJobId, onSelect, onCancel, limi
               <TableHead>Run</TableHead>
               <TableHead className="text-right">Read</TableHead>
               {showSkipped && <TableHead className="text-right">Skipped</TableHead>}
-              <TableHead className="text-right">Processed</TableHead>
+              <TableHead className="text-right" title="Tasks this run created">New tasks</TableHead>
               <TableHead className="text-right">Succeeded</TableHead>
               <TableHead className="text-right">Failed</TableHead>
               {showNoData && <TableHead className="text-right">No data</TableHead>}

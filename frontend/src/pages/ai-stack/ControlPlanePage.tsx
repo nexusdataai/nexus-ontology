@@ -1017,7 +1017,7 @@ function KnowledgeFormationInner() {
 
       {/* Overview. Kept mounted so a running build keeps its progress. */}
       <div className={cn('scroll-thin min-h-0 flex-1 overflow-y-auto', view !== 'overview' && 'hidden')}>
-        <div className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="page-end mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
           {statsError && <InlineError onRetry={loadStats}>{statsError}</InlineError>}
 
           <MetricStrip

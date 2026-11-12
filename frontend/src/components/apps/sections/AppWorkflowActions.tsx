@@ -114,7 +114,7 @@ export function AppWorkflowActions({ app }: Props) {
   const detailText = details == null ? '' : typeof details === 'string' ? details : JSON.stringify(details, null, 2);
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="page-end mx-auto w-full max-w-[1400px] space-y-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-lg font-medium tracking-tight text-foreground">Workflow actions</h1>

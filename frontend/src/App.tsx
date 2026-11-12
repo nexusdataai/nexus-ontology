@@ -39,7 +39,6 @@ function lazyPage<T extends React.ComponentType<any>>(load: () => Promise<{ defa
 }
 
 const Settings = lazyPage(() => import("./pages/Settings"));
-const UserManagement = lazyPage(() => import("./pages/UserManagement"));
 const HomePage = lazyPage(() => import("./pages/HomePage"));
 
 const DataPlaneCreatePage = lazyPage(() => import("./pages/DataPlaneCreatePage"));
@@ -151,7 +150,7 @@ const AuthRoutes = () => {
         <Route path="/operations/health" element={<P><Operations /></P>} />
 
         {/* User Management & Settings */}
-        <Route path="/user-management" element={<P><UserManagement /></P>} />
+        <Route path="/user-management" element={<Navigate to="/settings?tab=users" replace />} />
         <Route path="/settings" element={<P><Settings /></P>} />
         <Route path="/help" element={<P><HelpPage /></P>} />
         <Route path="/simulator" element={<P><SimulatorPage /></P>} />
