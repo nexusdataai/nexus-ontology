@@ -1392,6 +1392,29 @@ async def startup_event():
                 f"errors={ent_summary.get('errors')}"
             )
 
+            if _os.environ.get("SIMULATOR_HYDRATION_ENABLED", "true").lower() != "false":
+                try:
+                    from src.services.simulator_hydration_service import ensure_simulators_hydrated
+
+                    async def _hydrate_simulators_bg() -> None:
+                        try:
+                            summary = await ensure_simulators_hydrated(
+                                simulators=_vq_simulators,
+                                wait_seconds=float(_os.environ.get("SIMULATOR_HYDRATION_WAIT_S", "120")),
+                            )
+                            logger.info(
+                                "Simulator row-cache hydration: status={} hydrated={} pending={}",
+                                summary.get("status"),
+                                summary.get("hydrated"),
+                                summary.get("pending_after_wait"),
+                            )
+                        except Exception as bg_he:
+                            logger.warning(f"Simulator hydration failed (non-fatal): {bg_he}")
+
+                    _asyncio.create_task(_hydrate_simulators_bg())
+                except Exception as he:
+                    logger.warning(f"Simulator hydration scheduling failed (non-fatal): {he}")
+
             if _os.environ.get("CANONICAL_MAPPING_SEED", "true").lower() != "false":
                 from src.services.canonical_mapping_seeder import ensure_canonical_mapping_rules
 

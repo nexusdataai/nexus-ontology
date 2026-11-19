@@ -18,7 +18,6 @@ import { virtualQueryService } from '@/services/virtualQueryService';
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
 import type { QueryRequest } from '@/types/fdwTypes';
 
-const FDW_SCHEMA = 'sfdc_itxp2dev';
 /** Rows shown in the data panel. */
 const ROW_LIMIT = 50;
 
@@ -135,31 +134,47 @@ export default function EntityExplorer() {
     setPreviewLoading(true);
     setPreviewData(null);
     try {
-      const data = await virtualQueryService.previewEntity(entity.name, ROW_LIMIT);
-      if (previewGen.current !== gen) return;
-      if (data.rows && data.rows.length > 0) {
-        setPreviewData({ rows: data.rows as PreviewRow[], metadata: data.metadata });
-        setPreviewLoading(false);
+      try {
+        const data = await virtualQueryService.previewEntity(entity.name, ROW_LIMIT);
+        if (previewGen.current !== gen) return;
+        setPreviewData({
+          rows: (data.rows || []) as PreviewRow[],
+          metadata: data.metadata,
+        });
+        return;
+      } catch {
+        // VDL could not resolve the entity; optional raw FDW fallback below.
+      }
+
+      if (entity.isVirtual) {
         return;
       }
-    } catch {
-      // The virtual data layer could not answer; try the FDW table below.
-    }
 
-    if (entity.isVirtual) {
-      if (previewGen.current === gen) { setPreviewData(null); setPreviewLoading(false); }
-      return;
-    }
+      let rule: MappingRule | undefined;
+      try {
+        const rules = await mappingRuleService.list(entity.name);
+        rule = rules.find(r => r.status === 'active');
+      } catch {
+        rule = undefined;
+      }
+      if (!rule?.sourceSchema || !rule.sourceTable) {
+        return;
+      }
 
-    try {
-      const fdwColumns = await fdwService.getColumns(FDW_SCHEMA, entity.name);
+      const fdwSource = rule.sourceSystem === 'sfdc' ? 'simulator' : rule.sourceSystem;
+      const fdwColumns = await fdwService.getColumns(rule.sourceSchema, rule.sourceTable, fdwSource);
       if (previewGen.current !== gen) return;
       const fdwColNames = new Set(fdwColumns.map(c => c.columnName));
       const validCols = entity.fields.map(f => f.name).filter(f => fdwColNames.has(f));
       const queryCols = validCols.length > 0 ? validCols.slice(0, 8) : fdwColumns.slice(0, 8).map(c => c.columnName);
-      if (queryCols.length === 0) { setPreviewData(null); return; }
-      const req: QueryRequest = { table: entity.name, schemaName: FDW_SCHEMA, columns: queryCols, limit: ROW_LIMIT };
-      const result = await fdwService.executeQuery(req);
+      if (queryCols.length === 0) return;
+      const req: QueryRequest = {
+        table: rule.sourceTable,
+        schemaName: rule.sourceSchema,
+        columns: queryCols,
+        limit: ROW_LIMIT,
+      };
+      const result = await fdwService.executeQuery(req, fdwSource);
       if (previewGen.current !== gen) return;
       setPreviewData({ rows: result.rows as PreviewRow[], metadata: result.metadata });
     } catch {
@@ -620,13 +635,28 @@ export default function EntityExplorer() {
                     ))}
                   </tbody>
                 </table>
+              ) : previewData && previewData.rows.length === 0 ? (
+                <div className="flex h-full min-h-[80px] flex-col items-center justify-center gap-1 px-4 py-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Icon name="alert-triangle" className="h-4 w-4 shrink-0 text-warning" />
+                    <span>No rows in the simulator or source table for this entity yet.</span>
+                  </div>
+                  <p className="max-w-md text-center font-mono text-xs">
+                    {previewData.metadata?.sourceSchema && previewData.metadata?.sourceTable
+                      ? `${previewData.metadata.sourceSchema}.${previewData.metadata.sourceTable}`
+                      : 'The active mapping rule resolved, but the backing store is empty.'}
+                  </p>
+                  <p className="max-w-md text-center text-xs">
+                    On local K3s, ontology startup reloads empty simulator caches automatically. If this persists, reload the matching simulator plugin or check Redis / MinIO.
+                  </p>
+                </div>
               ) : (
                 <div className="flex h-full min-h-[80px] flex-col items-center justify-center gap-1 px-4 py-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Icon name="alert-triangle" className="h-4 w-4 shrink-0 text-warning" />
-                    <span>{selectedEntity.isVirtual ? 'No rows returned for this virtual entity.' : 'The FDW query returned no rows, or its columns could not be resolved.'}</span>
+                    <span>{selectedEntity.isVirtual ? 'No rows returned for this virtual entity.' : 'Virtual query failed, or no active mapping rule exists for this entity.'}</span>
                   </div>
-                  <p className="max-w-md text-center text-xs">Check the Data Plane connection, the mapping rules, and that the FDW table exists for mapped entities.</p>
+                  <p className="max-w-md text-center text-xs">Check mapping rules (VDL tab), simulator connectivity (SIMULATOR_BASE_URL), and that the source table exists.</p>
                 </div>
               )}
             </div>
