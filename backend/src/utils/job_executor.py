@@ -32,6 +32,27 @@ class JobCancelledException(Exception):
     pass
 
 
+def derive_etl_pipeline_counts(stage) -> tuple:
+    """Map ETL processor KPIs to universal job metrics (itemsProcessed/itemsTotal)."""
+    proc = getattr(stage, "processor", None) or getattr(stage, "_processor", None)
+    kpis = getattr(proc, "_kpis", None) if proc else None
+    if not isinstance(kpis, dict) or not kpis:
+        return 0, 0, {}
+
+    rows_extracted = int(kpis.get("rows_extracted") or 0)
+    rows_transformed = int(kpis.get("rows_transformed") or 0)
+    rows_loaded = int(kpis.get("rows_loaded") or 0)
+    items_total = rows_extracted or rows_transformed
+    items_processed = rows_loaded or rows_transformed or rows_extracted
+    detailed = {
+        "rowsExtracted": rows_extracted,
+        "rowsTransformed": rows_transformed,
+        "rowsLoaded": rows_loaded,
+        "successfulProcessing": items_processed,
+    }
+    return items_processed, items_total, detailed
+
+
 class TransformationJobExecutor:
     _cancelled_jobs: set = set()
 
@@ -296,6 +317,10 @@ class TransformationJobExecutor:
                 if stage_id == 'order_to_cash':
                     detailed_metrics['ordersResolved'] = items_total
                     detailed_metrics['ordersRanked'] = items_processed
+            elif stage_id == 'etl_pipeline':
+                items_processed, items_total, etl_details = derive_etl_pipeline_counts(stage)
+                if etl_details:
+                    detailed_metrics = etl_details
             elif hasattr(stage, 'metrics'):
                 metrics = stage.metrics
                 if 'process_recordings' in metrics:

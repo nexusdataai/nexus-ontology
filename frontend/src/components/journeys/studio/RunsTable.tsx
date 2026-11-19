@@ -21,11 +21,20 @@ interface RunsTableProps {
 /** The numbers the studio shows for one run, whatever spelling the backend used. */
 export function runFigures(job: any) {
   const m = job?.metrics || {};
+  const kpis = job?.kpis || {};
+  const etlRead = kpis.rows_extracted ?? kpis.rows_transformed;
+  const etlDone = kpis.rows_loaded ?? kpis.rows_transformed ?? kpis.rows_extracted;
   return {
-    read: m.availableCalls ?? m.itemsTotal ?? job?.itemsTotal ?? 0,
+    read: m.availableCalls ?? m.itemsTotal ?? job?.itemsTotal ?? m.rowsExtracted ?? etlRead ?? 0,
     skipped: m.skippedTasks ?? 0,
     processed: m.newTasks ?? 0,
-    succeeded: m.successfulProcessing ?? m.itemsProcessed ?? job?.itemsProcessed ?? 0,
+    succeeded:
+      m.successfulProcessing
+      ?? m.itemsProcessed
+      ?? job?.itemsProcessed
+      ?? m.rowsLoaded
+      ?? etlDone
+      ?? 0,
     failed: m.failedProcessing ?? 0,
     noData: m.noRecording ?? 0,
   };
