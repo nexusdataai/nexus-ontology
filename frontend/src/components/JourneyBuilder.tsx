@@ -99,6 +99,8 @@ export function JourneyBuilder() {
   const [toolRelationships, setToolRelationships] = useState<ToolRelationships>({});
   const [toolSearch, setToolSearch] = useState('');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  /** Set once when tools load; avoids re-opening the first group after the user collapses it. */
+  const paletteExpandInitialized = useRef(false);
 
   // ---- journey-level inputs ----
   // Pre-fill so Save/Run are clickable on first open. The user can
@@ -226,10 +228,11 @@ export function JourneyBuilder() {
   }, [filteredTools]);
 
   useEffect(() => {
-    if (expandedCats.size > 0) return;
+    if (paletteExpandInitialized.current) return;
     if (groupedTools.length === 0) return;
+    paletteExpandInitialized.current = true;
     setExpandedCats(new Set([groupedTools[0][0]]));
-  }, [groupedTools, expandedCats.size]);
+  }, [groupedTools]);
 
   // ---- selection: keep a sync'd snapshot of the selected node ----
 
