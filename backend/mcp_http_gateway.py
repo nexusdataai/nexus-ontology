@@ -1449,6 +1449,20 @@ async def startup_event():
                     f"no_source={canon_summary.get('no_source_table')} errors={canon_summary.get('errors')}"
                 )
 
+            if _os.environ.get("EXTERNAL_SOURCE_VDL_SEED", "true").lower() != "false":
+                from src.services.external_source_vdl_seeder import ensure_external_source_vdl_mappings
+
+                ext_vdl_summary = await ensure_external_source_vdl_mappings(
+                    mapping_service=_mapping_rule_service,
+                    simulators=_vq_simulators,
+                    force_recreate=force_seed,
+                )
+                logger.info(
+                    "External source VDL mappings ensured: "
+                    f"created={ext_vdl_summary.get('created')} skipped={ext_vdl_summary.get('skipped')} "
+                    f"errors={ext_vdl_summary.get('errors')}"
+                )
+
             async def _seed_views_and_data_bg():
                 try:
                     view_summary = await ensure_solution_views(

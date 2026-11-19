@@ -41,6 +41,7 @@ DOMAIN_TO_SIM: Dict[str, List[str]] = {
     "External Signals": ["external"],
     "File Capture": ["external"],
     "Order-to-Cash Results": ["external"],
+    "External Analytics Warehouse": ["external"],
 }
 
 SIM_INFO: Dict[str, Dict[str, str]] = {

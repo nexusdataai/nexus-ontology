@@ -1,0 +1,86 @@
+version: "1.0"
+name: External analytics warehouse
+description: >
+  Journey output and ETL warehouse tables materialized in external_sources
+  after mapping from Google Drive, social listening, and file uploads.
+
+domains:
+  - name: External Analytics Warehouse
+    system: external
+    scor_process: Plan/Enable
+    description: Hydrated analytics tables fed by external source pipelines
+    tables:
+      - fdw_table: DF_Forecast_Result
+        virtual: true
+        semantic: Demand forecast points by SKU, region and period after social + CRM enrichment
+        key_fields:
+          - { name: sku, data_type: Text }
+          - { name: region, data_type: Text }
+          - { name: category, data_type: Text }
+          - { name: period, data_type: Text }
+          - { name: forecast_qty, data_type: Number }
+          - { name: base_forecast, data_type: Number }
+      - fdw_table: DF_KPI_Snapshot
+        virtual: true
+        semantic: Demand forecasting KPI snapshot for a journey run
+        key_fields:
+          - { name: mape, data_type: Percent }
+          - { name: bias, data_type: Number }
+          - { name: stockout_rate_pct, data_type: Percent }
+          - { name: total_forecast_qty, data_type: Number }
+      - fdw_table: C360_Account_Health
+        virtual: true
+        semantic: Customer account health score including social sentiment signals
+        key_fields:
+          - { name: account_id, data_type: ID }
+          - { name: tier, data_type: Text }
+          - { name: health_score, data_type: Number }
+          - { name: churn_risk, data_type: Number }
+      - fdw_table: PA_Vendor_Risk_Forecast
+        virtual: true
+        semantic: Vendor risk forecast enriched from contracts and market signals
+        key_fields:
+          - { name: vendor_id, data_type: ID }
+          - { name: risk_score, data_type: Number }
+          - { name: horizon_period, data_type: Text }
+      - fdw_table: PA_Spend_Result
+        virtual: true
+        semantic: Procurement spend analysis result rows
+        key_fields:
+          - { name: category, data_type: Text }
+          - { name: vendor_id, data_type: ID }
+          - { name: spend_amount, data_type: Currency }
+      - fdw_table: SCR_Risk_History
+        virtual: true
+        semantic: Supply chain risk history time series for vendors
+        key_fields:
+          - { name: vendor_id, data_type: ID }
+          - { name: region, data_type: Text }
+          - { name: risk_score, data_type: Number }
+      - fdw_table: Invoice_Upload
+        virtual: true
+        physical_source_table: Invoice_Upload
+        semantic: Mapped invoice upload rows (warehouse view of file capture)
+        key_fields:
+          - { name: Upload_ID, data_type: ID }
+          - { name: File_Path, data_type: Text }
+          - { name: Amount_Extracted, data_type: Currency }
+          - { name: Validation_Status, data_type: Picklist }
+      - fdw_table: Contract_Document
+        virtual: true
+        physical_source_table: Contract_Document
+        semantic: Warehouse contract rows extracted from Google Drive files
+        key_fields:
+          - { name: Contract_ID, data_type: ID }
+          - { name: Document_Path, data_type: Text }
+          - { name: Vendor_ID, data_type: Lookup }
+          - { name: Contracted_Price, data_type: Currency }
+      - fdw_table: Market_Signal
+        virtual: true
+        physical_source_table: Market_Signal
+        semantic: Social and news market signals (warehouse-ready feed)
+        key_fields:
+          - { name: Signal_ID, data_type: ID }
+          - { name: Event_Type, data_type: Picklist }
+          - { name: Severity, data_type: Picklist }
+          - { name: Affected_Commodity, data_type: Text }

@@ -442,7 +442,7 @@ async def ensure_solution_entities(
                     name=f"Auto Sim: {entity}",
                     virtual_entity=entity,
                     source_type=MappingRuleSourceType.FDW,
-                    source_system="external_simulator",
+                    source_system="external",
                     source_table=entity,
                     source_schema="external_sources",
                     field_maps=field_maps,

@@ -1,0 +1,47 @@
+version: "1.0"
+name: External source to warehouse lineage
+description: >
+  Maps raw external artifacts (Google Drive, social listening, uploads) and
+  cross-system inputs to hydrated warehouse tables in external_sources.
+  Used by the VDL mapping seeder for lineage metadata on active rules.
+
+raw_sources:
+  google_drive:
+    tables: [Contract_Document, Sustainability_Report, ContentVersion, ContentDocumentLink]
+    virtual_entities: [ContractDocument, SustainabilityReport, DocumentVersion, DocumentLink]
+  social_listening:
+    tables: [Market_Signal, Brand_Sentiment, Commodity_Price]
+    virtual_entities: [MarketSignal, BrandSentiment, CommodityPrice]
+  file_uploads:
+    tables: [Invoice_Upload, Lab_Report_Upload]
+    virtual_entities: [UploadedInvoice, UploadedLabReport]
+
+warehouse_tables:
+  DF_Forecast_Result:
+    journey: demand-forecast-generation
+    feeds_from: [Market_Signal, Brand_Sentiment, Commodity_Price, Opportunity, Material_Master]
+    artifacts: [social_listening, google_drive]
+  DF_KPI_Snapshot:
+    journey: demand-forecast-generation
+    feeds_from: [DF_Forecast_Result]
+    artifacts: []
+  C360_Account_Health:
+    journey: customer-360
+    feeds_from: [Brand_Sentiment, Account, Opportunity]
+    artifacts: [social_listening]
+  PA_Vendor_Risk_Forecast:
+    journey: procurement-analytics
+    feeds_from: [Market_Signal, Contract_Document, Vendor_Master]
+    artifacts: [social_listening, google_drive]
+  PA_Spend_Result:
+    journey: procurement-analytics
+    feeds_from: [Purchase_Order, AP_Invoice, Contract_Document]
+    artifacts: [google_drive]
+  SCR_Risk_History:
+    journey: supply-chain-risk
+    feeds_from: [Market_Signal, Contract_Document, Vendor_Master]
+    artifacts: [social_listening, google_drive]
+  SCR_Vendor_Result:
+    journey: supply-chain-risk
+    feeds_from: [Market_Signal, Contract_Document]
+    artifacts: [social_listening, google_drive]
