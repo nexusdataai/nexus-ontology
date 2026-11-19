@@ -25,6 +25,14 @@ from src.services.vdl_catalog_service import get_catalog
 
 seed_logger = logger.bind(component="canonical-mapping-seeder")
 
+EXTERNAL_CANONICAL_DOMAINS = {
+    "Document Management",
+    "External Signals",
+    "File Capture",
+    "Order-to-Cash Results",
+    "External Analytics Warehouse",
+}
+
 DOMAIN_TO_SIM: Dict[str, List[str]] = {
     "Finance - General Ledger": ["oracle"],
     "Finance - Receivables": ["oracle"],
@@ -172,9 +180,16 @@ async def ensure_canonical_mapping_rules(
     errors = 0
     detail: List[Dict[str, Any]] = []
 
+    from src.services.external_vdl_etl_service import vdl_mapping_via_etl_only
+
     for canon in canonicals:
         name = canon.get("name") or ""
         if not name:
+            continue
+
+        domain = (canon.get("domain") or "").strip()
+        if vdl_mapping_via_etl_only() and domain in EXTERNAL_CANONICAL_DOMAINS:
+            skipped += 1
             continue
 
         match = resolve_match(canon, sim_tables)

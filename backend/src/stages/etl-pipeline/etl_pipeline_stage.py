@@ -69,18 +69,27 @@ class ETLPipelineStage(BaseStage):
 
     @property
     def steps(self) -> List[Dict[str, Any]]:
-        return [
+        base = [
             {"id": "extract", "name": "Extract Source Data", "description": "Read data from source system (FDW, file, API)"},
             {"id": "validate_schema", "name": "Validate Schema", "description": "Validate source data against mapping rule field definitions"},
             {"id": "transform", "name": "Transform Data", "description": "Apply field mappings and business logic transforms"},
             {"id": "load", "name": "Load Data", "description": "Write transformed data to hydrated storage"},
             {"id": "verify", "name": "Verify Results", "description": "Row count checks, null validation, data quality"},
         ]
+        source_type = self._etl_config.get("source_type") or self._etl_config.get("sourceType") or "generic"
+        if source_type in ("social_listening", "file_uploads", "google_drive", "external_full"):
+            base.extend([
+                {"id": "register_vdl", "name": "Register VDL Mappings", "description": "Create active FDW mapping rules for virtual entities and warehouse tables"},
+                {"id": "materialize_warehouse", "name": "Materialize Warehouse", "description": "Refresh warehouse snapshot tables from external feeds"},
+            ])
+        return base
 
     def execute_step(self, step_id: str, step_data: Dict[str, Any]) -> Dict[str, Any]:
         if self.processor is None:
             from etl_pipeline_processor import ETLPipelineProcessor
-            self.processor = ETLPipelineProcessor(config=self._etl_config, log_callback=self)
+            cfg = dict(self._etl_config)
+            cfg["job_id"] = self.job_id
+            self.processor = ETLPipelineProcessor(config=cfg, log_callback=self)
 
         step_map = {
             "extract": self.processor.step_extract,
@@ -88,6 +97,8 @@ class ETLPipelineStage(BaseStage):
             "transform": self.processor.step_transform,
             "load": self.processor.step_load,
             "verify": self.processor.step_verify,
+            "register_vdl": self.processor.step_register_vdl,
+            "materialize_warehouse": self.processor.step_materialize_warehouse,
         }
 
         fn = step_map.get(step_id)

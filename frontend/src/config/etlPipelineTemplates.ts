@@ -17,7 +17,7 @@ export const ETL_PIPELINE_TEMPLATES: ETLPipelineTemplate[] = [
     description: 'Ingest market signals, social mentions, and competitor alerts into the virtual data layer',
     sourceType: 'social_listening',
     dataSourceId: 'sample-social',
-    targetEntities: ['Market_Signal', 'Social_Mention', 'Competitor_Alert'],
+    targetEntities: ['Market_Signal', 'Brand_Sentiment', 'Commodity_Price'],
     defaultConfig: {
       mappingRuleId: '',
       sourceType: 'social_listening',
@@ -53,6 +53,20 @@ export const ETL_PIPELINE_TEMPLATES: ETLPipelineTemplate[] = [
       mode: 'incremental',
       batchSize: 200,
       schedule: '0 */6 * * *',
+    },
+  },
+  {
+    id: 'tpl-external-full-vdl',
+    name: 'External Sources → VDL (full)',
+    description: 'Extract all external feeds, register VDL mappings, and materialize warehouse tables for Entity Explorer',
+    sourceType: 'external_full',
+    dataSourceId: 'sample-external',
+    targetEntities: ['MarketSignal', 'ContractDocument', 'DF_KPI_Snapshot'],
+    defaultConfig: {
+      mappingRuleId: '',
+      sourceType: 'external_full',
+      mode: 'full',
+      batchSize: 1000,
     },
   },
 ];

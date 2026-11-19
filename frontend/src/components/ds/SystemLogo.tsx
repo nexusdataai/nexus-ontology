@@ -46,6 +46,7 @@ const ALIASES: Record<string, string> = {
   file_uploads: 'files', file_upload: 'files', 'sample-files': 'files', uploads: 'files',
   'knowledge-base': 'knowledge', knowledgebase: 'knowledge',
   'bss-studio': 'langflow', external_systems: 'external',
+  external_full: 'external', 'sample-external': 'external',
 };
 
 export function resolveSystem(system?: string | null): { key: string; def: Def | null } {

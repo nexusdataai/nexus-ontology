@@ -1,6 +1,11 @@
 import apiClient from './apiClient';
 
-export type ETLSourceType = 'social_listening' | 'file_uploads' | 'google_drive' | 'generic';
+export type ETLSourceType =
+  | 'social_listening'
+  | 'file_uploads'
+  | 'google_drive'
+  | 'external_full'
+  | 'generic';
 
 export interface ETLStepDef {
   id: string;
@@ -16,7 +21,20 @@ export const ETL_BACKEND_STEPS: ETLStepDef[] = [
   { id: 'verify', name: 'Verify Results', description: 'Row count checks, null validation, data quality' },
 ];
 
-export function getStepsForSourceType(_sourceType: ETLSourceType): ETLStepDef[] {
+const ETL_VDL_STEPS: ETLStepDef[] = [
+  { id: 'register_vdl', name: 'Register VDL Mappings', description: 'Activate FDW mapping rules for virtual entities and warehouse tables' },
+  { id: 'materialize_warehouse', name: 'Materialize Warehouse', description: 'Refresh warehouse KPI snapshots from external feeds' },
+];
+
+export function getStepsForSourceType(sourceType: ETLSourceType): ETLStepDef[] {
+  if (
+    sourceType === 'social_listening'
+    || sourceType === 'file_uploads'
+    || sourceType === 'google_drive'
+    || sourceType === 'external_full'
+  ) {
+    return [...ETL_BACKEND_STEPS, ...ETL_VDL_STEPS];
+  }
   return ETL_BACKEND_STEPS;
 }
 
@@ -24,6 +42,7 @@ export const SOURCE_TYPE_LABELS: Record<ETLSourceType, string> = {
   social_listening: 'Social Listening',
   file_uploads: 'File Uploads',
   google_drive: 'Google Drive',
+  external_full: 'External Sources (full VDL)',
   generic: 'Generic',
 };
 

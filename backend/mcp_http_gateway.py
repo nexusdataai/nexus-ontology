@@ -1449,7 +1449,12 @@ async def startup_event():
                     f"no_source={canon_summary.get('no_source_table')} errors={canon_summary.get('errors')}"
                 )
 
-            if _os.environ.get("EXTERNAL_SOURCE_VDL_SEED", "true").lower() != "false":
+            from src.services.external_vdl_etl_service import vdl_mapping_via_etl_only
+
+            if (
+                not vdl_mapping_via_etl_only()
+                and _os.environ.get("EXTERNAL_SOURCE_VDL_SEED", "true").lower() != "false"
+            ):
                 from src.services.external_source_vdl_seeder import ensure_external_source_vdl_mappings
 
                 ext_vdl_summary = await ensure_external_source_vdl_mappings(
@@ -1458,9 +1463,14 @@ async def startup_event():
                     force_recreate=force_seed,
                 )
                 logger.info(
-                    "External source VDL mappings ensured: "
+                    "External source VDL mappings ensured (startup): "
                     f"created={ext_vdl_summary.get('created')} skipped={ext_vdl_summary.get('skipped')} "
                     f"errors={ext_vdl_summary.get('errors')}"
+                )
+            elif vdl_mapping_via_etl_only():
+                logger.info(
+                    "External source VDL mappings deferred to ETL pipelines "
+                    "(VDL_MAPPING_VIA_ETL_ONLY=true)"
                 )
 
             async def _seed_views_and_data_bg():

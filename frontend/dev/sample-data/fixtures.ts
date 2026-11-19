@@ -691,7 +691,15 @@ export const STAGE_STEPS: Record<string, string[]> = {
   procurement_analytics: ['load_procurement_data', 'spend_classification', 'three_way_match', 'price_variance_analysis', 'vendor_scorecard', 'publish_results'],
   semantic_rag: ['extract_unified_schema', 'resolve_fdw_mapping', 'extract_mapping_rules', 'extract_policies', 'extract_workflows', 'extract_integrations', 'normalize', 'enrich', 'chunk_embed', 'load_vector', 'index_nlq_exemplars', 'load_graph', 'validate'],
   supply_chain_risk: ['load_supplier_data', 'delivery_scoring', 'quality_scoring', 'financial_risk', 'market_signal_integration', 'publish_results'],
-  etl_pipeline: ['extract', 'validate_schema', 'transform', 'load', 'verify'],
+  etl_pipeline: [
+    'extract',
+    'validate_schema',
+    'transform',
+    'load',
+    'verify',
+    'register_vdl',
+    'materialize_warehouse',
+  ],
 };
 
 interface JourneySeed {

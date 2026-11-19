@@ -14,9 +14,14 @@ from typing import Any, Dict, List, Optional
 
 
 SOURCE_TABLES: Dict[str, List[str]] = {
-    'social_listening': ['Market_Signal', 'Brand_Sentiment', 'Competitor_Alert'],
+    'social_listening': ['Market_Signal', 'Brand_Sentiment', 'Commodity_Price'],
     'file_uploads': ['Invoice_Upload', 'Lab_Report_Upload'],
-    'google_drive': ['Contract_Document', 'Sustainability_Report'],
+    'google_drive': ['Contract_Document', 'Sustainability_Report', 'ContentVersion', 'ContentDocumentLink'],
+    'external_full': [
+        'Market_Signal', 'Brand_Sentiment', 'Commodity_Price',
+        'Invoice_Upload', 'Lab_Report_Upload',
+        'Contract_Document', 'Sustainability_Report', 'ContentVersion', 'ContentDocumentLink',
+    ],
 }
 
 TABLE_DOC_TYPE_MAP: Dict[str, str] = {
@@ -32,13 +37,14 @@ EXTRACTION_CONFIDENCE_THRESHOLD = 70.0
 class ETLPipelineConfig:
     def __init__(self, mapping_rule_id: str = "", source_type: str = "generic",
                  source_query: str = "", batch_size: int = 1000,
-                 mode: str = "full", schedule: str = ""):
+                 mode: str = "full", schedule: str = "", job_id: str = ""):
         self.mapping_rule_id = mapping_rule_id
         self.source_type = source_type
         self.source_query = source_query
         self.batch_size = batch_size
         self.mode = mode
         self.schedule = schedule
+        self.job_id = job_id
 
     @classmethod
     def from_dict(cls, d: dict) -> "ETLPipelineConfig":
@@ -49,6 +55,7 @@ class ETLPipelineConfig:
             batch_size=d.get("batch_size", d.get("batchSize", 1000)),
             mode=d.get("mode", "full"),
             schedule=d.get("schedule", ""),
+            job_id=d.get("job_id", d.get("jobId", "")) or "",
         )
 
 
@@ -79,6 +86,59 @@ class ETLPipelineProcessor:
 
     def _is_external_source(self) -> bool:
         return self.config.source_type in SOURCE_TABLES
+
+    def _run_async(self, coro):
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    def _append_to_external_simulator(self, tables_data: Dict[str, List[Dict]]) -> int:
+        from src.apis.fdw_api import _simulators
+
+        ext = _simulators.get("external")
+        if not ext:
+            self._warn("External simulator not available for load")
+            return 0
+
+        async def _do_load() -> int:
+            if hasattr(ext, "ensure_loaded"):
+                await ext.ensure_loaded()
+            loaded = 0
+            for tbl, rows in tables_data.items():
+                if hasattr(ext, "insert_row"):
+                    for row in rows:
+                        await ext.insert_row(tbl, row)
+                    loaded += len(rows)
+                elif hasattr(ext, "write_table"):
+                    from src.models.fdw_models import QueryRequest
+                    existing: List[Dict] = []
+                    try:
+                        resp = await ext.execute_query(
+                            QueryRequest(table=tbl, schema_name="external_sources", limit=100000, offset=0)
+                        )
+                        existing = list(resp.rows or [])
+                    except Exception:
+                        existing = list(ext._data.get(("external_sources", tbl), []))
+                    await ext.write_table("external_sources", tbl, existing + rows)
+                    loaded += len(rows)
+                else:
+                    key = ("external_sources", tbl)
+                    existing = ext._data.get(key, [])
+                    ext._data[key] = existing + rows
+                    loaded += len(rows)
+                self._info(f"Loaded {len(rows)} rows to external_sources.{tbl}")
+            if hasattr(ext, "_rebuild_artifacts"):
+                try:
+                    await ext._rebuild_artifacts()
+                except Exception:
+                    pass
+            return loaded
+
+        return self._run_async(_do_load())
 
     def _extract_from_gdrive_connector(self) -> List[Dict]:
         """Try extracting from real Google Drive via connector; returns empty if not configured."""
@@ -553,26 +613,16 @@ class ETLPipelineProcessor:
         loaded = 0
         if self._is_external_source():
             try:
-                from src.apis.fdw_api import _simulators
-                ext = _simulators.get("external")
-                if ext and getattr(ext, "loaded", False):
-                    tables_data: Dict[str, List[Dict]] = {}
-                    for row in auto_load_rows:
-                        tbl = row.pop('_source_table', 'ETL_Output')
-                        row.pop('_enriched', None)
-                        row.pop('_review_status', None)
-                        row.pop('_review_reason', None)
-                        row.pop('_gdrive_file_id', None)
-                        row.pop('_s3_key', None)
-                        tables_data.setdefault(tbl, []).append(row)
-                    for tbl, rows in tables_data.items():
-                        key = ("external_sources", tbl)
-                        existing = ext._data.get(key, [])
-                        ext._data[key] = existing + rows
-                        self._info(f"Loaded {len(rows)} rows to external_sources.{tbl}")
-                        loaded += len(rows)
-                else:
-                    self._warn("External simulator not available for load")
+                tables_data: Dict[str, List[Dict]] = {}
+                for row in auto_load_rows:
+                    tbl = row.pop('_source_table', 'ETL_Output')
+                    row.pop('_enriched', None)
+                    row.pop('_review_status', None)
+                    row.pop('_review_reason', None)
+                    row.pop('_gdrive_file_id', None)
+                    row.pop('_s3_key', None)
+                    tables_data.setdefault(tbl, []).append(row)
+                loaded = self._append_to_external_simulator(tables_data)
             except Exception as e:
                 self._warn(f"Load to external simulator failed: {e}")
         else:
@@ -640,3 +690,57 @@ class ETLPipelineProcessor:
             self._kpis["high_confidence_rows"] = high_conf
             self._kpis["low_confidence_rows"] = low_conf
         return result
+
+    def step_register_vdl(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        if not self._is_external_source():
+            return {"status": "skipped", "message": "VDL registration applies to external source ETL only"}
+
+        async def _register():
+            from src.apis.fdw_api import _simulators
+            from src.services.mapping_rule_service import MappingRuleService
+            from src.services.external_vdl_etl_service import register_vdl_for_source_type
+
+            svc = MappingRuleService()
+            await svc.initialize()
+            return await register_vdl_for_source_type(
+                svc,
+                _simulators,
+                self.config.source_type,
+                job_id=self.config.job_id,
+            )
+
+        try:
+            summary = self._run_async(_register())
+            self._info(
+                f"VDL mapping registration: created={summary.get('created')} "
+                f"skipped={summary.get('skipped')} errors={summary.get('errors')}"
+            )
+            self._kpis["vdl_rules_created"] = summary.get("created", 0)
+            return {"status": "completed", **summary}
+        except Exception as e:
+            self._warn(f"VDL mapping registration failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def step_materialize_warehouse(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        if not self._is_external_source():
+            return {"status": "skipped", "message": "Warehouse materialization applies to external source ETL only"}
+
+        async def _materialize():
+            from src.apis.fdw_api import _simulators
+            from src.services.external_vdl_etl_service import materialize_warehouse_for_source_type
+
+            return await materialize_warehouse_for_source_type(
+                _simulators,
+                self.config.source_type,
+                job_id=self.config.job_id,
+            )
+
+        try:
+            summary = self._run_async(_materialize())
+            written = summary.get("written", 0)
+            self._info(f"Warehouse materialization: {written} table(s) updated")
+            self._kpis["warehouse_tables_materialized"] = written
+            return {"status": "completed", **summary}
+        except Exception as e:
+            self._warn(f"Warehouse materialization failed: {e}")
+            return {"status": "error", "message": str(e)}

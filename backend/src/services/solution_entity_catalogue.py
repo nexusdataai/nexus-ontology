@@ -376,8 +376,13 @@ async def ensure_solution_entities(
         "SIMULATOR": "FDW",
     }
 
+    from src.services.external_vdl_etl_service import vdl_mapping_via_etl_only
+
     for entity in targets:
         spec = CATALOGUE[entity]
+        if vdl_mapping_via_etl_only() and spec.get("schema") == "external_sources":
+            skipped += 1
+            continue
         # In simulator mode, every entity becomes an FDW lookup against the
         # external simulator. The columns list still drives the field_maps so
         # the rows we write through ResultSink are queryable as-is.

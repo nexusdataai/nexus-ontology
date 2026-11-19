@@ -35,6 +35,7 @@ const SOURCE_DESCRIPTIONS: Record<ETLSourceType, string> = {
   social_listening: 'Market signals, social mentions, competitor alerts',
   file_uploads: 'Invoices, lab reports, CSV files',
   google_drive: 'Contracts, sustainability reports',
+  external_full: 'All external feeds, VDL mappings, and warehouse snapshots',
   generic: 'Custom data pipeline',
 };
 
@@ -42,10 +43,17 @@ const SOURCE_LABEL: Record<ETLSourceType, string> = {
   social_listening: 'Social listening',
   file_uploads: 'File uploads',
   google_drive: 'Google Drive',
+  external_full: 'External sources (full VDL)',
   generic: 'Generic',
 };
 
-const SOURCE_TYPES: ETLSourceType[] = ['social_listening', 'file_uploads', 'google_drive', 'generic'];
+const SOURCE_TYPES: ETLSourceType[] = [
+  'social_listening',
+  'file_uploads',
+  'google_drive',
+  'external_full',
+  'generic',
+];
 
 /** Radix Select cannot hold an empty value; this stands for "auto-detect". */
 const AUTO_RULE = '__auto__';
