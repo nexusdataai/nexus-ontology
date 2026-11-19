@@ -1,0 +1,15 @@
+api_id: vdl.product_offering.list
+verb: read
+virtual_entity: ProductOffering
+description: List sellable product offerings from the CPQ domain.
+risk_level: read_only
+parameters_schema:
+  type: object
+  properties:
+    limit:
+      type: integer
+      default: 50
+direct_sql:
+  virtual_entity: ProductOffering
+  limit: 50
+tags: [cpq, read, commercial]

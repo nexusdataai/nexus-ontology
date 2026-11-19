@@ -53,6 +53,7 @@ def _to_row(spec: VdlApiSpec) -> Dict[str, Any]:
 
 
 @router.get("", summary="List every VDL API")
+@router.get("/", include_in_schema=False)
 async def list_vdl_apis(
     virtual_entity: Optional[str] = Query(default=None),
     verb: Optional[str] = Query(default=None),

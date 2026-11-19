@@ -835,22 +835,42 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"AI Health init failed (non-fatal): {e}")
 
-    # Virtual Data API Registry (Phase 2, data-organization spec).
+    # Virtual Data API Registry (Phase 2) — mount router first; seed sync is separate.
     try:
         from src.apis import vdl_api as _vdl_api
+
         app.include_router(_vdl_api.router)
-        from src.services.data_plane import vdl_api_executor as _vdl_exec
-        from src.services.data_plane.vdl_api_registry_service import (
-            get_vdl_api_registry,
-        )
-        from src.services.data_plane.vdl_api_seed_loader import load_seed_specs
-        _vdl_exec.configure(app)
-        _seed = load_seed_specs()
-        if _seed:
-            await get_vdl_api_registry().bootstrap_if_empty(_seed)
-        logger.info(f"VDL API router mounted + {len(_seed)} seed specs loaded")
+        logger.info("VDL API router mounted at /api/v1/vdl-apis")
     except Exception as e:
-        logger.warning(f"VDL API init failed (non-fatal): {e}")
+        logger.error(f"VDL API router mount failed: {e}")
+
+    try:
+        from src.services.data_plane import vdl_api_executor as _vdl_exec
+        from src.services.data_plane.vdl_api_catalog_seeder import build_catalog_read_specs
+        from src.services.data_plane.vdl_api_registry_service import get_vdl_api_registry
+        from src.services.data_plane.vdl_api_seed_loader import load_seed_specs
+
+        _vdl_exec.configure(app)
+        file_specs = load_seed_specs()
+        catalog_specs = build_catalog_read_specs()
+        merged: Dict[str, Any] = {s.api_id: s for s in catalog_specs}
+        for spec in file_specs:
+            merged[spec.api_id] = spec
+        all_specs = list(merged.values())
+        _vdl_reg = get_vdl_api_registry()
+        _vdl_reg.load_memory_seeds(all_specs)
+        if os.environ.get("VDL_API_SEED_SYNC", "true").lower() != "false":
+            await _vdl_reg.sync_from_seeds(all_specs, overwrite_auto=True)
+        else:
+            await _vdl_reg.bootstrap_if_empty(all_specs)
+        logger.info(
+            "VDL API registry ready: file={} catalog={} total={}",
+            len(file_specs),
+            len(catalog_specs),
+            len(all_specs),
+        )
+    except Exception as e:
+        logger.warning(f"VDL API seed sync failed (non-fatal): {e}")
 
     # Data Source Definition API (Phase 2, data-organization spec).
     try:

@@ -98,6 +98,7 @@ class VdlApiRegistryService:
         self._cache: Dict[str, VdlApiSpec] = {}
         self._cache_loaded_at: float = 0.0
         self._lock = asyncio.Lock()
+        self._memory_seeds: Dict[str, VdlApiSpec] = {}
 
     @classmethod
     def get_instance(cls) -> "VdlApiRegistryService":
@@ -118,12 +119,17 @@ class VdlApiRegistryService:
                 rows = self._repo.list_vdl_apis()
             except FoundryWorkspaceRepositoryError as e:
                 logger.warning(f"VdlApiRegistry list failed: {e}")
+                if self._memory_seeds:
+                    self._cache = dict(self._memory_seeds)
+                    self._cache_loaded_at = time.time()
                 return
             new_cache: Dict[str, VdlApiSpec] = {}
             for row in rows:
                 spec = _attrs_to_spec(row)
                 if spec.api_id:
                     new_cache[spec.api_id] = spec
+            if not new_cache and self._memory_seeds:
+                new_cache = dict(self._memory_seeds)
             self._cache = new_cache
             self._cache_loaded_at = time.time()
 
@@ -204,12 +210,20 @@ class VdlApiRegistryService:
 
     # -------- bootstrap --------
 
+    def load_memory_seeds(self, seed_specs: List[VdlApiSpec]) -> None:
+        """In-memory catalog used when DDB is unreachable (local K3s / degraded)."""
+        self._memory_seeds = {s.api_id: s for s in seed_specs if s.api_id}
+        if self._memory_seeds:
+            self._cache = dict(self._memory_seeds)
+            self._cache_loaded_at = time.time()
+
     async def bootstrap_if_empty(self, seed_specs: List[VdlApiSpec]) -> int:
         try:
             existing = self._repo.list_vdl_apis()
         except FoundryWorkspaceRepositoryError as e:
             logger.warning(f"VdlApiRegistry bootstrap list failed: {e}")
-            return 0
+            self.load_memory_seeds(seed_specs)
+            return len(self._memory_seeds)
         if existing:
             return 0
         written = 0
@@ -222,7 +236,49 @@ class VdlApiRegistryService:
         if written:
             self.invalidate()
             logger.info(f"VdlApiRegistry bootstrapped {written} seed specs into DDB")
-        return written
+        elif seed_specs:
+            self.load_memory_seeds(seed_specs)
+        return written or len(self._memory_seeds)
+
+    async def sync_from_seeds(
+        self,
+        seed_specs: List[VdlApiSpec],
+        *,
+        overwrite_auto: bool = True,
+    ) -> int:
+        """Upsert seed specs; auto-catalog entries refresh when ``overwrite_auto``."""
+        if not seed_specs:
+            return 0
+
+        merged: Dict[str, VdlApiSpec] = {s.api_id: s for s in seed_specs if s.api_id}
+        self.load_memory_seeds(list(merged.values()))
+
+        try:
+            existing = {row.get("apiId") or row.get("api_id"): row for row in self._repo.list_vdl_apis()}
+        except FoundryWorkspaceRepositoryError as e:
+            logger.warning(f"VdlApiRegistry sync skipped DDB ({e}); serving in-memory seeds")
+            return len(merged)
+
+        written = 0
+        for spec in merged.values():
+            is_auto = "auto-catalog" in (spec.tags or [])
+            eid = spec.api_id
+            if eid in existing and is_auto and not overwrite_auto:
+                continue
+            if eid in existing and not is_auto:
+                continue
+            try:
+                self._repo.put_vdl_api(spec.api_id, _spec_to_attrs(spec))
+                written += 1
+            except FoundryWorkspaceRepositoryError as e:
+                logger.warning(f"VdlApiRegistry sync {spec.api_id} failed: {e}")
+
+        if written:
+            self.invalidate()
+            logger.info(f"VdlApiRegistry synced {written} specs to DDB (total merged={len(merged)})")
+        else:
+            await self._ensure_cache()
+        return written or len(merged)
 
 
 def get_vdl_api_registry() -> VdlApiRegistryService:
