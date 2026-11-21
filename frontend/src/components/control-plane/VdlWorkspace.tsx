@@ -21,7 +21,7 @@ import {
   type VdlCompositionUpsert,
 } from '@/services/vdlCompositionService';
 import { virtualQueryService } from '@/services/virtualQueryService';
-import type { ForeignTableInfo } from '@/types/fdwTypes';
+import type { ColumnInfo, ForeignTableInfo } from '@/types/fdwTypes';
 
 interface SchemaEntity {
   name: string;
@@ -40,6 +40,35 @@ function tableLabel(s: CompositionSourceRef) {
   return `${s.schema}.${s.table}`;
 }
 
+const PREFERRED_SCHEMAS = ['oracle_erp', 'sfdc_itxp2dev', 'sfdc_schema', 'simulator'];
+
+function normName(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function scoreFdwTable(entityName: string, table: ForeignTableInfo): number {
+  const e = normName(entityName);
+  const t = normName(table.tableName);
+  let score = 0;
+  if (t === e) score = 100;
+  else if (t.endsWith(e) || t.includes(e)) score = 75;
+  else if (e.includes(t) && t.length > 3) score = 50;
+  const schema = table.schemaName.toLowerCase();
+  if (schema.includes('oracle') && entityName.toLowerCase().includes('ap_')) score += 8;
+  if ((schema.includes('sfdc') || schema.includes('salesforce')) && !entityName.toLowerCase().startsWith('oracle')) score += 4;
+  const pref = PREFERRED_SCHEMAS.findIndex((p) => schema.includes(p.replace(/_/g, '')) || schema === p);
+  if (pref >= 0) score += 6 - pref;
+  return score;
+}
+
+function inferSourceSystem(schema: string): string {
+  const s = schema.toLowerCase();
+  if (s.includes('oracle')) return 'Oracle';
+  if (s.includes('sfdc') || s.includes('salesforce')) return 'Salesforce';
+  if (s.includes('sap')) return 'SAP';
+  return schema.split('_')[0] || 'FDW';
+}
+
 export default function VdlWorkspace() {
   const [entities, setEntities] = useState<SchemaEntity[]>([]);
   const [compositions, setCompositions] = useState<VdlComposition[]>([]);
@@ -51,6 +80,7 @@ export default function VdlWorkspace() {
   const [saving, setSaving] = useState(false);
   const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
   const [centerTab, setCenterTab] = useState<'schema' | 'composition' | 'relationships'>('composition');
+  const [quickMapping, setQuickMapping] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,16 +105,24 @@ export default function VdlWorkspace() {
         toast.error('Could not load VDL entities');
       }
     }
-    setEntities(catalog);
-
+    const byName = new Map(catalog.map((e) => [e.name, e]));
+    let comps: VdlComposition[] = [];
     try {
-      setCompositions(await vdlCompositionService.list());
+      comps = await vdlCompositionService.list();
+      for (const c of comps) {
+        if (!byName.has(c.virtualEntity)) {
+          byName.set(c.virtualEntity, {
+            name: c.virtualEntity,
+            domain: 'Composed (catalog pending)',
+          });
+        }
+      }
     } catch (e) {
       console.warn('VDL workspace: compositions load failed', e);
-      setCompositions([]);
-    } finally {
-      setLoading(false);
     }
+    setEntities([...byName.values()].sort((a, b) => a.name.localeCompare(b.name)));
+    setCompositions(comps);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -143,8 +181,32 @@ export default function VdlWorkspace() {
       .sort((a, b) => a.e.name.localeCompare(b.e.name));
   }, [entities, compositions, compByEntity, search]);
 
+  const hydrateCatalog = async (
+    entity: SchemaEntity,
+    comp?: VdlComposition,
+  ): Promise<SchemaEntity> => {
+    try {
+      return await apiClient.get<SchemaEntity>(
+        `/api/v1/control-plane/entities/${encodeURIComponent(entity.name)}`,
+        { requireAuth: false },
+      );
+    } catch {
+      // Composition-only entity: infer schema from the primary FDW table.
+      const primary = comp?.from?.[0];
+      if (!primary) return entity;
+      try {
+        const cols = await fdwService.getColumns(primary.schema, primary.table);
+        return {
+          ...entity,
+          fields: cols.map((c) => ({ name: c.columnName, dataType: c.dataType })),
+        };
+      } catch {
+        return entity;
+      }
+    }
+  };
+
   const selectEntity = async (entity: SchemaEntity) => {
-    setSelected(entity);
     setCenterTab('composition');
     setPreviewRows([]);
     let comp = compByEntity.get(entity.name);
@@ -155,6 +217,8 @@ export default function VdlWorkspace() {
         comp = undefined;
       }
     }
+    const enriched = await hydrateCatalog(entity, comp);
+    setSelected(enriched);
     const next: VdlCompositionUpsert = {
       virtualEntity: entity.name,
       name: comp?.name || entity.name,
@@ -164,15 +228,98 @@ export default function VdlWorkspace() {
       joins: comp?.joins || [],
       select: comp?.select?.length
         ? comp.select
-        : (entity.fields || []).map((f) => ({ targetField: f.name, expr: '' })),
+        : (enriched.fields || []).map((f) => ({ targetField: f.name, expr: '' })),
       fieldMaps: comp?.fieldMaps || [],
       filterExpression: comp?.filterExpression || '',
       businessLogic: comp?.businessLogic || '',
     };
-  if (!next.from.length) {
+    if (!next.from.length) {
       next.from = [];
     }
     setEdit(next);
+  };
+
+  const schemaRows = useMemo(() => {
+    if (!selected || !edit) return [];
+    const projByField = new Map((edit.select || []).map((p) => [p.targetField, p.expr]));
+    const fields = selected.fields?.length
+      ? selected.fields
+      : (edit.select || []).map((p) => ({ name: p.targetField, dataType: undefined as string | undefined }));
+    return fields.map((f) => ({
+      name: f.name,
+      type: f.dataType || '—',
+      sourceExpr: projByField.get(f.name) || '—',
+    }));
+  }, [selected, edit]);
+
+  const quickMapFromSources = async () => {
+    if (!selected || !edit) return;
+    setQuickMapping(true);
+    try {
+      const ranked = fdwTables
+        .map((t) => ({ t, score: scoreFdwTable(selected.name, t) }))
+        .filter((x) => x.score >= 50)
+        .sort((a, b) => b.score - a.score);
+      if (ranked.length === 0) {
+        toast.error('No matching Oracle/SFDC table', {
+          description: 'Pick a source table manually, or run Auto-map on the Mapper tab.',
+        });
+        return;
+      }
+      const best = ranked[0].t;
+      let columns: ColumnInfo[] = [];
+      try {
+        columns = await fdwService.getColumns(best.schemaName, best.tableName);
+      } catch {
+        toast.error('Could not read columns for the matched table');
+        return;
+      }
+      const from: CompositionSourceRef = {
+        alias: 'src',
+        sourceSystem: inferSourceSystem(best.schemaName),
+        schema: best.schemaName,
+        table: best.tableName,
+      };
+      const catalogFields =
+        selected.fields?.map((f) => f.name) || (edit.select || []).map((p) => p.targetField);
+      const select: CompositionProjection[] =
+        catalogFields.length > 0
+          ? catalogFields.map((tf) => {
+              const col = columns.find(
+                (c) =>
+                  normName(c.columnName) === normName(tf)
+                  || c.columnName.toLowerCase() === tf.toLowerCase(),
+              );
+              return { targetField: tf, expr: col ? `src."${col.columnName}"` : '' };
+            })
+          : columns.slice(0, 40).map((c) => ({
+              targetField: c.columnName,
+              expr: `src."${c.columnName}"`,
+            }));
+      const next: VdlCompositionUpsert = {
+        ...edit,
+        from: [from],
+        joins: [],
+        select,
+        status: edit.status === 'inactive' ? 'draft' : edit.status,
+      };
+      setEdit(next);
+      const hydrated = await hydrateCatalog(selected, {
+        virtualEntity: selected.name,
+        status: next.status,
+        strategy: next.strategy || 'runtime_sql',
+        from: next.from,
+        joins: [],
+        select: next.select,
+        fieldMaps: [],
+        createdAt: '',
+        updatedAt: '',
+      });
+      setSelected(hydrated);
+      toast.success(`Linked ${selected.name} → ${best.schemaName}.${best.tableName}`);
+    } finally {
+      setQuickMapping(false);
+    }
   };
 
   const addSourceTable = (tableKey: string) => {
@@ -283,7 +430,17 @@ export default function VdlWorkspace() {
                   {tab.label}
                 </button>
               ))}
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={quickMapFromSources}
+                  disabled={quickMapping}
+                  title="Match this VDL entity to an Oracle or Salesforce FDW table and fill column expressions"
+                >
+                  {quickMapping ? <Icon name="spinner" className="h-4 w-4 animate-spin" /> : <Icon name="sparkles" className="h-4 w-4" />}
+                  Quick map
+                </Button>
                 <Button size="sm" variant="outline" onClick={handlePreview}>Preview</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? <Icon name="spinner" className="h-4 w-4 animate-spin" /> : 'Save'}
@@ -292,27 +449,58 @@ export default function VdlWorkspace() {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {centerTab === 'schema' && (
-                <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Field</th><th>Type</th></tr></thead>
-                  <tbody>
-                    {(selected.fields || []).map((f) => (
-                      <tr key={f.name} className="border-t border-border"><td className="py-1.5 font-mono text-xs">{f.name}</td><td className="text-muted-foreground">{f.dataType || '—'}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
+                schemaRows.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                    <p>No schema fields yet for <span className="font-medium text-foreground">{selected.name}</span>.</p>
+                    <p className="mt-2 text-xs">
+                      Use <span className="font-medium">Quick map</span> on the Mapper tab to bind an Oracle or Salesforce table, or edit projections below.
+                    </p>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground">
+                        <th className="py-1 pr-2">VDL field</th>
+                        <th className="py-1 pr-2">Type</th>
+                        <th className="py-1">Source expression</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schemaRows.map((row) => (
+                        <tr key={row.name} className="border-t border-border">
+                          <td className="py-1.5 pr-2 font-mono text-xs">{row.name}</td>
+                          <td className="py-1.5 pr-2 text-muted-foreground">{row.type}</td>
+                          <td className="py-1.5 font-mono text-xs text-muted-foreground">{row.sourceExpr}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
               )}
               {centerTab === 'relationships' && (
-                <ul className="space-y-2 text-sm">
-                  {(selected.relationships || []).map((r, i) => (
-                    <li key={i} className="rounded-md border border-border p-2">
-                      <span className="font-medium">{r.type}</span> → {r.targetEntity}
-                      {r.description && <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>}
-                    </li>
-                  ))}
-                </ul>
+                (selected.relationships || []).length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                    <p>No ontology relationships are defined for this entity in the catalog.</p>
+                    <p className="mt-2 text-xs">
+                      Lineage on the right shows physical source tables. Cross-entity links come from enterprise-knowledge YAML when the entity is in the canonical catalog.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {(selected.relationships || []).map((r, i) => (
+                      <li key={i} className="rounded-md border border-border p-2">
+                        <span className="font-medium">{r.type}</span> → {r.targetEntity}
+                        {r.description && <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                )
               )}
               {centerTab === 'composition' && (
                 <div className="space-y-5">
+                  <p className="text-xs text-muted-foreground">
+                    Simple path: one VDL entity ← one Oracle or Salesforce table via <span className="font-medium text-foreground">Quick map</span>, optional SQL join for a second source, then Save and Preview. Bulk rule creation: Mapper tab → Auto-map.
+                  </p>
                   <section>
                     <p className="mb-2 text-xs font-medium text-muted-foreground">① Source tables</p>
                     <div className="mb-2 flex flex-wrap gap-1.5">

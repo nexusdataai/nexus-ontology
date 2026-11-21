@@ -315,7 +315,7 @@ export default function DataPlanePage() {
                     const pipe = pipelinesBySource[src.id];
                     const connected = src.status === 'connected';
                     return (
-                      <li key={src.id} style={{ height: ROW, '--i': i } as React.CSSProperties} className="rise flex items-center">
+                      <li key={src.id} style={{ height: ROW }} className="flex items-center">
                         <div
                           role="button"
                           tabIndex={0}
