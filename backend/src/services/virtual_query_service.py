@@ -84,8 +84,20 @@ def _parse_business_logic(rule_business_logic: Optional[str]) -> Dict[str, Any]:
 
 class VirtualQueryService:
 
-    def __init__(self, mapping_service, fdw_query_service=None, fdw_discovery_service=None, simulators: Optional[Dict[str, object]] = None, athena_service=None, mimir_client=None, mode_service=None, catalog=None):
+    def __init__(
+        self,
+        mapping_service,
+        fdw_query_service=None,
+        fdw_discovery_service=None,
+        simulators: Optional[Dict[str, object]] = None,
+        athena_service=None,
+        mimir_client=None,
+        mode_service=None,
+        catalog=None,
+        composition_service=None,
+    ):
         self._mapping_service = mapping_service
+        self._composition_service = composition_service
         self._fdw_query_service = fdw_query_service
         self._fdw_discovery_service = fdw_discovery_service
         self._simulators = simulators or {}
@@ -133,6 +145,20 @@ class VirtualQueryService:
                 canonical=canonical,
             )
             request.virtual_entity = canonical
+
+        if self._composition_service is not None:
+            try:
+                composition = await self._composition_service.get_or_none(
+                    request.virtual_entity
+                )
+                if composition and composition.status.value == "active":
+                    return await self._query_via_composition(request, composition)
+            except Exception as e:
+                vq_logger.warning(
+                    "Composition query failed; falling back to mapping rule",
+                    virtual_entity=request.virtual_entity,
+                    error=str(e),
+                )
 
         rules = await self._mapping_service.list_all(virtual_entity=request.virtual_entity)
         active_rules = [r for r in rules if r.status.value == "active"]
@@ -551,6 +577,76 @@ class VirtualQueryService:
             },
             virtual_entity=request.virtual_entity,
         )
+
+    async def _query_via_composition(self, request: VirtualQueryRequest, composition) -> VirtualQueryResponse:
+        from src.services.vdl_composition_sql import composition_to_sql
+        from src.services.vdl_composition_runtime import execute_composition_on_simulator
+
+        sql, build_errors = composition_to_sql(composition, limit=request.limit)
+        if build_errors:
+            raise ValueError("; ".join(build_errors))
+
+        sources = composition.sources
+        schema = sources[0].schema if sources else ""
+        sim_key = SCHEMA_TO_SIMULATOR.get(schema)
+        sim = self._simulators.get(sim_key) if sim_key else None
+        mode = "simulator"
+        if self._mode_service is not None and schema:
+            src = self._mode_service.schema_to_source(schema)
+            mode = self._mode_service.effective_mode(src) if src else "real"
+
+        rows: List[dict] = []
+        source_type_label = "composition"
+
+        if mode == "simulator" and sim is not None:
+            if hasattr(sim, "ensure_loaded"):
+                await sim.ensure_loaded()
+            rows = await execute_composition_on_simulator(
+                composition, sim, limit=request.limit
+            )
+            source_type_label = "simulator-composition"
+        elif self._fdw_query_service is not None and sql:
+            resp = await self._fdw_query_service.execute_readonly_sql(
+                sql, limit=request.limit
+            )
+            rows = list(resp.rows or [])
+            source_type_label = "fdw-composition"
+        else:
+            raise ValueError("No execution path for composition query")
+
+        if request.filters:
+            rows = self._filter_rows(rows, request.filters)
+
+        if request.fields:
+            rows = [{k: r.get(k) for k in request.fields} for r in rows]
+
+        if request.offset:
+            rows = rows[request.offset :]
+
+        return VirtualQueryResponse(
+            rows=rows,
+            metadata={
+                "strategy": composition.strategy.value,
+                "source_type": source_type_label,
+                "source_count": len(sources),
+                "sql_preview": sql[:500] if sql else None,
+                "row_count": len(rows),
+            },
+            virtual_entity=request.virtual_entity,
+        )
+
+    def _filter_rows(self, rows: List[dict], filters: List[VirtualFilter]) -> List[dict]:
+        out = []
+        for row in rows:
+            ok = True
+            for f in filters:
+                val = row.get(f.field)
+                if f.operator == "eq" and val != f.value:
+                    ok = False
+                    break
+            if ok:
+                out.append(row)
+        return out
 
     async def list_virtual_entities(self) -> List[dict]:
         rules = await self._mapping_service.list_all()

@@ -20,7 +20,7 @@ from src.models.mapping_rule_models import (
     MappingRuleStatus,
     MappingRuleUpdateRequest,
 )
-from src.services.mapping_rule_service import MappingRuleService
+from src.services.mapping_rule_service import MappingRuleService, index_rules_by_virtual_entity
 from src.services.vdl_catalog_service import get_catalog
 
 seed_logger = logger.bind(component="canonical-mapping-seeder")
@@ -168,9 +168,7 @@ async def ensure_canonical_mapping_rules(
     simulators = simulators or {}
     canonicals = get_catalog().list_entities()
     existing_rules = await mapping_service.list_all()
-    existing_by_ve: Dict[str, Any] = {}
-    for rule in existing_rules:
-        existing_by_ve[rule.virtual_entity] = rule
+    existing_by_ve = index_rules_by_virtual_entity(existing_rules)
 
     sim_tables = await _collect_simulator_tables(simulators)
 
@@ -243,7 +241,7 @@ async def ensure_canonical_mapping_rules(
         ]
 
         try:
-            rule = await mapping_service.create(
+            rule, upsert_status = await mapping_service.upsert_binding(
                 MappingRuleCreateRequest(
                     name=f"Canonical: {name}",
                     virtual_entity=name,
@@ -252,12 +250,13 @@ async def ensure_canonical_mapping_rules(
                     source_schema=match.sim_schema,
                     source_table=match.sim_table,
                     field_maps=field_maps,
-                )
+                ),
+                activate=True,
+                name_prefix="Canonical:",
             )
-            await mapping_service.update(
-                rule.id,
-                MappingRuleUpdateRequest(status=MappingRuleStatus.active),
-            )
+            if upsert_status == "skipped":
+                skipped += 1
+                continue
             created += 1
             detail.append(
                 {

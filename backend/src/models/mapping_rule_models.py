@@ -64,6 +64,10 @@ class MappingRuleUpdateRequest(BaseModel):
     """Request body for updating an existing mapping rule."""
 
     name: Optional[str] = None
+    source_type: Optional[MappingRuleSourceType] = Field(default=None, alias="sourceType")
+    source_system: Optional[str] = Field(default=None, alias="sourceSystem")
+    source_table: Optional[str] = Field(default=None, alias="sourceTable")
+    source_schema: Optional[str] = Field(default=None, alias="sourceSchema")
     field_maps: Optional[List[FieldMap]] = Field(default=None, alias="fieldMaps")
     business_logic: Optional[str] = Field(default=None, alias="businessLogic")
     filter_expression: Optional[str] = Field(default=None, alias="filterExpression")

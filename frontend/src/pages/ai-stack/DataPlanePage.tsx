@@ -12,8 +12,7 @@ import { dataSourceModeService, type Mode } from '@/services/dataSourceModeServi
 import { fdwService } from '@/services/fdwService';
 import DataPipelinesTab from '@/components/data-plane/DataPipelinesTab';
 import { ConnectorsTab } from '@/components/ConnectorsTab';
-import EntityExplorer from '@/components/control-plane/EntityExplorer';
-import MappingRulesEditor from '@/components/control-plane/MappingRulesEditor';
+import VdlWorkspace from '@/components/control-plane/VdlWorkspace';
 import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWorkbenchPanel';
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
 import VdlApiRegistryBrowser from '@/components/registry-browser/VdlApiRegistryBrowser';
@@ -30,11 +29,10 @@ const SOURCE_ICONS: Record<string, IconName> = {
 /** Tabs grouped into sections. Item values are the original ?tab= values. */
 const DP_SECTIONS: TabSection[] = [
   { label: 'Sources', icon: 'database', items: [{ value: 'sources', label: 'Data sources' }] },
-  { label: 'Virtual data', icon: 'cube', items: [
-    { value: 'virtualdata', label: 'Entities' },
+  { label: 'VDL', icon: 'cube', items: [
+    { value: 'vdl', label: 'Virtual data layer' },
     { value: 'vdl-apis', label: 'API registry' },
   ] },
-  { label: 'Mapping rules', icon: 'shuffle', items: [{ value: 'mappingrules', label: 'Mapping rules' }] },
   { label: 'Pipelines', icon: 'route', items: [{ value: 'pipelines', label: 'Data pipelines' }] },
   { label: 'Connectors', icon: 'plug', items: [
     { value: 'connectors', label: 'Catalogue' },
@@ -251,14 +249,17 @@ export default function DataPlanePage() {
           ) : undefined}
         />
 
-        <TabsContent value="virtualdata" className="mt-0 h-pane-sub">
-          <EntityExplorer />
+        <TabsContent value="vdl" className="mt-0 h-pane">
+          <VdlWorkspace />
+        </TabsContent>
+        <TabsContent value="virtualdata" className="mt-0 h-pane">
+          <VdlWorkspace />
+        </TabsContent>
+        <TabsContent value="mappingrules" className="mt-0 h-pane">
+          <VdlWorkspace />
         </TabsContent>
         <TabsContent value="vdl-apis" className="pane-wide mt-0 h-pane-sub">
           <VdlApiRegistryBrowser />
-        </TabsContent>
-        <TabsContent value="mappingrules" className="mt-0 h-pane">
-          <MappingRulesEditor />
         </TabsContent>
         <TabsContent value="pipelines" className="mt-0">
           <DataPipelinesTab />
@@ -387,11 +388,8 @@ export default function DataPlanePage() {
                       </div>
                     </div>
                     <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
-                      <button type="button" onClick={() => setDpTab('virtualdata')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
-                        Virtual entities <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
-                      </button>
-                      <button type="button" onClick={() => setDpTab('mappingrules')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
-                        Mapping rules <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
+                      <button type="button" onClick={() => setDpTab('vdl')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
+                        VDL workspace <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
                       </button>
                       <button type="button" onClick={() => setDpTab('pipelines')} className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
                         Pipelines <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />

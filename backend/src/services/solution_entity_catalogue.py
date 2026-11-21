@@ -337,8 +337,10 @@ async def ensure_solution_entities(
         targets = list(CATALOGUE.keys())
 
     try:
+        from src.services.mapping_rule_service import index_rules_by_virtual_entity
+
         existing = await mapping_service.list_all()
-        existing_by_ve: Dict[str, Any] = {r.virtual_entity: r for r in existing}
+        existing_by_ve: Dict[str, Any] = index_rules_by_virtual_entity(existing)
     except Exception as e:
         cat_logger.warning("Could not list existing mapping rules: {}", e)
         existing_by_ve = {}
@@ -422,38 +424,50 @@ async def ensure_solution_entities(
                     "default_lookback_seconds": 7 * 24 * 3600,
                     "tenant_resolver": f"fixed:{mimir_tenant}",
                 })
-                rule = await mapping_service.create(MappingRuleCreateRequest(
-                    name=f"Auto Mimir: {entity}",
-                    virtual_entity=entity,
-                    source_type=MappingRuleSourceType.MIMIR,
-                    source_system="mimir",
-                    source_table=spec["metric"],
-                    source_schema="mimir",
-                    field_maps=field_maps,
-                    business_logic=business_logic,
-                ))
+                _, upsert_status = await mapping_service.upsert_binding(
+                    MappingRuleCreateRequest(
+                        name=f"Auto Mimir: {entity}",
+                        virtual_entity=entity,
+                        source_type=MappingRuleSourceType.MIMIR,
+                        source_system="mimir",
+                        source_table=spec["metric"],
+                        source_schema="mimir",
+                        field_maps=field_maps,
+                        business_logic=business_logic,
+                    ),
+                    activate=True,
+                    name_prefix="Auto Mimir:",
+                )
             elif effective_storage == "ATHENA":
-                rule = await mapping_service.create(MappingRuleCreateRequest(
-                    name=f"Auto Athena: {entity}",
-                    virtual_entity=entity,
-                    source_type=MappingRuleSourceType.ATHENA,
-                    source_system="athena",
-                    source_table=entity.lower(),
-                    source_schema=glue_db,
-                    field_maps=field_maps,
-                ))
+                _, upsert_status = await mapping_service.upsert_binding(
+                    MappingRuleCreateRequest(
+                        name=f"Auto Athena: {entity}",
+                        virtual_entity=entity,
+                        source_type=MappingRuleSourceType.ATHENA,
+                        source_system="athena",
+                        source_table=entity.lower(),
+                        source_schema=glue_db,
+                        field_maps=field_maps,
+                    ),
+                    activate=True,
+                    name_prefix="Auto Athena:",
+                )
             else:
-                rule = await mapping_service.create(MappingRuleCreateRequest(
-                    name=f"Auto Sim: {entity}",
-                    virtual_entity=entity,
-                    source_type=MappingRuleSourceType.FDW,
-                    source_system="external",
-                    source_table=entity,
-                    source_schema="external_sources",
-                    field_maps=field_maps,
-                ))
-            await mapping_service.update(rule.id, MappingRuleUpdateRequest(status=MappingRuleStatus.active))
-            created += 1
+                _, upsert_status = await mapping_service.upsert_binding(
+                    MappingRuleCreateRequest(
+                        name=f"Auto Sim: {entity}",
+                        virtual_entity=entity,
+                        source_type=MappingRuleSourceType.FDW,
+                        source_system="external",
+                        source_table=entity,
+                        source_schema="external_sources",
+                        field_maps=field_maps,
+                    ),
+                    activate=True,
+                    name_prefix="Auto Sim:",
+                )
+            if upsert_status != "skipped":
+                created += 1
             detail.append({"entity": entity, "storage": effective_storage, "status": "created"})
         except Exception as e:
             errors += 1

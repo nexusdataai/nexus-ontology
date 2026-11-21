@@ -83,6 +83,16 @@ class OrderByItem(BaseModel):
         populate_by_name = True
 
 
+class SqlQueryRequest(BaseModel):
+    """Read-only SQL executed against FDW (validated server-side)."""
+
+    sql: str
+    limit: int = Field(default=50, ge=1, le=10000)
+
+    class Config:
+        populate_by_name = True
+
+
 class QueryRequest(BaseModel):
     """Request body for POST /api/fdw/query."""
 

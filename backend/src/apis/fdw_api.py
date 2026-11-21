@@ -19,6 +19,7 @@ from src.models.fdw_models import (
     ForeignTableInfo,
     QueryRequest,
     QueryResponse,
+    SqlQueryRequest,
 )
 from src.utils.fdw_errors import (
     FDWConnectionError,
@@ -213,6 +214,25 @@ async def execute_query(request: QueryRequest, source: Optional[str] = Query(Non
         raise HTTPException(status_code=404, detail={"error": "Table not found", "detail": str(e)})
     except FDWTimeoutError as e:
         raise HTTPException(status_code=504, detail={"error": "Query timeout", "detail": str(e)})
+    except (FDWConnectionError, FDWQueryError) as e:
+        raise HTTPException(status_code=502, detail={"error": "Query execution failed", "detail": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "Internal server error", "detail": str(e)})
+
+
+@router.post("/query-sql", response_model=QueryResponse)
+async def execute_readonly_sql(request: SqlQueryRequest, source: Optional[str] = Query(None)):
+    """Execute a validated read-only SELECT (VDL composition runtime)."""
+    if source is None:
+        source = "real"
+    if _get_simulator(source):
+        raise HTTPException(
+            status_code=501,
+            detail={"error": "Use virtual query for simulator-side compositions"},
+        )
+    _check_fdw_enabled()
+    try:
+        return await _query_service.execute_readonly_sql(request.sql, limit=request.limit)
     except (FDWConnectionError, FDWQueryError) as e:
         raise HTTPException(status_code=502, detail={"error": "Query execution failed", "detail": str(e)})
     except Exception as e:

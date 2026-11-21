@@ -947,6 +947,26 @@ async def startup_event():
         mapping_rule_api.configure(_mapping_rule_service)
         logger.info("Mapping Rule service initialized successfully")
 
+        try:
+            dedupe_summary = await _mapping_rule_service.dedupe_active_rules()
+            logger.info("Mapping rule dedupe complete", **dedupe_summary)
+        except Exception as dedupe_err:
+            logger.warning(f"Mapping rule dedupe skipped (non-fatal): {dedupe_err}")
+
+        from src.services.vdl_composition_service import VdlCompositionService
+        from src.apis import vdl_composition_api
+        _vdl_composition_service = VdlCompositionService(
+            mapping_service=_mapping_rule_service,
+        )
+        await _vdl_composition_service.initialize()
+        _mapping_rule_service.set_composition_service(_vdl_composition_service)
+        try:
+            mig = await _vdl_composition_service.migrate_from_active_mapping_rules()
+            logger.info("VDL composition migration from mapping rules", **mig)
+        except Exception as mig_err:
+            logger.warning(f"VDL composition migration skipped: {mig_err}")
+        vdl_composition_api.configure(_vdl_composition_service)
+
         from src.services.virtual_query_service import VirtualQueryService
         from src.apis.control_plane_api import configure_virtual_query
         _vq_fdw_query = None
@@ -972,6 +992,7 @@ async def startup_event():
             simulators=_vq_simulators,
             athena_service=_athena_service,
             mode_service=_data_source_mode_service,
+            composition_service=_vdl_composition_service,
         )
         configure_virtual_query(_virtual_query_service)
         logger.info(
@@ -2181,6 +2202,12 @@ def mount_api_routes():
                 tags=["Mapping Rules"],
             )
             logger.info("Mounted Mapping Rule APIs at /api/v1/mapping-rules")
+            from src.apis import vdl_composition_api as _vdl_comp_api_mod
+            app.include_router(
+                _vdl_comp_api_mod.router,
+                tags=["VDL Compositions"],
+            )
+            logger.info("Mounted VDL composition APIs at /api/v1/vdl-compositions")
         except Exception as e:
             logger.warning(f"Failed to mount Mapping Rule APIs: {e}")
         

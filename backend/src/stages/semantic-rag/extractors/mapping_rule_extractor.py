@@ -59,19 +59,40 @@ class MappingRuleExtractor:
             loop.close()
 
     async def _enrich_async(self, schema_docs: List[OntoDocument]) -> Dict[str, int]:
+        compositions: list = []
         try:
+            from src.services.vdl_composition_service import VdlCompositionService
             from src.services.mapping_rule_service import MappingRuleService
-            service = MappingRuleService()
-            rules = await service.list_all()
-            active_rules = [r for r in rules if r.status.value == "active"]
-            self._info(f"Found {len(active_rules)} active mapping rules out of {len(rules)} total")
-        except Exception as e:
-            self._info(f"MappingRuleService unavailable ({e}) — skipping mapping rule enrichment")
-            return {"enriched": 0, "rules_found": 0, "error": str(e)}
 
-        if not active_rules:
-            self._info("No active mapping rules found")
-            return {"enriched": 0, "rules_found": 0}
+            mapping_service = MappingRuleService()
+            await mapping_service.initialize()
+            comp_service = VdlCompositionService(mapping_service=mapping_service)
+            await comp_service.initialize()
+            compositions = [
+                c for c in await comp_service.list_all() if c.status.value == "active"
+            ]
+            self._info(f"Found {len(compositions)} active VDL compositions")
+        except Exception as e:
+            self._info(f"VDL composition service unavailable ({e}) — falling back to mapping rules")
+            compositions = []
+
+        active_rules: list = []
+        if not compositions:
+            try:
+                from src.services.mapping_rule_service import MappingRuleService
+
+                service = MappingRuleService()
+                await service.initialize()
+                rules = await service.list_all()
+                active_rules = [r for r in rules if r.status.value == "active"]
+                self._info(f"Found {len(active_rules)} active mapping rules out of {len(rules)} total")
+            except Exception as e:
+                self._info(f"MappingRuleService unavailable ({e}) — skipping mapping rule enrichment")
+                return {"enriched": 0, "rules_found": 0, "error": str(e)}
+
+            if not active_rules:
+                self._info("No active mapping rules found")
+                return {"enriched": 0, "rules_found": 0}
 
         doc_by_name = {}
         for doc in schema_docs:
@@ -80,6 +101,62 @@ class MappingRuleExtractor:
                 doc_by_name[name.lower()] = doc
 
         enriched = 0
+
+        if compositions:
+            for comp in compositions:
+                entity_name = comp.virtual_entity
+                doc = doc_by_name.get(entity_name.lower())
+                if not doc:
+                    continue
+
+                meta = doc.structured_metadata
+                meta["vdl_composition_status"] = comp.status.value
+                meta["vdl_composition_strategy"] = comp.strategy.value
+                meta["vdl_composition_sources"] = [
+                    {
+                        "alias": s.alias,
+                        "schema": s.schema,
+                        "table": s.table,
+                        "system": s.source_system,
+                    }
+                    for s in comp.sources
+                ]
+                meta["vdl_composition_joins"] = [j.model_dump() for j in comp.joins]
+                meta["mapping_field_maps"] = [
+                    {"target": p.target_field, "expr": p.expr}
+                    for p in comp.projections
+                ]
+                meta["fdw_mapping_status"] = "mapped_via_composition"
+
+                src_lines = [
+                    f"  {s.alias}: {s.schema}.{s.table}" for s in comp.sources
+                ]
+                join_lines = [f"  {j.type} {j.left} ⨝ {j.right} ON {j.on}" for j in comp.joins]
+                doc.content += (
+                    f"\nVDL composition ({comp.strategy.value}): entity is formed from "
+                    f"{len(comp.sources)} source table(s).\n"
+                    + "\n".join(src_lines)
+                    + ("\nJoins:\n" + "\n".join(join_lines) if join_lines else "")
+                )
+
+                for s in comp.sources:
+                    target_id = OntoDocument.generate_id(
+                        s.source_system or "Simulator",
+                        s.table,
+                        entity_type="Schema",
+                    )
+                    doc.relationships.append(OntoRelationship(
+                        relation_type="syncs_to",
+                        target_id=target_id,
+                        description=f"Composed into VDL entity {entity_name} from {s.schema}.{s.table}",
+                    ))
+                enriched += 1
+
+            self._info(
+                f"VDL composition enrichment: {enriched} entities from {len(compositions)} compositions"
+            )
+            return {"enriched": enriched, "rules_found": len(compositions)}
+
         for rule in active_rules:
             entity_name = rule.virtual_entity
             doc = doc_by_name.get(entity_name.lower())

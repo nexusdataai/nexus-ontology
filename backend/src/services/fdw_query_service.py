@@ -385,3 +385,45 @@ class FDWQueryService:
             table=table_ref,
             original_error=error,
         ) from error
+
+    async def execute_readonly_sql(self, sql: str, *, limit: int = 50) -> QueryResponse:
+        """Execute a SELECT-only SQL string with statement timeout."""
+        normalized = (sql or "").strip()
+        if not normalized.lower().startswith("select"):
+            raise FDWQueryError("Only SELECT statements are allowed", table="")
+        if ";" in normalized.rstrip(";"):
+            raise FDWQueryError("Multiple statements are not allowed", table="")
+        if " limit " not in normalized.lower():
+            normalized = f"{normalized} LIMIT {int(limit)}"
+
+        start = time.monotonic()
+        loop = asyncio.get_event_loop()
+        try:
+            async with self._conn_mgr.get_connection() as conn:
+                timeout_ms = self._conn_mgr._config.query_timeout * 1000
+                await loop.run_in_executor(
+                    None,
+                    lambda: conn.execute(text(f"SET statement_timeout = '{timeout_ms}'")),
+                )
+
+                def _run():
+                    cur = conn.execute(text(normalized))
+                    keys = list(cur.keys())
+                    rows = cur.fetchall()
+                    return keys, rows
+
+                column_keys, result = await loop.run_in_executor(None, _run)
+        except Exception as e:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            self._handle_query_error(e, "composition", "sql", elapsed_ms)
+
+        elapsed_ms = (time.monotonic() - start) * 1000
+        rows = [dict(zip(column_keys, row)) for row in result]
+        return QueryResponse(
+            rows=rows,
+            metadata={
+                "durationMs": round(elapsed_ms, 2),
+                "rowCount": len(rows),
+                "sourceType": "fdw-sql",
+            },
+        )

@@ -737,7 +737,7 @@ export default function KnowledgeGraphView() {
       onRefreshPreview={handlePreviewData}
       onSelect={selectById}
       onFocus={() => focusOn(selectedNode.id)}
-      onOpenEntity={() => nav('/ai-stack/data-plane?tab=virtualdata')}
+      onOpenEntity={() => nav('/ai-stack/data-plane?tab=vdl')}
       traceTo={traceTo}
       onTrace={setTraceTo}
       path={path}

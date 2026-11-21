@@ -56,8 +56,17 @@ export function buildMappingIndex(rules: MappingRule[]): MappingIndex {
   for (const rule of rules) {
     if (!rule?.sourceSchema || !rule?.sourceTable) continue;
     const key = tableKey(rule.sourceSchema, rule.sourceTable);
-    const list = index.get(key);
-    if (list) list.push(rule); else index.set(key, [rule]);
+    const list = index.get(key) || [];
+    const dup = list.find((r) => r.virtualEntity === rule.virtualEntity);
+    if (dup) {
+      if (rule.status === 'active' && dup.status !== 'active') {
+        const rest = list.filter((r) => r.virtualEntity !== rule.virtualEntity);
+        index.set(key, [...rest, rule]);
+      }
+      continue;
+    }
+    list.push(rule);
+    index.set(key, list);
   }
   return index;
 }
@@ -69,7 +78,7 @@ export interface MappingInfo {
 }
 
 const NO_MAPPING: MappingInfo = { index: new Map(), state: 'ready' };
-const MAPPING_RULES_PATH = '/ai-stack/data-plane?tab=mappingrules';
+const MAPPING_RULES_PATH = '/ai-stack/data-plane?tab=vdl';
 
 type MappingFilter = 'all' | 'mapped' | 'unmapped';
 type DetailTab = 'columns' | 'rows' | 'mapping';
@@ -175,6 +184,17 @@ function TableDetail({ table, fdwSource, rules, mapping, onQueryTable }: {
   const [tab, setTab] = useState<DetailTab>('columns');
   const [columnSearch, setColumnSearch] = useState('');
 
+  const displayRules = useMemo(() => {
+    const byVe = new Map<string, MappingRule>();
+    for (const rule of rules) {
+      const cur = byVe.get(rule.virtualEntity);
+      if (!cur || (rule.status === 'active' && cur.status !== 'active')) {
+        byVe.set(rule.virtualEntity, rule);
+      }
+    }
+    return [...byVe.values()];
+  }, [rules]);
+
   const columnsQuery = useQuery<ColumnInfo[]>({
     queryKey: [...ontosKeys.columns(schema, tableName), fdwSource],
     queryFn: () => fdwService.getColumns(schema, tableName, fdwSource),
@@ -261,7 +281,7 @@ function TableDetail({ table, fdwSource, rules, mapping, onQueryTable }: {
           <TabsTrigger value="rows">Rows</TabsTrigger>
           {mapping && (
             <TabsTrigger value="mapping">
-              Mapping {rules.length > 0 && <span className="num text-xs font-normal text-subtle-foreground">{rules.length}</span>}
+              VDL entities {displayRules.length > 0 && <span className="num text-xs font-normal text-subtle-foreground">{displayRules.length}</span>}
             </TabsTrigger>
           )}
         </TabsList>
@@ -383,16 +403,16 @@ function TableDetail({ table, fdwSource, rules, mapping, onQueryTable }: {
             </div>
           ) : mapping.state === 'error' ? (
             <InlineError onRetry={mapping.retry}>Could not load the mapping rules, so the mapping of this table is unknown.</InlineError>
-          ) : rules.length === 0 ? (
+          ) : displayRules.length === 0 ? (
             <EmptyState
               icon="shuffle"
               title="Not mapped to a virtual entity"
-              description="No mapping rule reads this table yet. Map it to make its data available as a canonical entity."
-              action={<Button asChild variant="outline" size="sm"><Link to={MAPPING_RULES_PATH}>Open mapping rules</Link></Button>}
+              description="No VDL composition includes this table yet. Open the VDL workspace to bind it to a canonical entity."
+              action={<Button asChild variant="outline" size="sm"><Link to={MAPPING_RULES_PATH}>Open VDL workspace</Link></Button>}
             />
           ) : (
             <div className="space-y-8">
-              {rules.map(rule => (
+              {displayRules.map(rule => (
                 <section key={rule.id} className="max-w-3xl">
                   <SubHeading action={<StatusPill status={rule.status} />}>{rule.virtualEntity}</SubHeading>
                   <KeyValues

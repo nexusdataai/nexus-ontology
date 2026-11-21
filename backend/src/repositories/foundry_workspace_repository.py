@@ -142,6 +142,15 @@ def vdl_entity_pk(name: str) -> str:
     return f"VDLENTITY#{name}"
 
 
+def vdl_compose_pk(virtual_entity: str) -> str:
+    return f"VDLCOMPOSE#{virtual_entity}"
+
+
+def compose_link_sk(virtual_entity: str) -> str:
+    """SK on DATAPLANE# rows that list VDL entities composed from a source table."""
+    return f"COMPOSE#{virtual_entity}"
+
+
 # --- PK builders for Supply Chain Foundry knowledge content (policies,
 # --- workflows, integrations). Slugs are derived from source filenames (with
 # --- extension stripped) so that round-trips between files and DDB are
@@ -824,6 +833,107 @@ class FoundryWorkspaceRepository:
         except ClientError as e:
             reasons = e.response.get("CancellationReasons") if hasattr(e, "response") else None
             logger.error(f"delete_mapping_rule({rule_id}) failed: {e} | reasons={reasons}")
+            raise FoundryWorkspaceRepositoryError(str(e))
+
+    # =======================================================================
+    # VDL Composition CRUD (one document per virtual entity)
+    # =======================================================================
+
+    def put_vdl_composition(
+        self,
+        virtual_entity: str,
+        attrs: Dict[str, Any],
+        source_dp_ids: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Persist composition META plus optional DATAPLANE back-links."""
+        full_attrs = {**attrs, "virtualEntity": virtual_entity}
+        canonical_item = {
+            "PK": vdl_compose_pk(virtual_entity),
+            "SK": self.META_SK,
+            "GSI1PK": "VDLCOMPOSE",
+            "GSI1SK": virtual_entity.lower(),
+            **full_attrs,
+        }
+        ops: List[Dict[str, Any]] = [
+            {
+                "Put": {
+                    "TableName": self._table_name,
+                    "Item": {
+                        k: self._to_attr(v)
+                        for k, v in canonical_item.items()
+                        if v is not None
+                    },
+                }
+            }
+        ]
+        for dp_id in source_dp_ids or []:
+            link_item = {
+                "PK": data_plane_pk(dp_id),
+                "SK": compose_link_sk(virtual_entity),
+                "virtualEntity": virtual_entity,
+            }
+            ops.append(
+                {
+                    "Put": {
+                        "TableName": self._table_name,
+                        "Item": {
+                            k: self._to_attr(v)
+                            for k, v in link_item.items()
+                            if v is not None
+                        },
+                    }
+                }
+            )
+        try:
+            self._transact_write_items(ops)
+            return canonical_item
+        except ClientError as e:
+            logger.error(f"put_vdl_composition({virtual_entity}) failed: {e}")
+            raise FoundryWorkspaceRepositoryError(str(e))
+
+    def get_vdl_composition(self, virtual_entity: str) -> Optional[Dict[str, Any]]:
+        return self.get_meta(vdl_compose_pk(virtual_entity))
+
+    def list_vdl_compositions(self) -> List[Dict[str, Any]]:
+        return self.query_gsi1("VDLCOMPOSE")
+
+    def list_vdl_compositions_by_source(self, source_dp_id: str) -> List[Dict[str, Any]]:
+        rows = self.query_pk(data_plane_pk(source_dp_id), sk_prefix="COMPOSE#")
+        return rows
+
+    def delete_vdl_composition(self, virtual_entity: str) -> bool:
+        item = self.get_vdl_composition(virtual_entity)
+        if not item:
+            return False
+        ops: List[Dict[str, Any]] = [
+            {
+                "Delete": {
+                    "TableName": self._table_name,
+                    "Key": {
+                        "PK": {"S": vdl_compose_pk(virtual_entity)},
+                        "SK": {"S": self.META_SK},
+                    },
+                }
+            }
+        ]
+        for key in ("sourceDataPlaneIds", "sourceDpIds"):
+            for dp_id in item.get(key) or []:
+                ops.append(
+                    {
+                        "Delete": {
+                            "TableName": self._table_name,
+                            "Key": {
+                                "PK": {"S": data_plane_pk(dp_id)},
+                                "SK": {"S": compose_link_sk(virtual_entity)},
+                            },
+                        }
+                    }
+                )
+        try:
+            self._transact_write_items(ops)
+            return True
+        except ClientError as e:
+            logger.error(f"delete_vdl_composition({virtual_entity}) failed: {e}")
             raise FoundryWorkspaceRepositoryError(str(e))
 
     # =======================================================================

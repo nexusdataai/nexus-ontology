@@ -31,6 +31,64 @@ from src.repositories.foundry_workspace_repository import (
 
 mr_logger = logger.bind(component="mapping-rules")
 
+# Canonical display keys for source systems (seeders may use legacy aliases).
+SOURCE_SYSTEM_ALIASES: Dict[str, str] = {
+    "sfdc": "Salesforce",
+    "simulator": "Salesforce",
+    "oracle": "Oracle",
+    "oracle_erp": "Oracle",
+    "sap": "SAP",
+    "external": "External",
+    "tpm": "TPM",
+    "sourcing": "Sourcing",
+    "bss": "BSS",
+    "nss": "NSS",
+    "oss": "OSS",
+    "telco_golden": "Telco",
+    "athena": "Athena",
+    "mimir": "Mimir",
+}
+
+CANONICAL_SCHEMAS_FOR_DEDUPE = {
+    "sfdc_itxp2dev",
+    "sap_s4hana",
+    "oracle_erp",
+    "external_sources",
+}
+
+
+def normalize_source_system(value: str) -> str:
+    if not value:
+        return value
+    key = value.strip()
+    return SOURCE_SYSTEM_ALIASES.get(key.lower(), key)
+
+
+def index_rules_by_virtual_entity(rules: List[MappingRuleResponse]) -> Dict[str, MappingRuleResponse]:
+    """Pick the best representative rule per virtual entity (prefer active)."""
+    by_ve: Dict[str, MappingRuleResponse] = {}
+    for rule in rules:
+        cur = by_ve.get(rule.virtual_entity)
+        if cur is None:
+            by_ve[rule.virtual_entity] = rule
+            continue
+        if rule.status == MappingRuleStatus.active and cur.status != MappingRuleStatus.active:
+            by_ve[rule.virtual_entity] = rule
+    return by_ve
+
+
+def _dedupe_score_rule(item: Dict[str, Any]) -> tuple:
+    field_count = len(item.get("fieldMaps") or [])
+    schema_bonus = 100 if item.get("sourceSchema") in CANONICAL_SCHEMAS_FOR_DEDUPE else 0
+    type_bonus = 10 if item.get("sourceType") == "FDW" else 0
+    updated_at = item.get("updatedAt") or item.get("createdAt") or ""
+    recency = 0
+    try:
+        recency = int(datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp())
+    except Exception:
+        recency = 0
+    return (field_count, schema_bonus, type_bonus, recency)
+
 
 class MappingRuleNotFoundError(Exception):
     def __init__(self, rule_id: str):
@@ -72,6 +130,10 @@ class MappingRuleService:
     ):
         self._repo: Optional[FoundryWorkspaceRepository] = repo
         self._explicit_table_name = table_name
+        self._composition_service: Any = None
+
+    def set_composition_service(self, composition_service: Any) -> None:
+        self._composition_service = composition_service
 
     async def initialize(self) -> None:
         try:
@@ -114,6 +176,148 @@ class MappingRuleService:
             return item_or_request.virtual_entity
         return item_or_request.get("virtualEntity", "")
 
+    async def deactivate_all_active_for_entity(self, virtual_entity: str) -> int:
+        """Deactivate every active mapping rule for an entity (VDL composition takeover)."""
+        rules = await self.list_all(virtual_entity=virtual_entity)
+        deactivated = 0
+        for rule in rules:
+            if rule.status != MappingRuleStatus.active:
+                continue
+            await self.update(
+                rule.id,
+                MappingRuleUpdateRequest(status=MappingRuleStatus.inactive),
+            )
+            deactivated += 1
+        return deactivated
+
+    async def _deactivate_sibling_actives(
+        self, virtual_entity: str, keep_rule_id: str
+    ) -> int:
+        """Ensure at most one active rule per virtual entity."""
+        siblings = await self.list_all(virtual_entity=virtual_entity)
+        deactivated = 0
+        for rule in siblings:
+            if rule.id == keep_rule_id:
+                continue
+            if rule.status != MappingRuleStatus.active:
+                continue
+            await self.update(
+                rule.id,
+                MappingRuleUpdateRequest(status=MappingRuleStatus.inactive),
+            )
+            deactivated += 1
+        if deactivated:
+            mr_logger.info(
+                "Deactivated duplicate active mapping rules",
+                virtual_entity=virtual_entity,
+                keep=keep_rule_id,
+                count=deactivated,
+            )
+        return deactivated
+
+    async def dedupe_active_rules(self) -> Dict[str, Any]:
+        """Keep the best active rule per virtual entity; deactivate the rest."""
+        if self._repo is None:
+            raise MappingRuleStorageError("foundry-workspace not available", "dedupe")
+        all_rules = await self.list_all()
+        per_entity: Dict[str, List[MappingRuleResponse]] = {}
+        for rule in all_rules:
+            if rule.status != MappingRuleStatus.active:
+                continue
+            per_entity.setdefault(rule.virtual_entity, []).append(rule)
+
+        deactivated = 0
+        affected_entities = 0
+        for ve, items in per_entity.items():
+            if len(items) <= 1:
+                continue
+            affected_entities += 1
+            scored = sorted(
+                items,
+                key=lambda r: _dedupe_score_rule(r.model_dump(by_alias=True)),
+                reverse=True,
+            )
+            keeper = scored[0]
+            for drop in scored[1:]:
+                await self.update(
+                    drop.id,
+                    MappingRuleUpdateRequest(status=MappingRuleStatus.inactive),
+                )
+                deactivated += 1
+            await self._deactivate_sibling_actives(ve, keep_rule_id=keeper.id)
+
+        return {
+            "affected_entities": affected_entities,
+            "deactivated": deactivated,
+        }
+
+    async def upsert_binding(
+        self,
+        request: MappingRuleCreateRequest,
+        *,
+        activate: bool = True,
+        name_prefix: Optional[str] = None,
+    ) -> tuple[MappingRuleResponse, str]:
+        """
+        Create or update the single binding for a virtual entity.
+        Returns (rule, status) where status is created|updated|skipped.
+        """
+        existing_all = await self.list_all(virtual_entity=request.virtual_entity)
+        candidate = None
+        if name_prefix:
+            for rule in existing_all:
+                if (rule.name or "").startswith(name_prefix):
+                    candidate = rule
+                    break
+        if candidate is None:
+            active = [r for r in existing_all if r.status == MappingRuleStatus.active]
+            candidate = active[0] if active else (existing_all[0] if existing_all else None)
+
+        norm_system = normalize_source_system(request.source_system)
+
+        if candidate:
+            unchanged = (
+                candidate.source_table == request.source_table
+                and candidate.source_schema == request.source_schema
+                and candidate.source_system == norm_system
+                and (request.business_logic is None or candidate.business_logic == request.business_logic)
+                and candidate.status == MappingRuleStatus.active
+                and activate
+            )
+            if unchanged:
+                return candidate, "skipped"
+            updated = await self.update(
+                candidate.id,
+                MappingRuleUpdateRequest(
+                    name=request.name,
+                    source_type=request.source_type,
+                    source_system=norm_system,
+                    source_schema=request.source_schema,
+                    source_table=request.source_table,
+                    field_maps=request.field_maps,
+                    business_logic=request.business_logic,
+                    filter_expression=request.filter_expression,
+                    status=MappingRuleStatus.active if activate else None,
+                ),
+            )
+            if activate:
+                await self._deactivate_sibling_actives(
+                    request.virtual_entity, keep_rule_id=updated.id
+                )
+            return updated, "updated"
+
+        created = await self.create(request)
+        if activate:
+            updated = await self.update(
+                created.id,
+                MappingRuleUpdateRequest(status=MappingRuleStatus.active),
+            )
+            await self._deactivate_sibling_actives(
+                request.virtual_entity, keep_rule_id=updated.id
+            )
+            return updated, "created"
+        return created, "created"
+
     # ----- CRUD -----
 
     async def create(self, request: MappingRuleCreateRequest) -> MappingRuleResponse:
@@ -125,12 +329,13 @@ class MappingRuleService:
 
         field_maps_dicts = [fm.model_dump(by_alias=True) for fm in request.field_maps]
 
+        norm_system = normalize_source_system(request.source_system)
         item: Dict[str, Any] = {
             "id": rule_id,
             "name": request.name,
             "virtualEntity": request.virtual_entity,
             "sourceType": request.source_type.value,
-            "sourceSystem": request.source_system,
+            "sourceSystem": norm_system,
             "sourceTable": request.source_table,
             "sourceSchema": request.source_schema,
             "fieldMaps": field_maps_dicts,
@@ -153,6 +358,10 @@ class MappingRuleService:
                 lambda: self._repo.put_mapping_rule(rule_id, source_dp, target_vdl, item),
             )
             mr_logger.info("Mapping rule created", id=rule_id)
+            if item.get("status") == MappingRuleStatus.active.value:
+                await self._deactivate_sibling_actives(
+                    request.virtual_entity, keep_rule_id=rule_id
+                )
         except FoundryWorkspaceRepositoryError as e:
             mr_logger.error("Failed to create mapping rule", error=str(e))
             raise MappingRuleStorageError(str(e), "create", e)
@@ -244,6 +453,14 @@ class MappingRuleService:
 
         if request.name is not None:
             merged["name"] = request.name
+        if request.source_type is not None:
+            merged["sourceType"] = request.source_type.value
+        if request.source_system is not None:
+            merged["sourceSystem"] = normalize_source_system(request.source_system)
+        if request.source_schema is not None:
+            merged["sourceSchema"] = request.source_schema
+        if request.source_table is not None:
+            merged["sourceTable"] = request.source_table
         if request.status is not None:
             merged["status"] = request.status.value
         if request.field_maps is not None:
@@ -265,6 +482,19 @@ class MappingRuleService:
                 lambda: self._repo.put_mapping_rule(rule_id, source_dp, target_vdl, merged),
             )
             mr_logger.info("Mapping rule updated", id=rule_id)
+            if merged.get("status") == MappingRuleStatus.active.value:
+                await self._deactivate_sibling_actives(
+                    merged["virtualEntity"], keep_rule_id=rule_id
+                )
+                if self._composition_service is not None:
+                    try:
+                        await self._composition_service.sync_from_mapping_rule_dict(merged)
+                    except Exception as sync_err:
+                        mr_logger.warning(
+                            "Failed to sync VDL composition from mapping rule",
+                            rule_id=rule_id,
+                            error=str(sync_err),
+                        )
             return self._to_response(merged)
         except FoundryWorkspaceRepositoryError as e:
             raise MappingRuleStorageError(str(e), "update", e)

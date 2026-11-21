@@ -321,10 +321,22 @@ export default function MappingRulesEditor() {
   editState?.fieldMaps.forEach(fm => { if (fm.sourceField && fm.targetField) fieldLookup.set(fm.sourceField, fm.targetField); });
 
   const groupedRules = useMemo(() => {
+    const bestByEntity = new Map<string, MappingRule>();
+    const activeCounts = new Map<string, number>();
+    for (const r of filteredRules) {
+      activeCounts.set(r.virtualEntity, (activeCounts.get(r.virtualEntity) || 0) + (r.status === 'active' ? 1 : 0));
+      const cur = bestByEntity.get(r.virtualEntity);
+      if (!cur || (r.status === 'active' && cur.status !== 'active')) {
+        bestByEntity.set(r.virtualEntity, r);
+      }
+    }
     const groups: Record<string, MappingRule[]> = {};
-    for (const r of filteredRules) (groups[r.sourceSystem || 'Other'] ??= []).push(r);
+    for (const rule of bestByEntity.values()) {
+      const domain = schemaEntities.find(e => e.name === rule.virtualEntity)?.domain || 'VDL entities';
+      (groups[domain] ??= []).push({ ...rule, name: (activeCounts.get(rule.virtualEntity) || 0) > 1 ? `${rule.name} (duplicates)` : rule.name });
+    }
     return groups;
-  }, [filteredRules]);
+  }, [filteredRules, schemaEntities]);
 
   const mappedCount = editState?.fieldMaps.filter(fm => fm.sourceField && fm.targetField).length ?? 0;
   const noFieldMaps = !!editState && editState.fieldMaps.length === 0;

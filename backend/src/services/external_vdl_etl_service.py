@@ -23,7 +23,7 @@ from src.models.mapping_rule_models import (
     MappingRuleStatus,
     MappingRuleUpdateRequest,
 )
-from src.services.mapping_rule_service import MappingRuleService
+from src.services.mapping_rule_service import MappingRuleService, index_rules_by_virtual_entity
 from src.services.vdl_catalog_service import get_catalog
 
 log = logger.bind(component="external-vdl-etl")
@@ -119,24 +119,8 @@ async def _upsert_fdw_rule(
     business_logic: Optional[str] = None,
     existing_by_ve: Dict[str, Any],
 ) -> Tuple[str, Optional[str]]:
-    existing = existing_by_ve.get(virtual_entity)
-    if existing:
-        if (
-            existing.source_table == table
-            and existing.source_schema == SCHEMA
-            and existing.status.value == "active"
-            and (not business_logic or existing.business_logic == business_logic)
-        ):
-            return "skipped", None
-        if (existing.name or "").startswith(name_prefix):
-            try:
-                await mapping_service.delete(existing.id)
-                existing_by_ve.pop(virtual_entity, None)
-            except Exception as exc:
-                return "error", str(exc)
-
     try:
-        rule = await mapping_service.create(
+        rule, status = await mapping_service.upsert_binding(
             MappingRuleCreateRequest(
                 name=f"{name_prefix}: {virtual_entity}",
                 virtual_entity=virtual_entity,
@@ -146,11 +130,12 @@ async def _upsert_fdw_rule(
                 source_table=table,
                 field_maps=field_maps or [FieldMap(source_field=table, target_field=table)],
                 business_logic=business_logic,
-            )
+            ),
+            activate=True,
+            name_prefix=name_prefix,
         )
-        await mapping_service.update(rule.id, MappingRuleUpdateRequest(status=MappingRuleStatus.active))
         existing_by_ve[virtual_entity] = rule
-        return "created", None
+        return status, None
     except Exception as exc:
         return "error", str(exc)
 
@@ -181,7 +166,7 @@ async def register_vdl_for_source_type(
     """Create/update FDW mapping rules for raw + warehouse entities for this ETL source."""
     virtual_names = VIRTUAL_BY_SOURCE.get(source_type, [])
     existing_rules = await mapping_service.list_all()
-    existing_by_ve = {r.virtual_entity: r for r in existing_rules}
+    existing_by_ve = index_rules_by_virtual_entity(existing_rules)
 
     created = skipped = errors = 0
     detail: List[Dict[str, Any]] = []
