@@ -551,8 +551,16 @@ export default function EntityExplorer() {
                                   </div>
                                 ) : (
                                   <div className="flex flex-col gap-1 text-sm">
-                                    <span className="text-xs text-muted-foreground">FDW table</span>
-                                    <span className="break-all font-mono text-foreground">{FDW_SCHEMA}.{selectedEntity.name}</span>
+                                    <span className="text-xs text-muted-foreground">Source table (via mapping)</span>
+                                    {activeRule?.sourceSchema && activeRule?.sourceTable ? (
+                                      <span className="break-all font-mono text-foreground">
+                                        {activeRule.sourceSchema}.{activeRule.sourceTable}
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        No active rule — bind this entity in Mapper (Auto-map or manual rule).
+                                      </span>
+                                    )}
                                     <Pill className={cn('w-fit', FDW_STATUS_STYLES[selectedEntity.fdwMappingStatus] || FDW_STATUS_STYLES.unmapped)}>{selectedEntity.fdwMappingStatus}</Pill>
                                   </div>
                                 )}
