@@ -12,7 +12,7 @@ import { dataSourceModeService, type Mode } from '@/services/dataSourceModeServi
 import { fdwService } from '@/services/fdwService';
 import DataPipelinesTab from '@/components/data-plane/DataPipelinesTab';
 import { ConnectorsTab } from '@/components/ConnectorsTab';
-import VdlWorkspace from '@/components/control-plane/VdlWorkspace';
+import EntityExplorer from '@/components/control-plane/EntityExplorer';
 import MappingRulesEditor from '@/components/control-plane/MappingRulesEditor';
 import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWorkbenchPanel';
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
@@ -32,9 +32,9 @@ const DP_SECTIONS: TabSection[] = [
   { label: 'Sources', icon: 'database', items: [{ value: 'sources', label: 'Data sources' }] },
   { label: 'VDL', icon: 'cube', items: [
     { value: 'vdl', label: 'Virtual data layer' },
-    { value: 'mapper', label: 'Mapper' },
     { value: 'vdl-apis', label: 'API registry' },
   ] },
+  { label: 'Mapper', icon: 'shuffle', items: [{ value: 'mapper', label: 'Mapping rules' }] },
   { label: 'Pipelines', icon: 'route', items: [{ value: 'pipelines', label: 'Data pipelines' }] },
   { label: 'Connectors', icon: 'plug', items: [
     { value: 'connectors', label: 'Catalogue' },
@@ -53,6 +53,7 @@ const DATA_PLANE_TABS = new Set([
 const LEGACY_TAB_REDIRECT: Record<string, string> = {
   virtualdata: 'vdl',
   mappingrules: 'mapper',
+  composition: 'mapper',
 };
 
 type Vertical = 'all' | 'supply_chain' | 'crm';
@@ -272,13 +273,13 @@ export default function DataPlanePage() {
         />
 
         <TabsContent value="vdl" className="mt-0 flex h-pane min-h-0 flex-col">
-          <VdlWorkspace />
+          <EntityExplorer />
         </TabsContent>
         <TabsContent value="mapper" className="mt-0 flex h-pane min-h-0 flex-col">
           <MappingRulesEditor />
         </TabsContent>
         <TabsContent value="virtualdata" className="mt-0 flex h-pane min-h-0 flex-col">
-          <VdlWorkspace />
+          <EntityExplorer />
         </TabsContent>
         <TabsContent value="mappingrules" className="mt-0 flex h-pane min-h-0 flex-col">
           <MappingRulesEditor />

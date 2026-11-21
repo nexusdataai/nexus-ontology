@@ -78,7 +78,7 @@ export interface MappingInfo {
 }
 
 const NO_MAPPING: MappingInfo = { index: new Map(), state: 'ready' };
-const MAPPING_RULES_PATH = '/ai-stack/data-plane?tab=vdl';
+const MAPPING_RULES_PATH = '/ai-stack/data-plane?tab=mapper';
 
 type MappingFilter = 'all' | 'mapped' | 'unmapped';
 type DetailTab = 'columns' | 'rows' | 'mapping';

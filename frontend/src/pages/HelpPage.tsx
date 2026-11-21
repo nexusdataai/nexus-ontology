@@ -30,7 +30,7 @@ const SECTIONS: TabSection[] = [
 
 const START: { title: string; text: string; to: string; icon: IconName; step: string }[] = [
   { step: 'Step 1', title: 'Check your sources', text: 'Each source system (Salesforce, Oracle, SAP, files, Google Drive, social) runs on simulated or real data. Open one to browse its tables in place.', to: '/ai-stack/data-plane', icon: 'plug' },
-  { step: 'Step 2', title: 'Map business entities', text: 'Mapping rules bind each business entity (Customer, AR Invoice, Opportunity) to a source table. An entity with no active rule has no data.', to: '/ai-stack/data-plane?tab=vdl', icon: 'route' },
+  { step: 'Step 2', title: 'Map business entities', text: 'Mapping rules bind each business entity (Customer, AR Invoice, Opportunity) to a source table. An entity with no active rule has no data.', to: '/ai-stack/data-plane?tab=mapper', icon: 'route' },
   { step: 'Step 3', title: 'Build the knowledge index', text: 'The knowledge pipeline reads entities, mapping rules, policies, workflows and integration rules, and writes the index and graph the agents use.', to: '/ai-stack/control-plane', icon: 'layers' },
   { step: 'Step 4', title: 'Run a solution', text: 'Open a solution such as Order-to-Cash and choose Run journey. Its numbers, alerts and actions appear after the first run.', to: '/workspace/apps', icon: 'apps' },
 ];
@@ -41,7 +41,7 @@ const GUIDES: { area: string; items: { title: string; text: string; to: string }
     { title: 'Browse a source in place', text: 'Open a source to search its tables, see their columns and preview rows. Nothing is copied: the tables are read where they are.', to: '/ai-stack/data-plane' },
     { title: 'Business entities', text: 'The canonical entities, grouped by business domain, with their fields, links, risk level and live sample rows.', to: '/ai-stack/data-plane?tab=vdl' },
     { title: 'Entity APIs', text: 'The read and write operations on each entity, and which connector carries out a write.', to: '/ai-stack/data-plane?tab=vdl-apis' },
-    { title: 'Mapping rules', text: 'Bind an entity to a source table, map fields, add a filter, preview five rows. Rules named "Auto" were created by automatic matching and read every column as it is.', to: '/ai-stack/data-plane?tab=vdl' },
+    { title: 'Mapping rules', text: 'Bind an entity to a source table, map fields, add a filter, preview five rows. Rules named "Auto" were created by automatic matching and read every column as it is.', to: '/ai-stack/data-plane?tab=mapper' },
     { title: 'Data pipelines', text: 'Batch loads for sources that cannot be read in place, such as file uploads, Google Drive and social listening.', to: '/ai-stack/data-plane?tab=pipelines' },
     { title: 'Connectors', text: 'The systems Nexus AI can read from and act on, and the API workbench to test each connector call.', to: '/ai-stack/data-plane?tab=connectors' },
   ] },
