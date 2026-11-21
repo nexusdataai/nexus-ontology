@@ -54,14 +54,17 @@ export default function VdlWorkspace() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ent, comp] = await Promise.all([
-        apiClient.get<SchemaEntity[]>('/api/v1/control-plane/entities'),
-        vdlCompositionService.list(),
-      ]);
-      setEntities(ent || []);
-      setCompositions(comp || []);
-    } catch {
+      const data = await apiClient.get<SchemaEntity[]>('/api/v1/control-plane/entities');
+      setEntities(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('VDL workspace: entity catalog load failed', e);
+      toast.error('Could not load the VDL entity catalog');
       setEntities([]);
+    }
+    try {
+      setCompositions(await vdlCompositionService.list());
+    } catch (e) {
+      console.warn('VDL workspace: compositions load failed', e);
       setCompositions([]);
     } finally {
       setLoading(false);
@@ -95,13 +98,23 @@ export default function VdlWorkspace() {
 
   const entityRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return entities
+    const catalogByName = new Map<string, SchemaEntity>();
+    for (const e of entities) catalogByName.set(e.name, e);
+    for (const c of compositions) {
+      if (!catalogByName.has(c.virtualEntity)) {
+        catalogByName.set(c.virtualEntity, {
+          name: c.virtualEntity,
+          domain: 'Composed (catalog pending)',
+        });
+      }
+    }
+    return [...catalogByName.values()]
       .map((e) => {
         const comp = compByEntity.get(e.name);
         const sourceCount = comp?.from?.length ?? 0;
         const status = comp?.status ?? 'unmapped';
         const tables = (comp?.from || []).map(tableLabel).join(' ');
-        return { e, comp, sourceCount, status, tables };
+        return { e, sourceCount, status, tables };
       })
       .filter(({ e, tables }) => {
         if (!q) return true;
@@ -112,7 +125,7 @@ export default function VdlWorkspace() {
         );
       })
       .sort((a, b) => a.e.name.localeCompare(b.e.name));
-  }, [entities, compByEntity, search]);
+  }, [entities, compositions, compByEntity, search]);
 
   const selectEntity = async (entity: SchemaEntity) => {
     setSelected(entity);
@@ -214,7 +227,8 @@ export default function VdlWorkspace() {
   const lineageSources = edit?.from || [];
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="min-h-[560px] rounded-lg border border-border bg-background">
+    <div className="flex h-full min-h-0 flex-col">
+    <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1 rounded-lg border border-border bg-background">
       <ResizablePanel defaultSize={22} minSize={18} className="flex min-h-0 flex-col border-r border-border">
         <div className="shrink-0 space-y-2 border-b border-border p-3">
           <p className="text-xs font-medium text-muted-foreground">VDL entities</p>
@@ -381,6 +395,7 @@ export default function VdlWorkspace() {
         )}
       </ResizablePanel>
     </ResizablePanelGroup>
+    </div>
   );
 }
 
@@ -396,6 +411,13 @@ function motionList({
   selected?: string;
 }) {
   if (loading) return <div className="p-4"><Icon name="spinner" className="h-4 w-4 animate-spin" /></div>;
+  if (rows.length === 0) {
+    return (
+      <p className="p-4 text-xs text-muted-foreground">
+        No VDL entities loaded. Check that the API is reachable and try refreshing the page.
+      </p>
+    );
+  }
   return (
     <ul className="min-h-0 flex-1 overflow-y-auto p-2">
       {rows.map(({ e, sourceCount, status }) => (
