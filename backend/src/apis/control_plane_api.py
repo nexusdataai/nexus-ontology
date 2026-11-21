@@ -666,6 +666,18 @@ async def list_virtual_entities():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/virtual/entities/{entity_id}/hydration")
+async def virtual_entity_hydration(entity_id: str):
+    """How a VDL entity is hydrated (simulator / FDW / Athena / composition)."""
+    if _virtual_query_service is None:
+        raise HTTPException(status_code=503, detail="Virtual query service not initialized")
+    try:
+        return await _virtual_query_service.get_entity_hydration(entity_id)
+    except Exception as e:
+        cp_logger.error(f"Virtual entity hydration failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/virtual/entities/{entity_id}/preview")
 async def preview_virtual_entity(entity_id: str, limit: int = Query(default=10, ge=1, le=100)):
     """Preview data for a virtual entity (first N rows via mapping)."""

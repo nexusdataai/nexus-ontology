@@ -37,6 +37,33 @@ export interface VirtualEntitySummary {
     source_type: string;
     status: string;
   }[];
+  hydration_store?: string;
+  physical_table_fqn?: string;
+  binding?: string;
+}
+
+export type HydrationStore =
+  | 'unmapped'
+  | 'composition'
+  | 'simulator'
+  | 'fdw'
+  | 'athena'
+  | 'mimir'
+  | 'unknown';
+
+export interface EntityHydration {
+  virtualEntity: string;
+  resolvedFrom?: string | null;
+  binding: 'none' | 'mapping_rule' | 'composition';
+  hydrationStore: HydrationStore;
+  sourceType?: string | null;
+  strategy?: string;
+  physicalSchema?: string | null;
+  physicalTable?: string | null;
+  physicalTableFqn?: string | null;
+  sourceTables?: string[];
+  ruleId?: string;
+  sourceSystem?: string;
 }
 
 export const virtualQueryService = {
@@ -48,4 +75,9 @@ export const virtualQueryService = {
 
   previewEntity: (entityId: string, limit: number = 10): Promise<VirtualQueryResponse> =>
     apiClient.get(`/api/v1/control-plane/virtual/entities/${encodeURIComponent(entityId)}/preview?limit=${limit}`),
+
+  getEntityHydration: (entityId: string): Promise<EntityHydration> =>
+    apiClient.get(`/api/v1/control-plane/virtual/entities/${encodeURIComponent(entityId)}/hydration`, {
+      requireAuth: false,
+    }),
 };

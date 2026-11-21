@@ -648,6 +648,90 @@ class VirtualQueryService:
                 out.append(row)
         return out
 
+    def _hydration_store_for_rule(self, rule) -> str:
+        """Classify where rows are read: simulator, fdw, athena, mimir."""
+        st = rule.source_type.value
+        schema = rule.source_schema or ""
+        if st == "ATHENA":
+            return "athena"
+        if st == "MIMIR":
+            return "mimir"
+        if st in ("ETL", "CDC"):
+            if schema == "external_sources" or schema in SCHEMA_TO_SIMULATOR:
+                return "simulator"
+            return "athena" if self._athena_service else "simulator"
+        if st == "FDW":
+            mode = "simulator"
+            if self._mode_service and schema:
+                src = self._mode_service.schema_to_source(schema)
+                mode = self._mode_service.effective_mode(src) if src else "real"
+            elif schema in SCHEMA_TO_SIMULATOR:
+                sim_key = SCHEMA_TO_SIMULATOR[schema]
+                sim = self._simulators.get(sim_key)
+                mode = "simulator" if sim and getattr(sim, "loaded", False) else "real"
+            else:
+                mode = "real"
+            return "fdw" if mode == "real" else "simulator"
+        return "unknown"
+
+    async def get_entity_hydration(self, virtual_entity: str) -> dict:
+        """Diagnostics: how this VDL entity is bound and where rows are read."""
+        original = virtual_entity
+        canonical = self._resolve_canonical_entity(virtual_entity)
+        name = canonical
+
+        if self._composition_service is not None:
+            try:
+                comp = await self._composition_service.get_or_none(name)
+            except Exception:
+                comp = None
+            if comp and comp.status.value == "active":
+                sources = comp.sources or []
+                tables = [f"{s.schema}.{s.table}" for s in sources]
+                return {
+                    "virtualEntity": name,
+                    "resolvedFrom": original if original != name else None,
+                    "binding": "composition",
+                    "hydrationStore": "composition",
+                    "strategy": comp.strategy.value,
+                    "sourceType": "COMPOSITION",
+                    "physicalSchema": sources[0].schema if sources else None,
+                    "physicalTable": sources[0].table if sources else None,
+                    "physicalTableFqn": tables[0] if tables else None,
+                    "sourceTables": tables,
+                }
+
+        rules = await self._mapping_service.list_all(virtual_entity=name)
+        active = [r for r in rules if r.status.value == "active"]
+        if not active:
+            return {
+                "virtualEntity": name,
+                "resolvedFrom": original if original != name else None,
+                "binding": "none",
+                "hydrationStore": "unmapped",
+                "sourceType": None,
+                "physicalSchema": None,
+                "physicalTable": None,
+                "physicalTableFqn": None,
+            }
+
+        rule = active[0]
+        schema = rule.source_schema
+        table = rule.source_table
+        fqn = f"{schema}.{table}" if schema and table else (table or "")
+        return {
+            "virtualEntity": name,
+            "resolvedFrom": original if original != name else None,
+            "binding": "mapping_rule",
+            "hydrationStore": self._hydration_store_for_rule(rule),
+            "sourceType": rule.source_type.value,
+            "physicalSchema": schema,
+            "physicalTable": table,
+            "physicalTableFqn": fqn,
+            "ruleId": rule.id,
+            "sourceSystem": rule.source_system,
+        }
+
     async def list_virtual_entities(self) -> List[dict]:
         rules = await self._mapping_service.list_all()
 
@@ -665,15 +749,24 @@ class VirtualQueryService:
             if rule.status.value == "active":
                 grouped[name]["active_count"] += 1
 
-        return [
-            {
+        out: List[dict] = []
+        for name, info in grouped.items():
+            row = {
                 "virtual_entity": name,
                 "source_count": len(info["sources"]),
                 "active_rules": info["active_count"],
                 "sources": info["sources"],
             }
-            for name, info in grouped.items()
-        ]
+            if info["active_count"] > 0:
+                try:
+                    h = await self.get_entity_hydration(name)
+                    row["hydration_store"] = h.get("hydrationStore")
+                    row["physical_table_fqn"] = h.get("physicalTableFqn")
+                    row["binding"] = h.get("binding")
+                except Exception:
+                    pass
+            out.append(row)
+        return out
 
     async def preview_entity(self, virtual_entity: str, limit: int = 10) -> VirtualQueryResponse:
         request = VirtualQueryRequest(virtual_entity=virtual_entity, limit=limit)

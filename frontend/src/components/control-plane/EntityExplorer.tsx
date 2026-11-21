@@ -14,7 +14,7 @@ import { CHART_COLORS } from '@/components/ds/charts';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/services/apiClient';
 import { fdwService } from '@/services/fdwService';
-import { virtualQueryService } from '@/services/virtualQueryService';
+import { virtualQueryService, type EntityHydration } from '@/services/virtualQueryService';
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
 import type { QueryRequest } from '@/types/fdwTypes';
 
@@ -73,6 +73,23 @@ const RELATIONSHIP_COLOUR: Record<string, string> = {
 };
 const words = (s: string) => String(s || '').replace(/_/g, ' ');
 
+const HYDRATION_LABEL: Record<string, string> = {
+  composition: 'Runtime composition (SQL)',
+  simulator: 'Simulator / ETL landing',
+  fdw: 'PostgreSQL FDW (live)',
+  athena: 'Athena / lake',
+  mimir: 'Mimir (metrics)',
+  unmapped: 'Not mapped',
+  unknown: 'Unknown',
+};
+
+const HYDRATION_HINT: Record<string, string> = {
+  simulator: 'Rows land in external_sources (or CRM/ERP simulator schemas) after ETL/CDC; VQS reads via FDW API.',
+  fdw: 'Rows are read at query time from foreign tables on the FDW Postgres cluster.',
+  athena: 'Rows are read from the configured Glue/Athena database.',
+  composition: 'Active multi-source composition overrides the mapping rule at query time.',
+};
+
 function Pill({ className, style, children }: { className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
   return (
     <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium', className)} style={style}>
@@ -97,6 +114,7 @@ export default function EntityExplorer() {
   const [rightTab, setRightTab] = useState<RightTab>('relationships');
   const [entityMappingRules, setEntityMappingRules] = useState<MappingRule[]>([]);
   const [vdlLoading, setVdlLoading] = useState(false);
+  const [hydration, setHydration] = useState<EntityHydration | null>(null);
 
   const previewGen = useRef(0);
   const bottomPanelRef = useRef<ImperativePanelHandle>(null);
@@ -199,10 +217,15 @@ export default function EntityExplorer() {
   useEffect(() => {
     if (!selectedEntity || rightTab !== 'vdl') return;
     setVdlLoading(true);
-    mappingRuleService
-      .list(selectedEntity.name)
-      .then(setEntityMappingRules)
-      .catch(() => setEntityMappingRules([]))
+    setHydration(null);
+    Promise.all([
+      mappingRuleService.list(selectedEntity.name).catch(() => [] as MappingRule[]),
+      virtualQueryService.getEntityHydration(selectedEntity.name).catch(() => null),
+    ])
+      .then(([rules, h]) => {
+        setEntityMappingRules(rules);
+        setHydration(h);
+      })
       .finally(() => setVdlLoading(false));
   }, [selectedEntity, rightTab]);
 
@@ -539,6 +562,35 @@ export default function EntityExplorer() {
                                 <div>
                                   <div className="mb-1.5 text-xs font-medium text-muted-foreground">SCOR process</div>
                                   <Pill className="bg-info/15 text-info">{selectedEntity.scorProcess}</Pill>
+                                </div>
+                              )}
+
+                              {hydration && (
+                                <div>
+                                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">Hydration</div>
+                                  <div className="space-y-1.5 rounded-lg bg-muted/30 p-2.5 text-sm">
+                                    <Pill className="bg-info/15 text-info">
+                                      {HYDRATION_LABEL[hydration.hydrationStore] || hydration.hydrationStore}
+                                    </Pill>
+                                    {hydration.sourceType && (
+                                      <div className="text-xs text-muted-foreground">
+                                        Rule type: <span className="font-medium text-foreground">{hydration.sourceType}</span>
+                                        {hydration.binding === 'composition' && hydration.strategy && (
+                                          <> · strategy <span className="font-medium text-foreground">{hydration.strategy}</span></>
+                                        )}
+                                      </div>
+                                    )}
+                                    {(hydration.physicalTableFqn || (hydration.sourceTables && hydration.sourceTables.length > 1)) && (
+                                      <div className="font-mono text-xs text-foreground">
+                                        {hydration.sourceTables && hydration.sourceTables.length > 1
+                                          ? hydration.sourceTables.join(' + ')
+                                          : hydration.physicalTableFqn}
+                                      </div>
+                                    )}
+                                    {HYDRATION_HINT[hydration.hydrationStore] && (
+                                      <p className="text-xs leading-snug text-muted-foreground">{HYDRATION_HINT[hydration.hydrationStore]}</p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
 
