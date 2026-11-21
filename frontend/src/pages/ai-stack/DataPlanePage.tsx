@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -42,6 +42,18 @@ const DP_SECTIONS: TabSection[] = [
     { value: 'connector-apis', label: 'Workbench' },
   ] },
 ];
+
+/** Every ?tab= value that has a matching TabsContent (incl. legacy deep links). */
+const DATA_PLANE_TABS = new Set([
+  ...DP_SECTIONS.flatMap((s) => s.items.map((i) => i.value)),
+  'virtualdata',
+  'mappingrules',
+]);
+
+const LEGACY_TAB_REDIRECT: Record<string, string> = {
+  virtualdata: 'vdl',
+  mappingrules: 'mapper',
+};
 
 type Vertical = 'all' | 'supply_chain' | 'crm';
 
@@ -219,7 +231,15 @@ export default function DataPlanePage() {
   const totalCount = allSources.length;
   const shownModes = allSources.map(s => (s.real ? 'real' : getSourceMode(s.id)));
   const shownSummary = { simulator: shownModes.filter(m => m !== 'real').length, real: shownModes.filter(m => m === 'real').length };
-  const [dpTab, setDpTab] = useUrlTab('sources');
+  const [rawTab, setDpTab] = useUrlTab('sources');
+  const dpTab = useMemo(() => {
+    if (!DATA_PLANE_TABS.has(rawTab)) return 'sources';
+    return LEGACY_TAB_REDIRECT[rawTab] || rawTab;
+  }, [rawTab]);
+
+  useEffect(() => {
+    if (rawTab !== dpTab) setDpTab(dpTab);
+  }, [rawTab, dpTab, setDpTab]);
 
   const openSource = (src: { id: string }) => {
     const srcMode = getSourceMode(src.id);
@@ -232,7 +252,7 @@ export default function DataPlanePage() {
 
   return (
     <Layout>
-      <Tabs value={dpTab} onValueChange={setDpTab}>
+      <Tabs value={dpTab} onValueChange={setDpTab} className="flex min-h-0 flex-col">
         <PageTabsBar
           title="Data Plane"
           description="Connect enterprise systems, model them as virtual entities, and expose them through governed APIs."
@@ -279,8 +299,8 @@ export default function DataPlanePage() {
           <ConnectorApisRegistryBrowser />
         </TabsContent>
 
-        <TabsContent value="sources" className="mt-0">
-          <div className="page">
+        <TabsContent value="sources" className="mt-0 block w-full opacity-100">
+          <div className="page pb-24">
             {/* Filters and summary */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
               <Select value={vertical} onValueChange={v => setVertical(v as Vertical)}>

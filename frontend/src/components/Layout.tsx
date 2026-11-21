@@ -112,7 +112,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
 
           {/* Content */}
           <main id="main" tabIndex={-1} className="scroll-thin relative min-h-0 flex-1 overflow-auto focus:outline-none">
-            <div className="min-h-full animate-fade-in">
+            <div className="min-h-full">
               <PageErrorBoundary resetKey={loc.pathname + loc.search}>
                 {children}
               </PageErrorBoundary>
