@@ -648,37 +648,88 @@ class VirtualQueryService:
                 out.append(row)
         return out
 
-    def _hydration_store_for_rule(self, rule) -> str:
-        """Classify where rows are read: simulator, fdw, athena, mimir."""
-        st = rule.source_type.value
-        schema = rule.source_schema or ""
-        if st == "ATHENA":
-            return "athena"
+    @staticmethod
+    def _vqs_target_type(source_type: Optional[str], *, composition_strategy: Optional[str] = None) -> str:
+        """VQS execution surface: FDW (incl. simulator foreign tables), Athena, or Mimir."""
+        if composition_strategy:
+            if composition_strategy == "promql":
+                return "Mimir"
+            if composition_strategy == "athena_select":
+                return "Athena"
+            return "FDW"
+        st = (source_type or "").upper()
         if st == "MIMIR":
+            return "Mimir"
+        if st == "ATHENA":
+            return "Athena"
+        if st in ("FDW", "ETL", "CDC"):
+            return "FDW"
+        return "None"
+
+    @staticmethod
+    def _sql_table_preview(
+        schema: Optional[str],
+        table: Optional[str],
+        *,
+        field_maps: Optional[list] = None,
+        filter_expression: Optional[str] = None,
+        limit: int = 50,
+    ) -> str:
+        if not table:
+            return ""
+        if field_maps:
+            cols = [fm.source_field for fm in field_maps if getattr(fm, "source_field", None)]
+            col_str = ", ".join(f'"{c}"' for c in cols) if cols else "*"
+        else:
+            col_str = "*"
+        if schema:
+            from_clause = f'"{schema}"."{table}"'
+        else:
+            from_clause = f'"{table}"'
+        sql = f"SELECT {col_str} FROM {from_clause}"
+        if filter_expression and str(filter_expression).strip():
+            sql += f" WHERE {filter_expression.strip()}"
+        sql += f" LIMIT {limit}"
+        return sql
+
+    @staticmethod
+    def _promql_preview(rule) -> str:
+        cfg = _parse_business_logic(rule.business_logic)
+        metric_name = rule.source_table or "metric"
+        label_map: Dict[str, str] = cfg.get("label_map", {})
+        aggregation = (cfg.get("default_aggregation") or "avg").lower()
+        agg_func = {
+            "avg": "avg",
+            "mean": "avg",
+            "sum": "sum",
+            "max": "max",
+            "min": "min",
+            "count": "count",
+        }.get(aggregation, "avg")
+        if label_map:
+            return f'{agg_func}({metric_name}{{...}})'
+        return f"{metric_name}"
+
+    def _hydration_store_for_rule(self, rule) -> str:
+        """Legacy bucket; prefer targetType in API consumers."""
+        target = self._vqs_target_type(rule.source_type.value)
+        if target == "FDW":
+            return "fdw"
+        if target == "Athena":
+            return "athena"
+        if target == "Mimir":
             return "mimir"
-        if st in ("ETL", "CDC"):
-            if schema == "external_sources" or schema in SCHEMA_TO_SIMULATOR:
-                return "simulator"
-            return "athena" if self._athena_service else "simulator"
-        if st == "FDW":
-            mode = "simulator"
-            if self._mode_service and schema:
-                src = self._mode_service.schema_to_source(schema)
-                mode = self._mode_service.effective_mode(src) if src else "real"
-            elif schema in SCHEMA_TO_SIMULATOR:
-                sim_key = SCHEMA_TO_SIMULATOR[schema]
-                sim = self._simulators.get(sim_key)
-                mode = "simulator" if sim and getattr(sim, "loaded", False) else "real"
-            else:
-                mode = "real"
-            return "fdw" if mode == "real" else "simulator"
         return "unknown"
 
     async def get_entity_hydration(self, virtual_entity: str) -> dict:
-        """Diagnostics: how this VDL entity is bound and where rows are read."""
+        """How VQS hydrates this entity: target (FDW/Athena/Mimir) + query preview."""
         original = virtual_entity
         canonical = self._resolve_canonical_entity(virtual_entity)
         name = canonical
+        base = {
+            "virtualEntity": name,
+            "resolvedFrom": original if original != name else None,
+        }
 
         if self._composition_service is not None:
             try:
@@ -686,14 +737,34 @@ class VirtualQueryService:
             except Exception:
                 comp = None
             if comp and comp.status.value == "active":
+                from src.services.vdl_composition_sql import composition_to_sql
+
                 sources = comp.sources or []
                 tables = [f"{s.schema}.{s.table}" for s in sources]
+                strategy = comp.strategy.value
+                target_type = self._vqs_target_type(None, composition_strategy=strategy)
+                query_lang = "PromQL" if target_type == "Mimir" else "SQL"
+                query_preview = ""
+                if target_type == "Mimir":
+                    query_preview = (comp.business_logic or comp.filter_expression or "").strip()
+                    if not query_preview and comp.sources:
+                        query_preview = comp.sources[0].table
+                else:
+                    sql, _errs = composition_to_sql(comp, limit=50)
+                    query_preview = sql or self._sql_table_preview(
+                        sources[0].schema if sources else None,
+                        sources[0].table if sources else None,
+                        filter_expression=comp.filter_expression,
+                    )
                 return {
-                    "virtualEntity": name,
-                    "resolvedFrom": original if original != name else None,
+                    **base,
                     "binding": "composition",
+                    "targetType": target_type,
+                    "queryLanguage": query_lang,
+                    "queryPreview": query_preview,
+                    "physicalTargets": tables,
                     "hydrationStore": "composition",
-                    "strategy": comp.strategy.value,
+                    "strategy": strategy,
                     "sourceType": "COMPOSITION",
                     "physicalSchema": sources[0].schema if sources else None,
                     "physicalTable": sources[0].table if sources else None,
@@ -705,9 +776,12 @@ class VirtualQueryService:
         active = [r for r in rules if r.status.value == "active"]
         if not active:
             return {
-                "virtualEntity": name,
-                "resolvedFrom": original if original != name else None,
+                **base,
                 "binding": "none",
+                "targetType": "None",
+                "queryLanguage": None,
+                "queryPreview": None,
+                "physicalTargets": [],
                 "hydrationStore": "unmapped",
                 "sourceType": None,
                 "physicalSchema": None,
@@ -719,12 +793,40 @@ class VirtualQueryService:
         schema = rule.source_schema
         table = rule.source_table
         fqn = f"{schema}.{table}" if schema and table else (table or "")
+        st = rule.source_type.value
+        target_type = self._vqs_target_type(st)
+        query_lang: Optional[str] = None
+        query_preview: Optional[str] = None
+        if target_type == "Mimir":
+            query_lang = "PromQL"
+            query_preview = self._promql_preview(rule)
+        elif target_type == "Athena":
+            query_lang = "SQL"
+            col_str = ", ".join(f'"{fm.source_field}"' for fm in rule.field_maps if fm.source_field) or "*"
+            query_preview = f'SELECT {col_str} FROM "{table}"'
+            if schema:
+                query_preview += f"  /* database: {schema} */"
+            if rule.filter_expression:
+                query_preview += f" WHERE {rule.filter_expression}"
+            query_preview += " LIMIT 50"
+        else:
+            query_lang = "SQL"
+            query_preview = self._sql_table_preview(
+                schema,
+                table,
+                field_maps=rule.field_maps,
+                filter_expression=rule.filter_expression,
+            )
+
         return {
-            "virtualEntity": name,
-            "resolvedFrom": original if original != name else None,
+            **base,
             "binding": "mapping_rule",
+            "targetType": target_type,
+            "queryLanguage": query_lang,
+            "queryPreview": query_preview,
+            "physicalTargets": [fqn] if fqn else [],
             "hydrationStore": self._hydration_store_for_rule(rule),
-            "sourceType": rule.source_type.value,
+            "sourceType": st,
             "physicalSchema": schema,
             "physicalTable": table,
             "physicalTableFqn": fqn,
@@ -760,7 +862,8 @@ class VirtualQueryService:
             if info["active_count"] > 0:
                 try:
                     h = await self.get_entity_hydration(name)
-                    row["hydration_store"] = h.get("hydrationStore")
+                    row["target_type"] = h.get("targetType")
+                    row["query_language"] = h.get("queryLanguage")
                     row["physical_table_fqn"] = h.get("physicalTableFqn")
                     row["binding"] = h.get("binding")
                 except Exception:

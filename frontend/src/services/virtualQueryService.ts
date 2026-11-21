@@ -37,25 +37,24 @@ export interface VirtualEntitySummary {
     source_type: string;
     status: string;
   }[];
-  hydration_store?: string;
+  target_type?: string;
+  query_language?: string;
   physical_table_fqn?: string;
   binding?: string;
 }
 
-export type HydrationStore =
-  | 'unmapped'
-  | 'composition'
-  | 'simulator'
-  | 'fdw'
-  | 'athena'
-  | 'mimir'
-  | 'unknown';
+export type VqsTargetType = 'FDW' | 'Athena' | 'Mimir' | 'None';
 
 export interface EntityHydration {
   virtualEntity: string;
   resolvedFrom?: string | null;
   binding: 'none' | 'mapping_rule' | 'composition';
-  hydrationStore: HydrationStore;
+  /** Where VQS runs the query (simulator tables count as FDW). */
+  targetType: VqsTargetType;
+  queryLanguage?: 'SQL' | 'PromQL' | null;
+  queryPreview?: string | null;
+  physicalTargets?: string[];
+  hydrationStore?: string;
   sourceType?: string | null;
   strategy?: string;
   physicalSchema?: string | null;

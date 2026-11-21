@@ -73,21 +73,10 @@ const RELATIONSHIP_COLOUR: Record<string, string> = {
 };
 const words = (s: string) => String(s || '').replace(/_/g, ' ');
 
-const HYDRATION_LABEL: Record<string, string> = {
-  composition: 'Runtime composition (SQL)',
-  simulator: 'Simulator / ETL landing',
-  fdw: 'PostgreSQL FDW (live)',
-  athena: 'Athena / lake',
-  mimir: 'Mimir (metrics)',
-  unmapped: 'Not mapped',
-  unknown: 'Unknown',
-};
-
-const HYDRATION_HINT: Record<string, string> = {
-  simulator: 'Rows land in external_sources (or CRM/ERP simulator schemas) after ETL/CDC; VQS reads via FDW API.',
-  fdw: 'Rows are read at query time from foreign tables on the FDW Postgres cluster.',
-  athena: 'Rows are read from the configured Glue/Athena database.',
-  composition: 'Active multi-source composition overrides the mapping rule at query time.',
+const TARGET_TYPE_HINT: Record<string, string> = {
+  FDW: 'Query against foreign tables (Postgres FDW or simulator-backed FDW API). ETL/CDC landings use the same path.',
+  Athena: 'Athena SQL over the bound lake / Glue table.',
+  Mimir: 'PromQL range query against Mimir.',
 };
 
 function Pill({ className, style, children }: { className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
@@ -565,58 +554,42 @@ export default function EntityExplorer() {
                                 </div>
                               )}
 
-                              {hydration && (
+                              {hydration && hydration.targetType !== 'None' && (
                                 <div>
-                                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">Hydration</div>
-                                  <div className="space-y-1.5 rounded-lg bg-muted/30 p-2.5 text-sm">
-                                    <Pill className="bg-info/15 text-info">
-                                      {HYDRATION_LABEL[hydration.hydrationStore] || hydration.hydrationStore}
-                                    </Pill>
-                                    {hydration.sourceType && (
+                                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">Virtual query (VQS)</div>
+                                  <div className="space-y-2 rounded-lg bg-muted/30 p-2.5 text-sm">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Pill className="bg-info/15 text-info">Target · {hydration.targetType}</Pill>
+                                      {hydration.queryLanguage && (
+                                        <Pill className="bg-muted font-mono text-muted-foreground">{hydration.queryLanguage}</Pill>
+                                      )}
+                                    </div>
+                                    {(hydration.physicalTargets?.length || hydration.physicalTableFqn) && (
                                       <div className="text-xs text-muted-foreground">
-                                        Rule type: <span className="font-medium text-foreground">{hydration.sourceType}</span>
-                                        {hydration.binding === 'composition' && hydration.strategy && (
-                                          <> · strategy <span className="font-medium text-foreground">{hydration.strategy}</span></>
-                                        )}
+                                        Table{((hydration.physicalTargets?.length || 0) > 1) ? 's' : ''}:{' '}
+                                        <span className="font-mono text-foreground">
+                                          {(hydration.physicalTargets?.length
+                                            ? hydration.physicalTargets.join(', ')
+                                            : hydration.physicalTableFqn)}
+                                        </span>
                                       </div>
                                     )}
-                                    {(hydration.physicalTableFqn || (hydration.sourceTables && hydration.sourceTables.length > 1)) && (
-                                      <div className="font-mono text-xs text-foreground">
-                                        {hydration.sourceTables && hydration.sourceTables.length > 1
-                                          ? hydration.sourceTables.join(' + ')
-                                          : hydration.physicalTableFqn}
-                                      </div>
+                                    {hydration.queryPreview && (
+                                      <pre className="scroll-thin max-h-36 overflow-auto rounded-md border border-border bg-background p-2 font-mono text-[11px] leading-snug text-foreground whitespace-pre-wrap break-all">
+                                        {hydration.queryPreview}
+                                      </pre>
                                     )}
-                                    {HYDRATION_HINT[hydration.hydrationStore] && (
-                                      <p className="text-xs leading-snug text-muted-foreground">{HYDRATION_HINT[hydration.hydrationStore]}</p>
+                                    {TARGET_TYPE_HINT[hydration.targetType] && (
+                                      <p className="text-xs leading-snug text-muted-foreground">{TARGET_TYPE_HINT[hydration.targetType]}</p>
                                     )}
                                   </div>
                                 </div>
                               )}
-
-                              <div>
-                                <div className="mb-1.5 text-xs font-medium text-muted-foreground">FDW mapping</div>
-                                {selectedEntity.isVirtual ? (
-                                  <div className="flex items-start gap-2 rounded-lg bg-warning/10 px-2.5 py-2 text-sm">
-                                    <Icon name="alert-triangle" className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                                    <span className="text-foreground">Virtual entity, no direct FDW table. Its data comes through the virtual data layer.</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col gap-1 text-sm">
-                                    <span className="text-xs text-muted-foreground">Source table (via mapping)</span>
-                                    {activeRule?.sourceSchema && activeRule?.sourceTable ? (
-                                      <span className="break-all font-mono text-foreground">
-                                        {activeRule.sourceSchema}.{activeRule.sourceTable}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">
-                                        No active rule — bind this entity in Mapper (Auto-map or manual rule).
-                                      </span>
-                                    )}
-                                    <Pill className={cn('w-fit', FDW_STATUS_STYLES[selectedEntity.fdwMappingStatus] || FDW_STATUS_STYLES.unmapped)}>{selectedEntity.fdwMappingStatus}</Pill>
-                                  </div>
-                                )}
-                              </div>
+                              {hydration?.targetType === 'None' && (
+                                <p className="rounded-lg bg-muted/20 p-2.5 text-sm text-muted-foreground">
+                                  No active binding. Add a mapping rule in Mapper or an active composition.
+                                </p>
+                              )}
 
                               <Button variant="outline" size="sm" className="w-full" onClick={() => loadPreview(selectedEntity)} disabled={previewLoading}>
                                 <Icon name={previewLoading ? 'spinner' : 'refresh'} className={cn('h-3.5 w-3.5', previewLoading && 'animate-spin')} />
