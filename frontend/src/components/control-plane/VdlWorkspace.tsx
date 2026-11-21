@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Icon } from '@/components/ds/Icon';
@@ -53,14 +54,29 @@ export default function VdlWorkspace() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    let catalog: SchemaEntity[] = [];
     try {
-      const data = await apiClient.get<SchemaEntity[]>('/api/v1/control-plane/entities');
-      setEntities(Array.isArray(data) ? data : []);
+      const data = await apiClient.get<SchemaEntity[]>('/api/v1/control-plane/entities', {
+        requireAuth: false,
+      });
+      if (Array.isArray(data)) catalog = data;
     } catch (e) {
-      console.error('VDL workspace: entity catalog load failed', e);
-      toast.error('Could not load the VDL entity catalog');
-      setEntities([]);
+      console.warn('VDL workspace: entity catalog load failed, trying virtual entity list', e);
     }
+    if (catalog.length === 0) {
+      try {
+        const summaries = await virtualQueryService.listEntities();
+        catalog = summaries.map((s) => ({
+          name: s.virtual_entity,
+          domain: s.active_rules > 0 ? 'Mapped' : 'Unmapped',
+        }));
+      } catch (e) {
+        console.error('VDL workspace: fallback entity list failed', e);
+        toast.error('Could not load VDL entities');
+      }
+    }
+    setEntities(catalog);
+
     try {
       setCompositions(await vdlCompositionService.list());
     } catch (e) {
@@ -227,14 +243,21 @@ export default function VdlWorkspace() {
   const lineageSources = edit?.from || [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-    <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1 rounded-lg border border-border bg-background">
-      <ResizablePanel defaultSize={22} minSize={18} className="flex min-h-0 flex-col border-r border-border">
-        <div className="shrink-0 space-y-2 border-b border-border p-3">
-          <p className="text-xs font-medium text-muted-foreground">VDL entities</p>
-          <SearchInput value={search} onChange={setSearch} placeholder="Search entity or source table" className="w-full" />
-        </div>
-        <motionList loading={loading} rows={entityRows} onSelect={selectEntity} selected={selected?.name} />
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 flex-1 gap-0 px-2 py-2">
+      <ResizablePanel defaultSize={26} minSize={16} maxSize={40} className="min-h-0 min-w-0">
+        <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border">
+          <CardHeader className="shrink-0 space-y-0 px-3 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-md font-medium">VDL entities</CardTitle>
+              <span className="num rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{entityRows.length}</span>
+            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="Search entity or source table" className="mt-2.5 sm:w-full" aria-label="Search VDL entities" />
+          </CardHeader>
+          <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
+            <EntityList loading={loading} rows={entityRows} onSelect={selectEntity} selected={selected?.name} />
+          </CardContent>
+        </Card>
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize={48} minSize={36} className="flex min-h-0 flex-col">
@@ -243,17 +266,21 @@ export default function VdlWorkspace() {
         ) : (
           <>
             <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-              {(['schema', 'composition', 'relationships'] as const).map((tab) => (
+              {([
+                { id: 'composition' as const, label: 'Mapper' },
+                { id: 'schema' as const, label: 'Schema' },
+                { id: 'relationships' as const, label: 'Relationships' },
+              ]).map((tab) => (
                 <button
-                  key={tab}
+                  key={tab.id}
                   type="button"
-                  onClick={() => setCenterTab(tab)}
+                  onClick={() => setCenterTab(tab.id)}
                   className={cn(
-                    'rounded-md px-2.5 py-1 text-xs font-medium capitalize',
-                    centerTab === tab ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
+                    'rounded-md px-2.5 py-1 text-xs font-medium',
+                    centerTab === tab.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {tab}
+                  {tab.label}
                 </button>
               ))}
               <div className="ml-auto flex gap-2">
@@ -399,7 +426,7 @@ export default function VdlWorkspace() {
   );
 }
 
-function motionList({
+function EntityList({
   loading,
   rows,
   onSelect,
@@ -410,36 +437,48 @@ function motionList({
   onSelect: (e: SchemaEntity) => void;
   selected?: string;
 }) {
-  if (loading) return <div className="p-4"><Icon name="spinner" className="h-4 w-4 animate-spin" /></div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center p-6">
+        <Icon name="spinner" className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
   if (rows.length === 0) {
     return (
-      <p className="p-4 text-xs text-muted-foreground">
-        No VDL entities loaded. Check that the API is reachable and try refreshing the page.
+      <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+        No VDL entities loaded. Open the Mapper tab for rule-based mapping, or refresh after the API is reachable.
       </p>
     );
   }
   return (
-    <ul className="min-h-0 flex-1 overflow-y-auto p-2">
-      {rows.map(({ e, sourceCount, status }) => (
-        <li key={e.name}>
-          <button
-            type="button"
-            onClick={() => onSelect(e)}
-            className={cn(
-              'mb-1 w-full rounded-md px-2 py-2 text-left text-sm',
-              selected === e.name ? 'bg-accent' : 'hover:bg-accent/50',
-            )}
-          >
-            <span className="font-medium">{e.name}</span>
-            <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{e.domain || 'Uncategorized'}</span>
-              <span>·</span>
-              <span>{sourceCount} sources</span>
-              <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium capitalize', STATUS_STYLES[status] || STATUS_STYLES.inactive)}>{status}</span>
-            </span>
-          </button>
-        </li>
-      ))}
+    <ul className="divide-y divide-border px-2 pb-2">
+      {rows.map(({ e, sourceCount, status }) => {
+        const on = selected === e.name;
+        return (
+          <li key={e.name}>
+            <button
+              type="button"
+              onClick={() => onSelect(e)}
+              aria-pressed={on}
+              className={cn(
+                'w-full border-l-2 px-2 py-2.5 text-left transition-colors',
+                on ? 'border-brand bg-brand/10' : 'border-transparent hover:bg-muted/50',
+              )}
+            >
+              <div className="truncate text-sm font-medium text-foreground">{e.name}</div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="truncate">{e.domain || 'Uncategorized'}</span>
+                <span aria-hidden="true">·</span>
+                <span className="num">{sourceCount} sources</span>
+                <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium capitalize', STATUS_STYLES[status] || STATUS_STYLES.inactive)}>
+                  {status}
+                </span>
+              </div>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

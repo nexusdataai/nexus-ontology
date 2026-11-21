@@ -13,6 +13,7 @@ import { fdwService } from '@/services/fdwService';
 import DataPipelinesTab from '@/components/data-plane/DataPipelinesTab';
 import { ConnectorsTab } from '@/components/ConnectorsTab';
 import VdlWorkspace from '@/components/control-plane/VdlWorkspace';
+import MappingRulesEditor from '@/components/control-plane/MappingRulesEditor';
 import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWorkbenchPanel';
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
 import VdlApiRegistryBrowser from '@/components/registry-browser/VdlApiRegistryBrowser';
@@ -31,6 +32,7 @@ const DP_SECTIONS: TabSection[] = [
   { label: 'Sources', icon: 'database', items: [{ value: 'sources', label: 'Data sources' }] },
   { label: 'VDL', icon: 'cube', items: [
     { value: 'vdl', label: 'Virtual data layer' },
+    { value: 'mapper', label: 'Mapper' },
     { value: 'vdl-apis', label: 'API registry' },
   ] },
   { label: 'Pipelines', icon: 'route', items: [{ value: 'pipelines', label: 'Data pipelines' }] },
@@ -249,14 +251,17 @@ export default function DataPlanePage() {
           ) : undefined}
         />
 
-        <TabsContent value="vdl" className="mt-0 h-pane">
+        <TabsContent value="vdl" className="mt-0 flex h-pane min-h-0 flex-col">
           <VdlWorkspace />
         </TabsContent>
-        <TabsContent value="virtualdata" className="mt-0 h-pane">
+        <TabsContent value="mapper" className="mt-0 flex h-pane min-h-0 flex-col">
+          <MappingRulesEditor />
+        </TabsContent>
+        <TabsContent value="virtualdata" className="mt-0 flex h-pane min-h-0 flex-col">
           <VdlWorkspace />
         </TabsContent>
-        <TabsContent value="mappingrules" className="mt-0 h-pane">
-          <VdlWorkspace />
+        <TabsContent value="mappingrules" className="mt-0 flex h-pane min-h-0 flex-col">
+          <MappingRulesEditor />
         </TabsContent>
         <TabsContent value="vdl-apis" className="pane-wide mt-0 h-pane-sub">
           <VdlApiRegistryBrowser />
