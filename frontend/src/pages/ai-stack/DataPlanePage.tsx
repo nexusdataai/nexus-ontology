@@ -11,12 +11,15 @@ import { etlPipelineService } from '@/services/etlPipelineService';
 import { dataSourceModeService, type Mode } from '@/services/dataSourceModeService';
 import { fdwService } from '@/services/fdwService';
 import DataPipelinesTab from '@/components/data-plane/DataPipelinesTab';
+import PipelineStudioPage from '@/components/pipeline-studio/PipelineStudioPage';
 import { ConnectorsTab } from '@/components/ConnectorsTab';
 import EntityExplorer from '@/components/control-plane/EntityExplorer';
 import MappingRulesEditor from '@/components/control-plane/MappingRulesEditor';
 import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWorkbenchPanel';
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
 import VdlApiRegistryBrowser from '@/components/registry-browser/VdlApiRegistryBrowser';
+import NiFiProcessorRegistryBrowser from '@/components/registry-browser/NiFiProcessorRegistryBrowser';
+import NiFiAssetsRegistryBrowser from '@/components/registry-browser/NiFiAssetsRegistryBrowser';
 
 const SOURCE_ICONS: Record<string, IconName> = {
   FDW: 'database',
@@ -35,7 +38,12 @@ const DP_SECTIONS: TabSection[] = [
     { value: 'vdl-apis', label: 'API registry' },
   ] },
   { label: 'Mapper', icon: 'shuffle', items: [{ value: 'mapper', label: 'Mapping rules' }] },
-  { label: 'Pipelines', icon: 'route', items: [{ value: 'pipelines', label: 'Data pipelines' }] },
+  { label: 'Pipelines', icon: 'route', items: [
+    { value: 'pipeline-studio', label: 'Flow Studio' },
+    { value: 'pipelines', label: 'Library' },
+    { value: 'nexus-processors', label: 'Processor registry' },
+    { value: 'nexus-data-assets', label: 'Nexus assets' },
+  ] },
   { label: 'Connectors', icon: 'plug', items: [
     { value: 'connectors', label: 'Catalogue' },
     { value: 'connector-registry', label: 'API registry' },
@@ -48,12 +56,16 @@ const DATA_PLANE_TABS = new Set([
   ...DP_SECTIONS.flatMap((s) => s.items.map((i) => i.value)),
   'virtualdata',
   'mappingrules',
+  'nifi-assets',
+  'nifi-processors',
 ]);
 
 const LEGACY_TAB_REDIRECT: Record<string, string> = {
   virtualdata: 'vdl',
   mappingrules: 'mapper',
   composition: 'mapper',
+  'nifi-assets': 'nexus-data-assets',
+  'nifi-processors': 'nexus-processors',
 };
 
 type Vertical = 'all' | 'supply_chain' | 'crm';
@@ -287,8 +299,17 @@ export default function DataPlanePage() {
         <TabsContent value="vdl-apis" className="pane-wide mt-0 h-pane-sub">
           <VdlApiRegistryBrowser />
         </TabsContent>
+        <TabsContent value="pipeline-studio" className="mt-0 flex h-pane min-h-0 flex-col">
+          <PipelineStudioPage />
+        </TabsContent>
         <TabsContent value="pipelines" className="mt-0">
           <DataPipelinesTab />
+        </TabsContent>
+        <TabsContent value="nexus-processors" className="pane-wide mt-0 h-pane-sub">
+          <NiFiProcessorRegistryBrowser />
+        </TabsContent>
+        <TabsContent value="nexus-data-assets" className="pane-wide mt-0 h-pane-sub">
+          <NiFiAssetsRegistryBrowser />
         </TabsContent>
         <TabsContent value="connectors" className="mt-0">
           <ConnectorsTab />

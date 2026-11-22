@@ -11,6 +11,11 @@ import {
   connectorApiWorkbenchService,
   type InvokeResponse,
 } from '@/services/connectorApiWorkbenchService';
+import {
+  nifiProcessorService,
+  type NiFiPropertyDescriptor,
+  type ProcessorProbeRequest,
+} from '@/services/nifiProcessorService';
 import type { ExecuteAdapter, ExecuteResultEnvelope } from './types';
 
 interface ExecuteDrawerProps {
@@ -67,6 +72,52 @@ export function adapterFromTool(args: {
  * verification / audit block under ``extras`` so the drawer can render
  * them in dedicated tabs.
  */
+/**
+ * Build an adapter for a Nexus flow processor probe (single-node FlowFile run).
+ */
+export function adapterFromProcessor(args: {
+  processorId: string;
+  displayName?: string;
+  properties?: NiFiPropertyDescriptor[];
+  defaultProbe?: ProcessorProbeRequest;
+}): ExecuteAdapter {
+  const schema = {
+    type: 'object',
+    properties: {
+      params: {
+        type: 'object',
+        description: 'Processor property values (NiFi config)',
+      },
+      content: { type: 'string', description: 'FlowFile body' },
+      attributes: { type: 'object', description: 'FlowFile attributes' },
+    },
+  };
+  return {
+    kind: 'processor',
+    id: args.processorId,
+    displayName: args.displayName || args.processorId,
+    paramsSchema: schema,
+    defaultParams: args.defaultProbe ?? { params: {}, content: '{}', attributes: {} },
+    run: async (payload) => {
+      const body: ProcessorProbeRequest = {
+        params: (payload.params as Record<string, unknown>) || {},
+        content: typeof payload.content === 'string' ? payload.content : JSON.stringify(payload.content ?? {}),
+        attributes: (payload.attributes as Record<string, unknown>) || {},
+      };
+      const r = await nifiProcessorService.probeProcessor(args.processorId, body);
+      const status = r.status === 'pass' ? 'pass' : r.status === 'skip' ? 'skip' : 'fail';
+      return {
+        status,
+        duration_ms: r.duration_ms,
+        result: r,
+        result_preview: r.result_preview || r.reason || r.error,
+        error: r.error,
+        extras: { nodeStats: r.nodeStats, terminalAttributes: r.terminalAttributes },
+      };
+    },
+  };
+}
+
 export function adapterFromConnectorApi(args: {
   apiId: string;
   displayName?: string;
@@ -171,11 +222,17 @@ export function ExecuteDrawer({ adapter, onClose }: ExecuteDrawerProps) {
       onOpenChange={(o) => { if (!o) onClose(); }}
       wide
       title={<span className="font-mono text-md">{adapter?.id}</span>}
-      description={`${adapter?.kind === 'tool' ? 'Runs this tool' : 'Calls this connector API'} with the payload below${adapter?.connectorApi ? `, through ${adapter.connectorApi}` : ''}.`}
+      description={
+        adapter?.kind === 'processor'
+          ? 'Runs this processor against a single FlowFile (params, content, attributes).'
+          : `${adapter?.kind === 'tool' ? 'Runs this tool' : 'Calls this connector API'} with the payload below${adapter?.connectorApi ? `, through ${adapter.connectorApi}` : ''}.`
+      }
       meta={(
         <>
           {adapter?.riskLevel && <StatusPill status={adapter.riskLevel} variant="soft" />}
-          <span className="text-xs text-muted-foreground">{adapter?.kind === 'tool' ? 'Tool' : 'Connector API'}</span>
+          <span className="text-xs text-muted-foreground">
+            {adapter?.kind === 'processor' ? 'Processor' : adapter?.kind === 'tool' ? 'Tool' : 'Connector API'}
+          </span>
         </>
       )}
       footer={(

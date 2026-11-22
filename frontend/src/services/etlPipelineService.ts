@@ -1,4 +1,6 @@
 import apiClient from './apiClient';
+import { dataFlowService } from './dataFlowService';
+import { defaultGraphForSource } from '@/components/pipeline-studio/pipelineStudioState';
 
 export type ETLSourceType =
   | 'social_listening'
@@ -26,7 +28,25 @@ const ETL_VDL_STEPS: ETLStepDef[] = [
   { id: 'materialize_warehouse', name: 'Materialize Warehouse', description: 'Refresh warehouse KPI snapshots from external feeds' },
 ];
 
+let _catalogSteps: Record<string, ETLStepDef[]> | null = null;
+
+export async function loadEtlStepCatalog(): Promise<void> {
+  try {
+    const cat = await dataFlowService.getCatalog();
+    const map: Record<string, ETLStepDef[]> = {};
+    for (const [st, steps] of Object.entries(cat.runtimeStepsBySource ?? {})) {
+      map[st] = steps.map(s => ({ id: s.id, name: s.name, description: s.description }));
+    }
+    _catalogSteps = map;
+  } catch {
+    _catalogSteps = null;
+  }
+}
+
 export function getStepsForSourceType(sourceType: ETLSourceType): ETLStepDef[] {
+  if (_catalogSteps?.[sourceType]) {
+    return _catalogSteps[sourceType];
+  }
   if (
     sourceType === 'social_listening'
     || sourceType === 'file_uploads'
@@ -131,6 +151,16 @@ export const etlPipelineService = {
       }
     }
 
+    if (journeyId) {
+      try {
+        const cat = await dataFlowService.getCatalog();
+        const graph = defaultGraphForSource(sourceType, config.mappingRuleId || '', cat.nodeTypes);
+        await dataFlowService.saveJourneyGraph(journeyId, graph, false);
+      } catch {
+        // graph seed is non-fatal
+      }
+    }
+
     return {
       id: journeyId,
       journeyId,
@@ -160,6 +190,8 @@ export const etlPipelineService = {
   getPipelineJobs: (journeyId: string): Promise<any> =>
     apiClient.get(`/api/v1/journeys/${journeyId}/jobs`),
 
-  runPipeline: (journeyId: string): Promise<any> =>
-    apiClient.post(`/api/v1/journeys/${journeyId}/jobs?stage_id=etl_pipeline&triggered_by=ui`),
+  runPipeline: (journeyId: string, triggeredBy = 'ui'): Promise<any> =>
+    apiClient.post(
+      `/api/v1/journeys/${journeyId}/jobs?stage_id=etl_pipeline&triggered_by=${encodeURIComponent(triggeredBy)}`,
+    ),
 };

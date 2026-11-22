@@ -79,6 +79,9 @@ SemanticRagStage = _semantic_rag_module.SemanticRagStage
 _etl_pipeline_module = _import_stage_module('etl-pipeline', 'etl_pipeline_stage')
 ETLPipelineStage = _etl_pipeline_module.ETLPipelineStage
 
+_nexus_flow_module = _import_stage_module('nexus-flow', 'nexus_flow_stage')
+NexusFlowStage = _nexus_flow_module.NexusFlowStage
+
 # Import stub stages for stages not yet fully implemented
 class TMFMappingStage(BaseStage):
     """TMF Schema Mapping Stage (stub implementation)"""
@@ -216,6 +219,7 @@ STAGE_REGISTRY: Dict[str, Type[BaseStage]] = {
     'verification_validation': VerificationValidationStage,
     'semantic_rag': SemanticRagStage,
     'etl_pipeline': ETLPipelineStage,
+    'nexus_flow': NexusFlowStage,
 }
 
 try:

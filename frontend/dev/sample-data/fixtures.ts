@@ -6,6 +6,9 @@
  * SAP S/4HANA, Oracle ERP, Google Drive, social listening and file uploads.
  */
 
+import { defaultGraphForSource } from '../../src/components/pipeline-studio/pipelineStudioState';
+import type { ETLSourceType } from '../../src/services/etlPipelineService';
+
 export interface SampleRoute {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string | RegExp;
@@ -743,7 +746,23 @@ const toJourney = (s: JourneySeed) => {
     avg_duration_seconds: s.avgSeconds,
     overallProgress: progress,
     stages: [{ stageId: s.stageId, name: s.stageName, description: s.description, order: 0, status: stageStatus, progress }],
-    ...(s.config ? { config: s.config, currentStep: s.currentStep, lastRunAt: ago(s.updatedMin) } : {}),
+    ...(s.config
+      ? {
+          config: s.config,
+          currentStep: s.currentStep,
+          lastRunAt: ago(s.updatedMin),
+          metadata: {
+            studioLayout: 'v1',
+            frontendType: 'etl-pipeline',
+            sourceType: s.config.sourceType,
+            config: s.config,
+            dataFlowGraph: defaultGraphForSource(
+              s.config.sourceType as ETLSourceType,
+              s.config.mappingRuleId || '',
+            ),
+          },
+        }
+      : {}),
   };
 };
 

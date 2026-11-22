@@ -898,6 +898,38 @@ async def run_job(
     The job runs synchronously but updates progress in DynamoDB so UI can poll.
     """
     try:
+        runtime_mode = os.environ.get("PIPELINE_RUNTIME", "ontology").strip().lower()
+        if (
+            stage_id == "etl_pipeline"
+            and runtime_mode in ("ai_engine", "dual")
+            and journey_service
+            and models_available
+        ):
+            try:
+                from ..services.ai_engine_client import AiEngineClient, AiEngineClientError
+
+                client = AiEngineClient()
+                if client.configured:
+                    resp = await client.submit_execution(
+                        journey_id=journey_id,
+                        stage_id=stage_id,
+                        labels={"triggered_by": triggered_by, "pipeline_runtime": runtime_mode},
+                    )
+                    return {
+                        "success": True,
+                        "message": "Submitted to AI Engine",
+                        "journey_id": journey_id,
+                        "job_id": resp.get("execution_id") or resp.get("executionId"),
+                        "stage_id": stage_id,
+                        "status": resp.get("status", "pending"),
+                        "pipeline_runtime": "ai_engine",
+                        "data": resp,
+                    }
+            except AiEngineClientError as exc:
+                if runtime_mode == "ai_engine":
+                    raise HTTPException(status_code=502, detail=str(exc))
+                logger.warning(f"AI Engine run_job fallback to ontology: {exc}")
+
         if journey_service and models_available:
             # Execute job - the service creates the job record and runs it
             # Progress is updated in DynamoDB, so UI can poll for status

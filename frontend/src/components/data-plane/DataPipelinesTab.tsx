@@ -2,34 +2,26 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Icon } from '@/components/ds/Icon';
 import { EmptyState } from '@/components/ds/primitives';
 import {
-  Field, InlineError, KeyValues, MetricStrip, Panel, StatusPill, SubHeading, Timeline,
+  InlineError, KeyValues, MetricStrip, Panel, StatusPill, SubHeading, Timeline,
 } from '@/components/ds/kit';
 import { SystemLogo } from '@/components/ds/SystemLogo';
 import { cn } from '@/lib/utils';
 import {
   etlPipelineService,
   getStepsForSourceType,
-  SOURCE_TYPE_LABELS,
-  type ETLPipelineConfig,
+  loadEtlStepCatalog,
   type ETLSourceType,
   type ETLStepDef,
 } from '@/services/etlPipelineService';
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
 import { callProcessingJourneyService } from '@/services/callProcessingJourneyService';
 import { confirmDialog } from '@/components/ds/confirm';
-import { ETL_PIPELINE_TEMPLATES, type ETLPipelineTemplate } from '@/config/etlPipelineTemplates';
+import { ETL_PIPELINE_TEMPLATES } from '@/config/etlPipelineTemplates';
 
 const SOURCE_DESCRIPTIONS: Record<ETLSourceType, string> = {
   social_listening: 'Market signals, social mentions, competitor alerts',
@@ -37,43 +29,6 @@ const SOURCE_DESCRIPTIONS: Record<ETLSourceType, string> = {
   google_drive: 'Contracts, sustainability reports',
   external_full: 'All external feeds, VDL mappings, and warehouse snapshots',
   generic: 'Custom data pipeline',
-};
-
-const SOURCE_LABEL: Record<ETLSourceType, string> = {
-  social_listening: 'Social listening',
-  file_uploads: 'File uploads',
-  google_drive: 'Google Drive',
-  external_full: 'External sources (full VDL)',
-  generic: 'Generic',
-};
-
-const SOURCE_TYPES: ETLSourceType[] = [
-  'social_listening',
-  'file_uploads',
-  'google_drive',
-  'external_full',
-  'generic',
-];
-
-/** Radix Select cannot hold an empty value; this stands for "auto-detect". */
-const AUTO_RULE = '__auto__';
-
-interface CreateForm {
-  name: string;
-  sourceType: ETLSourceType;
-  mappingRuleId: string;
-  mode: 'full' | 'incremental';
-  batchSize: number;
-  schedule: string;
-}
-
-const DEFAULT_FORM: CreateForm = {
-  name: '',
-  sourceType: 'generic',
-  mappingRuleId: '',
-  mode: 'full',
-  batchSize: 1000,
-  schedule: '',
 };
 
 type StepState = 'done' | 'active' | 'pending' | 'failed';
@@ -224,8 +179,8 @@ function PipelineRow({ pipeline, mappingRules, index, onRun, onStudio, onDelete 
           <Button variant="outline" size="sm" onClick={() => onRun(pipeline.id)}>
             <Icon name="play" className="h-3.5 w-3.5" /> Run
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onStudio(pipeline.id)} title="Open in AI Automation">
-            Studio <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="sm" onClick={() => onStudio(pipeline.id)} title="Open Pipeline Studio">
+            Studio <Icon name="route" className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
@@ -327,11 +282,7 @@ export default function DataPipelinesTab() {
   const nav = useNavigate();
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [mappingRules, setMappingRules] = useState<MappingRule[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateForm>({ ...DEFAULT_FORM });
   const [loading, setLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Presentation only: surfaces a failed list request and the first paint.
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -359,7 +310,7 @@ export default function DataPipelinesTab() {
     setLoadedOnce(true);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); loadEtlStepCatalog(); }, [fetchData]);
 
   useEffect(() => {
     const hasRunning = pipelines.some(p => p.status === 'running');
@@ -376,42 +327,8 @@ export default function DataPipelinesTab() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [pipelines]);
 
-  const handleCreate = async () => {
-    if (!createForm.name) return;
-    setCreating(true);
-    setCreateError(null);
-    const config: ETLPipelineConfig = {
-      mappingRuleId: createForm.mappingRuleId,
-      sourceType: createForm.sourceType,
-      mode: createForm.mode,
-      batchSize: createForm.batchSize,
-      schedule: createForm.schedule || undefined,
-    };
-    try {
-      const created = await etlPipelineService.createPipeline(createForm.name, config);
-      setPipelines(prev => [created, ...prev]);
-      setShowCreate(false);
-      setCreateForm({ ...DEFAULT_FORM });
-      setCreateError(null);
-      toast.success('Pipeline created');
-      fetchData();
-    } catch (err: any) {
-      setCreateError(err?.message || err?.data?.message || 'Failed to create pipeline.');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreateFromTemplate = (tpl: ETLPipelineTemplate) => {
-    setCreateForm({
-      name: tpl.name,
-      sourceType: tpl.sourceType,
-      mappingRuleId: tpl.defaultConfig.mappingRuleId,
-      mode: tpl.defaultConfig.mode,
-      batchSize: tpl.defaultConfig.batchSize || 1000,
-      schedule: tpl.defaultConfig.schedule || '',
-    });
-    setShowCreate(true);
+  const openStudio = (query?: string) => {
+    nav(`/ai-stack/data-plane?tab=pipeline-studio${query ? `&${query}` : ''}`);
   };
 
   const handleRun = async (pipelineId: string) => {
@@ -442,26 +359,8 @@ export default function DataPipelinesTab() {
   };
 
   const handleViewStudio = (pipelineId: string) => {
-    nav(`/workspace/automation?journeyId=${pipelineId}`);
+    openStudio(`pipelineId=${encodeURIComponent(pipelineId)}`);
   };
-
-  const closeCreate = () => {
-    setShowCreate(false);
-    setCreateForm({ ...DEFAULT_FORM });
-    setCreateError(null);
-  };
-
-  const currentTemplate = ETL_PIPELINE_TEMPLATES.find(t => t.sourceType === createForm.sourceType);
-  const targetEntities = currentTemplate?.targetEntities ?? [];
-  const matchedRules = mappingRules.filter(r =>
-    targetEntities.some(e =>
-      r.virtualEntity?.toLowerCase() === e.toLowerCase() ||
-      r.name?.toLowerCase().includes(e.toLowerCase().replace(/_/g, ' ')) ||
-      r.sourceTable?.toLowerCase().includes(e.toLowerCase())
-    )
-  );
-  const otherRules = mappingRules.filter(r => !matchedRules.includes(r));
-  const stepsPreview = getStepsForSourceType(createForm.sourceType);
 
   const existingSourceTypes = new Set(pipelines.map((p: any) => p.config?.sourceType).filter(Boolean));
   const suggestedTemplates = ETL_PIPELINE_TEMPLATES.filter(tpl => !existingSourceTypes.has(tpl.sourceType));
@@ -475,17 +374,17 @@ export default function DataPipelinesTab() {
     <div className="page">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">Data pipelines</h2>
+          <h2 className="text-xl font-medium tracking-tight text-foreground sm:text-2xl">Pipeline library</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Batch jobs that extract, check and load source data into the virtual data layer.
+            Existing data-flow jobs. Create new graphs in Studio.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
             <Icon name="refresh" className={loading ? 'animate-spin' : undefined} /> Refresh
           </Button>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Icon name="plus" /> New pipeline
+          <Button size="sm" onClick={() => openStudio()}>
+            <Icon name="plus" /> Open studio
           </Button>
         </div>
       </div>
@@ -530,7 +429,7 @@ export default function DataPipelinesTab() {
               description={suggestedTemplates.length > 0
                 ? 'Create one from scratch, or start from a suggested pipeline below.'
                 : 'Create a pipeline to start loading source data into the virtual data layer.'}
-              action={<Button size="sm" onClick={() => setShowCreate(true)}><Icon name="plus" /> New pipeline</Button>}
+              action={<Button size="sm" onClick={() => openStudio()}><Icon name="plus" /> Open studio</Button>}
             />
           </div>
         ) : (
@@ -553,7 +452,7 @@ export default function DataPipelinesTab() {
       {!firstLoad && suggestedTemplates.length > 0 && (
         <section className="mt-10">
           <h3 className="text-md font-medium text-foreground">Suggested pipelines</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">Sources that have no pipeline yet. Each one opens the form with sensible defaults.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Sources that have no pipeline yet. Opens Studio with a starter graph.</p>
           <ul className="mt-3 border-t border-border">
             {suggestedTemplates.map(tpl => (
               <li key={tpl.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border py-3">
@@ -565,7 +464,7 @@ export default function DataPipelinesTab() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleCreateFromTemplate(tpl)}
+                  onClick={() => openStudio(`template=${encodeURIComponent(tpl.sourceType)}`)}
                   className="group inline-flex shrink-0 items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-hi"
                 >
                   Create <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform duration-300 ease-brand-out group-hover:translate-x-0.5" />
@@ -576,98 +475,6 @@ export default function DataPipelinesTab() {
         </section>
       )}
 
-      {/* Create form */}
-      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) closeCreate(); }}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-medium">New pipeline</DialogTitle>
-            <DialogDescription>Choose a source and how often it should load into the virtual data layer.</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Source type">
-              <Select
-                value={createForm.sourceType}
-                onValueChange={(v) => { const st = v as ETLSourceType; setCreateForm(f => ({ ...f, sourceType: st, name: f.name || SOURCE_TYPE_LABELS[st] + ' ETL' })); }}
-              >
-                <SelectTrigger aria-label="Source type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SOURCE_TYPES.map(st => (
-                    <SelectItem key={st} value={st}>{SOURCE_LABEL[st]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Name" htmlFor="pipeline-name">
-              <Input id="pipeline-name" placeholder="Pipeline name" value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} />
-            </Field>
-            <Field
-              label="Mapping rule (optional)"
-              className="sm:col-span-2"
-              hint={targetEntities.length > 0 ? `Loads into ${targetEntities.map(e => e.replace(/_/g, ' ')).join(', ')}.` : undefined}
-            >
-              <Select
-                value={createForm.mappingRuleId || AUTO_RULE}
-                onValueChange={(v) => setCreateForm(f => ({ ...f, mappingRuleId: v === AUTO_RULE ? '' : v }))}
-              >
-                <SelectTrigger aria-label="Mapping rule"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={AUTO_RULE}>Auto-detect from source</SelectItem>
-                  {matchedRules.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel className="text-xs font-medium text-muted-foreground">Matched for {SOURCE_LABEL[createForm.sourceType]}</SelectLabel>
-                      {matchedRules.map(r => <SelectItem key={r.id} value={r.id}>{r.name} ({r.virtualEntity})</SelectItem>)}
-                    </SelectGroup>
-                  )}
-                  {otherRules.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel className="text-xs font-medium text-muted-foreground">All rules</SelectLabel>
-                      {otherRules.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                    </SelectGroup>
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Load mode">
-              <Select value={createForm.mode} onValueChange={(v) => setCreateForm(f => ({ ...f, mode: v as 'full' | 'incremental' }))}>
-                <SelectTrigger aria-label="Load mode"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full">Full</SelectItem>
-                  <SelectItem value="incremental">Incremental</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Batch size" htmlFor="pipeline-batch">
-              <Input id="pipeline-batch" type="number" value={createForm.batchSize} onChange={e => setCreateForm(f => ({ ...f, batchSize: Number(e.target.value) }))} />
-            </Field>
-            <Field label="Schedule (optional)" htmlFor="pipeline-schedule" className="sm:col-span-2" hint="A cron expression. Leave empty to run the pipeline by hand.">
-              <Input id="pipeline-schedule" className="font-mono" placeholder="0 */6 * * *" value={createForm.schedule} onChange={e => setCreateForm(f => ({ ...f, schedule: e.target.value }))} />
-            </Field>
-          </div>
-
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Steps this pipeline runs</p>
-            <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
-              {stepsPreview.map((step, i) => (
-                <React.Fragment key={step.id}>
-                  {i > 0 && <li aria-hidden="true"><Icon name="arrow-right" className="h-3 w-3 text-subtle-foreground" /></li>}
-                  <li title={step.description}>{step.name}</li>
-                </React.Fragment>
-              ))}
-            </ol>
-          </div>
-
-          {createError && <InlineError>{createError}</InlineError>}
-
-          <DialogFooter className="gap-2 sm:space-x-0">
-            <Button variant="ghost" onClick={closeCreate}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!createForm.name || creating}>
-              <Icon name={creating ? 'spinner' : 'plus'} className={creating ? 'animate-spin' : undefined} />
-              {creating ? 'Creating…' : 'Create pipeline'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

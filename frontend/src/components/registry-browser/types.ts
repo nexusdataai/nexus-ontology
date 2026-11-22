@@ -101,7 +101,7 @@ export interface ExecuteResultEnvelope {
 }
 
 export interface ExecuteAdapter {
-  kind: 'tool' | 'connector_api';
+  kind: 'tool' | 'connector_api' | 'processor';
   id: string;
   displayName: string;
   /** JSON-Schema-shaped object for hint rendering above the payload editor. */

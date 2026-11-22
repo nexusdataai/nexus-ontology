@@ -1,0 +1,6201 @@
+[
+  {
+    "processorId": "nifi.AttributesToCSV",
+    "nifiClass": "org.apache.nifi.processors.standard.AttributesToCSV",
+    "bundle": "nexus-standard-bundle",
+    "label": "AttributesToCSV",
+    "category": "nexus",
+    "description": "Generates a CSV representation of the input FlowFile Attributes. The resulting CSV ",
+    "tags": [
+      "csv",
+      "attributes",
+      "flowfile"
+    ],
+    "properties": [
+      {
+        "name": "Attribute List",
+        "displayName": "Attribute List",
+        "required": false
+      },
+      {
+        "name": "Attributes Regular Expression",
+        "displayName": "Attributes Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Include Core Attributes",
+        "displayName": "Include Core Attributes",
+        "required": false
+      },
+      {
+        "name": "Null Value",
+        "displayName": "Null Value",
+        "required": false
+      },
+      {
+        "name": "Include Schema",
+        "displayName": "Include Schema",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.AttributesToJSON",
+    "nifiClass": "org.apache.nifi.processors.standard.AttributesToJSON",
+    "bundle": "nexus-standard-bundle",
+    "label": "AttributesToJSON",
+    "category": "nexus",
+    "description": "Generates a JSON representation of the input FlowFile Attributes. The resulting JSON ",
+    "tags": [
+      "json",
+      "attributes",
+      "flowfile"
+    ],
+    "properties": [
+      {
+        "name": "Attributes List",
+        "displayName": "Attributes List",
+        "required": false
+      },
+      {
+        "name": "Attributes Regular Expression",
+        "displayName": "Attributes Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Include Core Attributes",
+        "displayName": "Include Core Attributes",
+        "required": false
+      },
+      {
+        "name": "JSON Handling Strategy",
+        "displayName": "JSON Handling Strategy",
+        "required": false
+      },
+      {
+        "name": "Pretty Print",
+        "displayName": "Pretty Print",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.CalculateRecordStats",
+    "nifiClass": "org.apache.nifi.processors.standard.CalculateRecordStats",
+    "bundle": "nexus-standard-bundle",
+    "label": "CalculateRecordStats",
+    "category": "nexus",
+    "description": "Counts the number of Records in a record set, optionally counting the number of elements per category, where the categories are ",
+    "tags": [
+      "record",
+      "stats",
+      "metrics"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Stats Limit",
+        "displayName": "Record Stats Limit",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.CompressContent",
+    "nifiClass": "org.apache.nifi.processors.standard.CompressContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "CompressContent",
+    "category": "nexus",
+    "description": "Compresses or decompresses the contents of FlowFiles using a user-specified compression algorithm and updates the mime.type ",
+    "tags": [
+      "content",
+      "compress",
+      "decompress",
+      "gzip",
+      "bzip2",
+      "lzma",
+      "xz-lzma2",
+      "snappy",
+      "snappy-hadoop",
+      "snappy framed",
+      "lz4-framed",
+      "deflate",
+      "zstd",
+      "brotli"
+    ],
+    "properties": [
+      {
+        "name": "Compression Format",
+        "displayName": "Compression Format",
+        "required": false
+      },
+      {
+        "name": "Mode",
+        "displayName": "Mode",
+        "required": false
+      },
+      {
+        "name": "Compression Level",
+        "displayName": "Compression Level",
+        "required": false
+      },
+      {
+        "name": "Update Filename",
+        "displayName": "Update Filename",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ControlRate",
+    "nifiClass": "org.apache.nifi.processors.standard.ControlRate",
+    "bundle": "nexus-standard-bundle",
+    "label": "ControlRate",
+    "category": "nexus",
+    "description": "Controls the rate at which data is transferred to follow-on processors.",
+    "tags": [
+      "rate control",
+      "throttle",
+      "rate",
+      "throughput"
+    ],
+    "properties": [
+      {
+        "name": "Rate Control Criteria",
+        "displayName": "Rate Control Criteria",
+        "required": false
+      },
+      {
+        "name": "Maximum Rate",
+        "displayName": "Maximum Rate",
+        "required": false
+      },
+      {
+        "name": "Maximum Data Rate",
+        "displayName": "Maximum Data Rate",
+        "required": false
+      },
+      {
+        "name": "Maximum FlowFile Rate",
+        "displayName": "Maximum FlowFile Rate",
+        "required": false
+      },
+      {
+        "name": "Rate Exceeded Strategy",
+        "displayName": "Rate Exceeded Strategy",
+        "required": false
+      },
+      {
+        "name": "Rate Controlled Attribute",
+        "displayName": "Rate Controlled Attribute",
+        "required": false
+      },
+      {
+        "name": "Time Duration",
+        "displayName": "Time Duration",
+        "required": false
+      },
+      {
+        "name": "Grouping Attribute",
+        "displayName": "Grouping Attribute",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ConvertCharacterSet",
+    "nifiClass": "org.apache.nifi.processors.standard.ConvertCharacterSet",
+    "bundle": "nexus-standard-bundle",
+    "label": "ConvertCharacterSet",
+    "category": "nexus",
+    "description": "Converts a FlowFile's content from one character set to another",
+    "tags": [
+      "text",
+      "convert",
+      "characterset",
+      "character set"
+    ],
+    "properties": [
+      {
+        "name": "Input Character Set",
+        "displayName": "Input Character Set",
+        "required": false
+      },
+      {
+        "name": "Output Character Set",
+        "displayName": "Output Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ConvertRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.ConvertRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "ConvertRecord",
+    "category": "nexus",
+    "description": "Converts records from one data format to another using configured Record Reader and Record Write Controller Services. ",
+    "tags": [
+      "convert",
+      "record",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "log",
+      "logs",
+      "freeform",
+      "text"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.convert_record.ConvertRecordProcessor"
+  },
+  {
+    "processorId": "nifi.CountText",
+    "nifiClass": "org.apache.nifi.processors.standard.CountText",
+    "bundle": "nexus-standard-bundle",
+    "label": "CountText",
+    "category": "nexus",
+    "description": "Counts various metrics on incoming text. The requested results will be recorded as attributes. ",
+    "tags": [
+      "count",
+      "text",
+      "line",
+      "word",
+      "character"
+    ],
+    "properties": [
+      {
+        "name": "Count Lines",
+        "displayName": "Count Lines",
+        "required": false
+      },
+      {
+        "name": "Count Non-Empty Lines",
+        "displayName": "Count Non-Empty Lines",
+        "required": false
+      },
+      {
+        "name": "Count Words",
+        "displayName": "Count Words",
+        "required": false
+      },
+      {
+        "name": "Count Characters",
+        "displayName": "Count Characters",
+        "required": false
+      },
+      {
+        "name": "Split Words on Symbols",
+        "displayName": "Split Words on Symbols",
+        "required": false
+      },
+      {
+        "name": "Character Encoding",
+        "displayName": "Character Encoding",
+        "required": false
+      },
+      {
+        "name": "Call Immediate Adjustment",
+        "displayName": "Call Immediate Adjustment",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.CryptographicHashContent",
+    "nifiClass": "org.apache.nifi.processors.standard.CryptographicHashContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "CryptographicHashContent",
+    "category": "nexus",
+    "description": "Calculates a cryptographic hash value for the FlowFile content using the given algorithm and writes it to an output attribute. Please refer to https://csrc.nist.gov/Projects/Hash-Functions/NIST-Policy-on-Hash-Functions for help to decide which algorithm to use.",
+    "tags": [
+      "content",
+      "hash",
+      "sha",
+      "blake2",
+      "md5",
+      "cryptography"
+    ],
+    "properties": [
+      {
+        "name": "Fail When Content Empty",
+        "displayName": "Fail When Content Empty",
+        "required": false
+      },
+      {
+        "name": "Hash Algorithm",
+        "displayName": "Hash Algorithm",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DebugFlow",
+    "nifiClass": "org.apache.nifi.processors.standard.DebugFlow",
+    "bundle": "nexus-standard-bundle",
+    "label": "DebugFlow",
+    "category": "nexus",
+    "description": "The DebugFlow processor aids testing and debugging the FlowFile framework by allowing various ",
+    "tags": [
+      "test",
+      "debug",
+      "processor",
+      "utility",
+      "flow",
+      "FlowFile",
+      "state"
+    ],
+    "properties": [
+      {
+        "name": "FlowFile Success Iterations",
+        "displayName": "FlowFile Success Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Failure Iterations",
+        "displayName": "FlowFile Failure Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Rollback Iterations",
+        "displayName": "FlowFile Rollback Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Rollback Yield Iterations",
+        "displayName": "FlowFile Rollback Yield Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Rollback Penalty Iterations",
+        "displayName": "FlowFile Rollback Penalty Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Exception Iterations",
+        "displayName": "FlowFile Exception Iterations",
+        "required": false
+      },
+      {
+        "name": "FlowFile Exception Class",
+        "displayName": "FlowFile Exception Class",
+        "required": false
+      },
+      {
+        "name": "No FlowFile Skip Iterations",
+        "displayName": "No FlowFile Skip Iterations",
+        "required": false
+      },
+      {
+        "name": "No FlowFile Exception Iterations",
+        "displayName": "No FlowFile Exception Iterations",
+        "required": false
+      },
+      {
+        "name": "No FlowFile Yield Iterations",
+        "displayName": "No FlowFile Yield Iterations",
+        "required": false
+      },
+      {
+        "name": "No FlowFile Exception Class",
+        "displayName": "No FlowFile Exception Class",
+        "required": false
+      },
+      {
+        "name": "Write Iterations",
+        "displayName": "Write Iterations",
+        "required": false
+      },
+      {
+        "name": "Content Size",
+        "displayName": "Content Size",
+        "required": false
+      },
+      {
+        "name": "@OnScheduled Pause Time",
+        "displayName": "@OnScheduled Pause Time",
+        "required": false
+      },
+      {
+        "name": "Fail When @OnScheduled Called",
+        "displayName": "Fail When @OnScheduled Called",
+        "required": false
+      },
+      {
+        "name": "@OnUnscheduled Pause Time",
+        "displayName": "@OnUnscheduled Pause Time",
+        "required": false
+      },
+      {
+        "name": "Fail When @OnUnscheduled Called",
+        "displayName": "Fail When @OnUnscheduled Called",
+        "required": false
+      },
+      {
+        "name": "@OnStopped Pause Time",
+        "displayName": "@OnStopped Pause Time",
+        "required": false
+      },
+      {
+        "name": "Fail When @OnStopped Called",
+        "displayName": "Fail When @OnStopped Called",
+        "required": false
+      },
+      {
+        "name": "OnTrigger Pause Time",
+        "displayName": "OnTrigger Pause Time",
+        "required": false
+      },
+      {
+        "name": "CustomValidate Pause Time",
+        "displayName": "CustomValidate Pause Time",
+        "required": false
+      },
+      {
+        "name": "Ignore Interrupts When Paused",
+        "displayName": "Ignore Interrupts When Paused",
+        "required": false
+      },
+      {
+        "name": "Generate State Entries",
+        "displayName": "Generate State Entries",
+        "required": false
+      },
+      {
+        "name": "State Scope",
+        "displayName": "State Scope",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DeleteFile",
+    "nifiClass": "org.apache.nifi.processors.standard.DeleteFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "DeleteFile",
+    "category": "nexus",
+    "description": "Deletes a file from the filesystem.",
+    "tags": [
+      "file",
+      "remove",
+      "delete",
+      "local",
+      "files",
+      "filesystem"
+    ],
+    "properties": [
+      {
+        "name": "Directory Path",
+        "displayName": "Directory Path",
+        "required": false
+      },
+      {
+        "name": "Filename",
+        "displayName": "Filename",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DeleteSFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.DeleteSFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "DeleteSFTP",
+    "category": "nexus",
+    "description": "Deletes a file residing on an SFTP server.",
+    "tags": [
+      "remote",
+      "remove",
+      "delete",
+      "sftp"
+    ],
+    "properties": [
+      {
+        "name": "Removal Strategy",
+        "displayName": "Removal Strategy",
+        "required": false
+      },
+      {
+        "name": "Directory Path",
+        "displayName": "Directory Path",
+        "required": false
+      },
+      {
+        "name": "Filename",
+        "displayName": "Filename",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DetectDuplicate",
+    "nifiClass": "org.apache.nifi.processors.standard.DetectDuplicate",
+    "bundle": "nexus-standard-bundle",
+    "label": "DetectDuplicate",
+    "category": "nexus",
+    "description": "Caches a value, computed from FlowFile attributes, for each incoming FlowFile and determines if the cached value has already been seen. ",
+    "tags": [
+      "hash",
+      "dupe",
+      "duplicate",
+      "dedupe"
+    ],
+    "properties": [
+      {
+        "name": "Distributed Cache Service",
+        "displayName": "Distributed Cache Service",
+        "required": false
+      },
+      {
+        "name": "Cache Entry Identifier",
+        "displayName": "Cache Entry Identifier",
+        "required": false
+      },
+      {
+        "name": "FlowFile Description",
+        "displayName": "FlowFile Description",
+        "required": false
+      },
+      {
+        "name": "Age Off Duration",
+        "displayName": "Age Off Duration",
+        "required": false
+      },
+      {
+        "name": "Cache The Entry Identifier",
+        "displayName": "Cache The Entry Identifier",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DeduplicateRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.DeduplicateRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "DeduplicateRecord",
+    "category": "nexus",
+    "description": "This processor de-duplicates individual records within a record set. ",
+    "tags": [
+      "text",
+      "record",
+      "update",
+      "change",
+      "replace",
+      "modify",
+      "distinct",
+      "unique",
+      "filter",
+      "hash",
+      "dupe",
+      "duplicate",
+      "dedupe"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Deduplication Strategy",
+        "displayName": "Deduplication Strategy",
+        "required": false
+      },
+      {
+        "name": "Distributed Map Cache Client",
+        "displayName": "Distributed Map Cache Client",
+        "required": false
+      },
+      {
+        "name": "Cache Identifier",
+        "displayName": "Cache Identifier",
+        "required": false
+      },
+      {
+        "name": "Cache Entry Identifier",
+        "displayName": "Cache Entry Identifier",
+        "required": false
+      },
+      {
+        "name": "Include Zero Record FlowFiles",
+        "displayName": "Include Zero Record FlowFiles",
+        "required": false
+      },
+      {
+        "name": "Record Hashing Algorithm",
+        "displayName": "Record Hashing Algorithm",
+        "required": false
+      },
+      {
+        "name": "Filter Type",
+        "displayName": "Filter Type",
+        "required": false
+      },
+      {
+        "name": "Filter Capacity Hint",
+        "displayName": "Filter Capacity Hint",
+        "required": false
+      },
+      {
+        "name": "Bloom Filter Certainty",
+        "displayName": "Bloom Filter Certainty",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DistributeLoad",
+    "nifiClass": "org.apache.nifi.processors.standard.DistributeLoad",
+    "bundle": "nexus-standard-bundle",
+    "label": "DistributeLoad",
+    "category": "nexus",
+    "description": "Distributes FlowFiles to downstream processors based on a Distribution Strategy. If using the Round Robin ",
+    "tags": [
+      "distribute",
+      "load balance",
+      "route",
+      "round robin",
+      "weighted"
+    ],
+    "properties": [
+      {
+        "name": "Number of Relationships",
+        "displayName": "Number of Relationships",
+        "required": false
+      },
+      {
+        "name": "Distribution Strategy",
+        "displayName": "Distribution Strategy",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.DuplicateFlowFile",
+    "nifiClass": "org.apache.nifi.processors.standard.DuplicateFlowFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "DuplicateFlowFile",
+    "category": "nexus",
+    "description": "Intended for load testing, this processor will create the configured number of copies of each incoming FlowFile. The original FlowFile as well as all ",
+    "tags": [
+      "test",
+      "load",
+      "duplicate"
+    ],
+    "properties": [
+      {
+        "name": "Number of Copies",
+        "displayName": "Number of Copies",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.EncodeContent",
+    "nifiClass": "org.apache.nifi.processors.standard.EncodeContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "EncodeContent",
+    "category": "nexus",
+    "description": "Encode or decode the contents of a FlowFile using Base64, Base32, or hex encoding schemes",
+    "tags": [
+      "encode",
+      "decode",
+      "base64",
+      "base32",
+      "hex"
+    ],
+    "properties": [
+      {
+        "name": "Mode",
+        "displayName": "Mode",
+        "required": false
+      },
+      {
+        "name": "Encoding",
+        "displayName": "Encoding",
+        "required": false
+      },
+      {
+        "name": "Line Output Mode",
+        "displayName": "Line Output Mode",
+        "required": false
+      },
+      {
+        "name": "Encoded Line Length",
+        "displayName": "Encoded Line Length",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.EnforceOrder",
+    "nifiClass": "org.apache.nifi.processors.standard.EnforceOrder",
+    "bundle": "nexus-standard-bundle",
+    "label": "EnforceOrder",
+    "category": "nexus",
+    "description": "Enforces expected ordering of FlowFiles that belong to the same data group within a single node. ",
+    "tags": [
+      "sort",
+      "order"
+    ],
+    "properties": [
+      {
+        "name": "Group Identifier",
+        "displayName": "Group Identifier",
+        "required": false
+      },
+      {
+        "name": "Order Attribute",
+        "displayName": "Order Attribute",
+        "required": false
+      },
+      {
+        "name": "Initial Order",
+        "displayName": "Initial Order",
+        "required": false
+      },
+      {
+        "name": "Maximum Order",
+        "displayName": "Maximum Order",
+        "required": false
+      },
+      {
+        "name": "Wait Timeout",
+        "displayName": "Wait Timeout",
+        "required": false
+      },
+      {
+        "name": "Inactive Timeout",
+        "displayName": "Inactive Timeout",
+        "required": false
+      },
+      {
+        "name": "Batch Count",
+        "displayName": "Batch Count",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.EvaluateJsonPath",
+    "nifiClass": "org.apache.nifi.processors.standard.EvaluateJsonPath",
+    "bundle": "nexus-standard-bundle",
+    "label": "EvaluateJsonPath",
+    "category": "nexus",
+    "description": "Evaluates one or more JsonPath expressions against the content of a FlowFile. ",
+    "tags": [
+      "JSON",
+      "evaluate",
+      "JsonPath"
+    ],
+    "properties": [
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Return Type",
+        "displayName": "Return Type",
+        "required": false
+      },
+      {
+        "name": "Path Not Found Behavior",
+        "displayName": "Path Not Found Behavior",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.evaluate_json_path.EvaluateJsonPathProcessor"
+  },
+  {
+    "processorId": "nifi.EvaluateXPath",
+    "nifiClass": "org.apache.nifi.processors.standard.EvaluateXPath",
+    "bundle": "nexus-standard-bundle",
+    "label": "EvaluateXPath",
+    "category": "nexus",
+    "description": "Evaluates one or more XPaths against the content of a FlowFile. The results of those XPaths are assigned to ",
+    "tags": [
+      "XML",
+      "evaluate",
+      "XPath"
+    ],
+    "properties": [
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Return Type",
+        "displayName": "Return Type",
+        "required": false
+      },
+      {
+        "name": "Allow DTD",
+        "displayName": "Allow DTD",
+        "required": false
+      },
+      {
+        "name": "Maximum General Entity Size",
+        "displayName": "Maximum General Entity Size",
+        "required": false
+      },
+      {
+        "name": "Maximum Total Entity Size",
+        "displayName": "Maximum Total Entity Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.EvaluateXQuery",
+    "nifiClass": "org.apache.nifi.processors.standard.EvaluateXQuery",
+    "bundle": "nexus-standard-bundle",
+    "label": "EvaluateXQuery",
+    "category": "nexus",
+    "description": "Apache NiFi EvaluateXQuery",
+    "tags": [
+      "XML",
+      "evaluate",
+      "XPath",
+      "XQuery"
+    ],
+    "properties": [
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Output: Method",
+        "displayName": "Output: Method",
+        "required": false
+      },
+      {
+        "name": "Output: Omit XML Declaration",
+        "displayName": "Output: Omit XML Declaration",
+        "required": false
+      },
+      {
+        "name": "Output: Indent",
+        "displayName": "Output: Indent",
+        "required": false
+      },
+      {
+        "name": "Allow DTD",
+        "displayName": "Allow DTD",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExecuteProcess",
+    "nifiClass": "org.apache.nifi.processors.standard.ExecuteProcess",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExecuteProcess",
+    "category": "nexus",
+    "description": "Runs an operating system command specified by the user and writes the output of that command to a FlowFile. If the command is expected ",
+    "tags": [
+      "command",
+      "process",
+      "source",
+      "external",
+      "invoke",
+      "script"
+    ],
+    "properties": [
+      {
+        "name": "Command",
+        "displayName": "Command",
+        "required": false
+      },
+      {
+        "name": "Command Arguments",
+        "displayName": "Command Arguments",
+        "required": false
+      },
+      {
+        "name": "Working Directory",
+        "displayName": "Working Directory",
+        "required": false
+      },
+      {
+        "name": "Batch Duration",
+        "displayName": "Batch Duration",
+        "required": false
+      },
+      {
+        "name": "Redirect Error Stream",
+        "displayName": "Redirect Error Stream",
+        "required": false
+      },
+      {
+        "name": "Argument Delimiter",
+        "displayName": "Argument Delimiter",
+        "required": false
+      },
+      {
+        "name": "MIME Type",
+        "displayName": "MIME Type",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExecuteSQL",
+    "nifiClass": "org.apache.nifi.processors.standard.ExecuteSQL",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExecuteSQL",
+    "category": "nexus",
+    "description": "Executes provided SQL select query. Query result will be converted to Avro format.",
+    "tags": [
+      "sql",
+      "select",
+      "jdbc",
+      "query",
+      "database"
+    ],
+    "properties": [
+      {
+        "name": "Compression Format",
+        "displayName": "Compression Format",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExecuteSQLRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.ExecuteSQLRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExecuteSQLRecord",
+    "category": "nexus",
+    "description": "Executes provided SQL select query. Query result will be converted to the format specified by a Record Writer. ",
+    "tags": [
+      "sql",
+      "select",
+      "jdbc",
+      "query",
+      "database",
+      "record"
+    ],
+    "properties": [
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Normalize Table/Column Names",
+        "displayName": "Normalize Table/Column Names",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExecuteStreamCommand",
+    "nifiClass": "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExecuteStreamCommand",
+    "category": "nexus",
+    "description": "The ExecuteStreamCommand processor provides a flexible way to integrate external commands and scripts into NiFi data flows.",
+    "tags": [
+      "command execution",
+      "command",
+      "stream",
+      "execute"
+    ],
+    "properties": [
+      {
+        "name": "Working Directory",
+        "displayName": "Working Directory",
+        "required": false
+      },
+      {
+        "name": "Command Path",
+        "displayName": "Command Path",
+        "required": false
+      },
+      {
+        "name": "Command Arguments Strategy",
+        "displayName": "Command Arguments Strategy",
+        "required": false
+      },
+      {
+        "name": "Command Arguments",
+        "displayName": "Command Arguments",
+        "required": false
+      },
+      {
+        "name": "Argument Delimiter",
+        "displayName": "Argument Delimiter",
+        "required": false
+      },
+      {
+        "name": "Ignore STDIN",
+        "displayName": "Ignore STDIN",
+        "required": false
+      },
+      {
+        "name": "Output Destination Attribute",
+        "displayName": "Output Destination Attribute",
+        "required": false
+      },
+      {
+        "name": "Max Attribute Length",
+        "displayName": "Max Attribute Length",
+        "required": false
+      },
+      {
+        "name": "Output MIME Type",
+        "displayName": "Output MIME Type",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExtractGrok",
+    "nifiClass": "org.apache.nifi.processors.standard.ExtractGrok",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExtractGrok",
+    "category": "nexus",
+    "description": "Evaluates one or more Grok Expressions against the content of a FlowFile, ",
+    "tags": [
+      "grok",
+      "log",
+      "text",
+      "parse",
+      "delimit",
+      "extract"
+    ],
+    "properties": [
+      {
+        "name": "Grok Expression",
+        "displayName": "Grok Expression",
+        "required": false
+      },
+      {
+        "name": "Grok Patterns",
+        "displayName": "Grok Patterns",
+        "required": false
+      },
+      {
+        "name": "Keep Empty Captures",
+        "displayName": "Keep Empty Captures",
+        "required": false
+      },
+      {
+        "name": "Destination",
+        "displayName": "Destination",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Maximum Buffer Size",
+        "displayName": "Maximum Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Named Captures Only",
+        "displayName": "Named Captures Only",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExtractRecordSchema",
+    "nifiClass": "org.apache.nifi.processors.standard.ExtractRecordSchema",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExtractRecordSchema",
+    "category": "nexus",
+    "description": "Extracts the record schema from the FlowFile using the supplied Record Reader and writes it to the `avro.schema` attribute.",
+    "tags": [
+      "record",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "freeform",
+      "text",
+      "xml"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Schema Cache Size",
+        "displayName": "Schema Cache Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ExtractText",
+    "nifiClass": "org.apache.nifi.processors.standard.ExtractText",
+    "bundle": "nexus-standard-bundle",
+    "label": "ExtractText",
+    "category": "nexus",
+    "description": "Apache NiFi ExtractText",
+    "tags": [
+      "evaluate",
+      "extract",
+      "Text",
+      "Regular Expression",
+      "regex"
+    ],
+    "properties": [
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Maximum Buffer Size",
+        "displayName": "Maximum Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Maximum Capture Group Length",
+        "displayName": "Maximum Capture Group Length",
+        "required": false
+      },
+      {
+        "name": "Enable Canonical Equivalence",
+        "displayName": "Enable Canonical Equivalence",
+        "required": false
+      },
+      {
+        "name": "Enable Case-insensitive Matching",
+        "displayName": "Enable Case-insensitive Matching",
+        "required": false
+      },
+      {
+        "name": "Permit Whitespace and Comments in Pattern",
+        "displayName": "Permit Whitespace and Comments in Pattern",
+        "required": false
+      },
+      {
+        "name": "Enable DOTALL Mode",
+        "displayName": "Enable DOTALL Mode",
+        "required": false
+      },
+      {
+        "name": "Enable Literal Parsing of the Pattern",
+        "displayName": "Enable Literal Parsing of the Pattern",
+        "required": false
+      },
+      {
+        "name": "Enable Multiline Mode",
+        "displayName": "Enable Multiline Mode",
+        "required": false
+      },
+      {
+        "name": "Enable Unicode-aware Case Folding",
+        "displayName": "Enable Unicode-aware Case Folding",
+        "required": false
+      },
+      {
+        "name": "Enable Unicode Predefined Character Classes",
+        "displayName": "Enable Unicode Predefined Character Classes",
+        "required": false
+      },
+      {
+        "name": "Enable Unix Lines Mode",
+        "displayName": "Enable Unix Lines Mode",
+        "required": false
+      },
+      {
+        "name": "Include Capture Group 0",
+        "displayName": "Include Capture Group 0",
+        "required": false
+      },
+      {
+        "name": "Enable Repeating Capture Group",
+        "displayName": "Enable Repeating Capture Group",
+        "required": false
+      },
+      {
+        "name": "Enable Named Groups",
+        "displayName": "Enable Named Groups",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FetchDistributedMapCache",
+    "nifiClass": "org.apache.nifi.processors.standard.FetchDistributedMapCache",
+    "bundle": "nexus-standard-bundle",
+    "label": "FetchDistributedMapCache",
+    "category": "nexus",
+    "description": "Computes cache key(s) from FlowFile attributes, for each incoming FlowFile, and fetches the value(s) from the Map Cache associated ",
+    "tags": [
+      "map",
+      "cache",
+      "fetch",
+      "distributed"
+    ],
+    "properties": [
+      {
+        "name": "Distributed Cache Service",
+        "displayName": "Distributed Cache Service",
+        "required": false
+      },
+      {
+        "name": "Cache Entry Identifier",
+        "displayName": "Cache Entry Identifier",
+        "required": false
+      },
+      {
+        "name": "Put Cache Value In Attribute",
+        "displayName": "Put Cache Value In Attribute",
+        "required": false
+      },
+      {
+        "name": "Max Length To Put In Attribute",
+        "displayName": "Max Length To Put In Attribute",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FetchFile",
+    "nifiClass": "org.apache.nifi.processors.standard.FetchFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "FetchFile",
+    "category": "nexus",
+    "description": "Reads the contents of a file from disk and streams it into the contents of an incoming FlowFile. Once this is done, the file is optionally moved elsewhere or deleted ",
+    "tags": [
+      "local",
+      "files",
+      "filesystem",
+      "ingest",
+      "ingress",
+      "get",
+      "source",
+      "input",
+      "fetch"
+    ],
+    "properties": [
+      {
+        "name": "File to Fetch",
+        "displayName": "File to Fetch",
+        "required": false
+      },
+      {
+        "name": "Completion Strategy",
+        "displayName": "Completion Strategy",
+        "required": false
+      },
+      {
+        "name": "Move Destination Directory",
+        "displayName": "Move Destination Directory",
+        "required": false
+      },
+      {
+        "name": "Move Conflict Strategy",
+        "displayName": "Move Conflict Strategy",
+        "required": false
+      },
+      {
+        "name": "File not Found Log Level",
+        "displayName": "File not Found Log Level",
+        "required": false
+      },
+      {
+        "name": "Permission Denied Log Level",
+        "displayName": "Permission Denied Log Level",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FetchFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.FetchFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "FetchFTP",
+    "category": "nexus",
+    "description": "Fetches the content of a file from a remote FTP server and overwrites the contents of an incoming FlowFile with the content of the remote file.",
+    "tags": [
+      "ftp",
+      "get",
+      "retrieve",
+      "files",
+      "fetch",
+      "remote",
+      "ingest",
+      "source",
+      "input"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FetchSFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.FetchSFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "FetchSFTP",
+    "category": "nexus",
+    "description": "Fetches the content of a file from a remote SFTP server and overwrites the contents of an incoming FlowFile with the content of the remote file.",
+    "tags": [
+      "sftp",
+      "get",
+      "retrieve",
+      "files",
+      "fetch",
+      "remote",
+      "ingest",
+      "source",
+      "input"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FilterAttribute",
+    "nifiClass": "org.apache.nifi.processors.standard.FilterAttribute",
+    "bundle": "nexus-standard-bundle",
+    "label": "FilterAttribute",
+    "category": "nexus",
+    "description": "Filters the attributes of a FlowFile by retaining specified attributes and removing the rest or by removing specified attributes and retaining the rest.",
+    "tags": [
+      "attributes",
+      "modification",
+      "filter",
+      "retain",
+      "remove",
+      "delete",
+      "regex",
+      "regular expression",
+      "Attribute Expression Language"
+    ],
+    "properties": [
+      {
+        "name": "Filter Mode",
+        "displayName": "Filter Mode",
+        "required": false
+      },
+      {
+        "name": "Attribute Matching Strategy",
+        "displayName": "Attribute Matching Strategy",
+        "required": false
+      },
+      {
+        "name": "Filtered Attributes",
+        "displayName": "Filtered Attributes",
+        "required": false
+      },
+      {
+        "name": "Filtered Attributes Pattern",
+        "displayName": "Filtered Attributes Pattern",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.FlattenJson",
+    "nifiClass": "org.apache.nifi.processors.standard.FlattenJson",
+    "bundle": "nexus-standard-bundle",
+    "label": "FlattenJson",
+    "category": "nexus",
+    "description": "Apache NiFi FlattenJson",
+    "tags": [
+      "json",
+      "flatten",
+      "unflatten"
+    ],
+    "properties": [
+      {
+        "name": "Separator",
+        "displayName": "Separator",
+        "required": false
+      },
+      {
+        "name": "Flatten Mode",
+        "displayName": "Flatten Mode",
+        "required": false
+      },
+      {
+        "name": "Ignore Reserved Characters",
+        "displayName": "Ignore Reserved Characters",
+        "required": false
+      },
+      {
+        "name": "Return Type",
+        "displayName": "Return Type",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Pretty Print JSON",
+        "displayName": "Pretty Print JSON",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ForkRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.ForkRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "ForkRecord",
+    "category": "nexus",
+    "description": "This processor allows the user to fork a record into multiple records. The user must specify at least one ",
+    "tags": [
+      "fork",
+      "record",
+      "content",
+      "array",
+      "stream",
+      "event"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Mode",
+        "displayName": "Mode",
+        "required": false
+      },
+      {
+        "name": "Include Parent Fields",
+        "displayName": "Include Parent Fields",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ForkEnrichment",
+    "nifiClass": "org.apache.nifi.processors.standard.ForkEnrichment",
+    "bundle": "nexus-standard-bundle",
+    "label": "ForkEnrichment",
+    "category": "nexus",
+    "description": "Used in conjunction with the JoinEnrichment processor, this processor is responsible for adding the attributes that are necessary for the JoinEnrichment processor to perform",
+    "tags": [
+      "fork",
+      "join",
+      "enrich",
+      "record"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GenerateRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.GenerateRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "GenerateRecord",
+    "category": "nexus",
+    "description": "Apache NiFi GenerateRecord",
+    "tags": [
+      "test",
+      "random",
+      "generate",
+      "fake"
+    ],
+    "properties": [
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Number of Records",
+        "displayName": "Number of Records",
+        "required": false
+      },
+      {
+        "name": "Nullable Fields",
+        "displayName": "Nullable Fields",
+        "required": false
+      },
+      {
+        "name": "Null Value Percentage",
+        "displayName": "Null Value Percentage",
+        "required": false
+      },
+      {
+        "name": "Schema Text",
+        "displayName": "Schema Text",
+        "required": false
+      },
+      {
+        "name": "Predefined Schema",
+        "displayName": "Predefined Schema",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GenerateFlowFile",
+    "nifiClass": "org.apache.nifi.processors.standard.GenerateFlowFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "GenerateFlowFile",
+    "category": "nexus",
+    "description": "This processor creates FlowFiles with random data or custom content. GenerateFlowFile is useful",
+    "tags": [
+      "test",
+      "random",
+      "generate",
+      "load"
+    ],
+    "properties": [
+      {
+        "name": "File Size",
+        "displayName": "File Size",
+        "required": false
+      },
+      {
+        "name": "Batch Size",
+        "displayName": "Batch Size",
+        "required": false
+      },
+      {
+        "name": "Data Format",
+        "displayName": "Data Format",
+        "required": false
+      },
+      {
+        "name": "Unique FlowFiles",
+        "displayName": "Unique FlowFiles",
+        "required": false
+      },
+      {
+        "name": "Custom Text",
+        "displayName": "Custom Text",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Mime Type",
+        "displayName": "Mime Type",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GenerateTableFetch",
+    "nifiClass": "org.apache.nifi.processors.standard.GenerateTableFetch",
+    "bundle": "nexus-standard-bundle",
+    "label": "GenerateTableFetch",
+    "category": "nexus",
+    "description": "Apache NiFi GenerateTableFetch",
+    "tags": [
+      "sql",
+      "select",
+      "jdbc",
+      "query",
+      "database",
+      "fetch",
+      "generate"
+    ],
+    "properties": [
+      {
+        "name": "Partition Size",
+        "displayName": "Partition Size",
+        "required": false
+      },
+      {
+        "name": "Column for Value Partitioning",
+        "displayName": "Column for Value Partitioning",
+        "required": false
+      },
+      {
+        "name": "Output Empty FlowFile on Zero Results",
+        "displayName": "Output Empty FlowFile on Zero Results",
+        "required": false
+      },
+      {
+        "name": "Custom ORDER BY Column",
+        "displayName": "Custom ORDER BY Column",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GetFile",
+    "nifiClass": "org.apache.nifi.processors.standard.GetFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "GetFile",
+    "category": "nexus",
+    "description": "Apache NiFi GetFile",
+    "tags": [
+      "local",
+      "files",
+      "filesystem",
+      "ingest",
+      "ingress",
+      "get",
+      "source",
+      "input"
+    ],
+    "properties": [
+      {
+        "name": "Input Directory",
+        "displayName": "Input Directory",
+        "required": false
+      },
+      {
+        "name": "Recurse Subdirectories",
+        "displayName": "Recurse Subdirectories",
+        "required": false
+      },
+      {
+        "name": "Keep Source File",
+        "displayName": "Keep Source File",
+        "required": false
+      },
+      {
+        "name": "File Filter",
+        "displayName": "File Filter",
+        "required": false
+      },
+      {
+        "name": "Path Filter",
+        "displayName": "Path Filter",
+        "required": false
+      },
+      {
+        "name": "Minimum File Age",
+        "displayName": "Minimum File Age",
+        "required": false
+      },
+      {
+        "name": "Maximum File Age",
+        "displayName": "Maximum File Age",
+        "required": false
+      },
+      {
+        "name": "Minimum File Size",
+        "displayName": "Minimum File Size",
+        "required": false
+      },
+      {
+        "name": "Maximum File Size",
+        "displayName": "Maximum File Size",
+        "required": false
+      },
+      {
+        "name": "Ignore Hidden Files",
+        "displayName": "Ignore Hidden Files",
+        "required": false
+      },
+      {
+        "name": "Polling Interval",
+        "displayName": "Polling Interval",
+        "required": false
+      },
+      {
+        "name": "Batch Size",
+        "displayName": "Batch Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GetFileResource",
+    "nifiClass": "org.apache.nifi.processors.standard.GetFileResource",
+    "bundle": "nexus-standard-bundle",
+    "label": "GetFileResource",
+    "category": "nexus",
+    "description": "Apache NiFi GetFileResource",
+    "tags": [
+      "test",
+      "file",
+      "generate",
+      "load"
+    ],
+    "properties": [
+      {
+        "name": "File Resource",
+        "displayName": "File Resource",
+        "required": false
+      },
+      {
+        "name": "MIME Type",
+        "displayName": "MIME Type",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GetFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.GetFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "GetFTP",
+    "category": "nexus",
+    "description": "Fetches files from an FTP Server and creates FlowFiles from them",
+    "tags": [
+      "FTP",
+      "get",
+      "retrieve",
+      "files",
+      "fetch",
+      "remote",
+      "ingest",
+      "source",
+      "input"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.GetSFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.GetSFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "GetSFTP",
+    "category": "nexus",
+    "description": "Fetches files from an SFTP Server and creates FlowFiles from them",
+    "tags": [
+      "sftp",
+      "get",
+      "retrieve",
+      "files",
+      "fetch",
+      "remote",
+      "ingest",
+      "source",
+      "input"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.HandleHttpRequest",
+    "nifiClass": "org.apache.nifi.processors.standard.HandleHttpRequest",
+    "bundle": "nexus-standard-bundle",
+    "label": "HandleHttpRequest",
+    "category": "nexus",
+    "description": "Starts an HTTP Server and listens for HTTP Requests. For each request, creates a FlowFile and transfers to 'success'. ",
+    "tags": [
+      "http",
+      "https",
+      "request",
+      "listen",
+      "ingress",
+      "web service"
+    ],
+    "properties": [
+      {
+        "name": "Listening Port",
+        "displayName": "Listening Port",
+        "required": false
+      },
+      {
+        "name": "Hostname",
+        "displayName": "Hostname",
+        "required": false
+      },
+      {
+        "name": "HTTP Context Map",
+        "displayName": "HTTP Context Map",
+        "required": false
+      },
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "HTTP Protocols",
+        "displayName": "HTTP Protocols",
+        "required": false
+      },
+      {
+        "name": "Default URL Character Set",
+        "displayName": "Default URL Character Set",
+        "required": false
+      },
+      {
+        "name": "Allowed Paths",
+        "displayName": "Allowed Paths",
+        "required": false
+      },
+      {
+        "name": "Allow GET",
+        "displayName": "Allow GET",
+        "required": false
+      },
+      {
+        "name": "Allow POST",
+        "displayName": "Allow POST",
+        "required": false
+      },
+      {
+        "name": "Allow PUT",
+        "displayName": "Allow PUT",
+        "required": false
+      },
+      {
+        "name": "Allow DELETE",
+        "displayName": "Allow DELETE",
+        "required": false
+      },
+      {
+        "name": "Allow HEAD",
+        "displayName": "Allow HEAD",
+        "required": false
+      },
+      {
+        "name": "Allow OPTIONS",
+        "displayName": "Allow OPTIONS",
+        "required": false
+      },
+      {
+        "name": "Maximum Threads",
+        "displayName": "Maximum Threads",
+        "required": false
+      },
+      {
+        "name": "Request Header Maximum Size",
+        "displayName": "Request Header Maximum Size",
+        "required": false
+      },
+      {
+        "name": "Additional HTTP Methods",
+        "displayName": "Additional HTTP Methods",
+        "required": false
+      },
+      {
+        "name": "Parameters to Attributes",
+        "displayName": "Parameters to Attributes",
+        "required": false
+      },
+      {
+        "name": "Client Authentication",
+        "displayName": "Client Authentication",
+        "required": false
+      },
+      {
+        "name": "Container Queue Size",
+        "displayName": "Container Queue Size",
+        "required": false
+      },
+      {
+        "name": "Multipart Request Max Size",
+        "displayName": "Multipart Request Max Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.HandleHttpResponse",
+    "nifiClass": "org.apache.nifi.processors.standard.HandleHttpResponse",
+    "bundle": "nexus-standard-bundle",
+    "label": "HandleHttpResponse",
+    "category": "nexus",
+    "description": "Sends an HTTP Response to the Requestor that generated a FlowFile. This Processor is designed to be used in conjunction with ",
+    "tags": [
+      "http",
+      "https",
+      "response",
+      "egress",
+      "web service"
+    ],
+    "properties": [
+      {
+        "name": "HTTP Status Code",
+        "displayName": "HTTP Status Code",
+        "required": false
+      },
+      {
+        "name": "HTTP Context Map",
+        "displayName": "HTTP Context Map",
+        "required": false
+      },
+      {
+        "name": "Attributes for HTTP Response",
+        "displayName": "Attributes for HTTP Response",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.IdentifyMimeType",
+    "nifiClass": "org.apache.nifi.processors.standard.IdentifyMimeType",
+    "bundle": "nexus-standard-bundle",
+    "label": "IdentifyMimeType",
+    "category": "nexus",
+    "description": "Attempts to identify the MIME Type used for a FlowFile. If the MIME Type can be identified, ",
+    "tags": [
+      "compression",
+      "gzip",
+      "bzip2",
+      "zip",
+      "MIME",
+      "mime.type",
+      "file",
+      "identify"
+    ],
+    "properties": [
+      {
+        "name": "Use Filename In Detection",
+        "displayName": "Use Filename In Detection",
+        "required": false
+      },
+      {
+        "name": "Config Strategy",
+        "displayName": "Config Strategy",
+        "required": false
+      },
+      {
+        "name": "Custom MIME Configuration",
+        "displayName": "Custom MIME Configuration",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.InvokeHTTP",
+    "nifiClass": "org.apache.nifi.processors.standard.InvokeHTTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "InvokeHTTP",
+    "category": "nexus",
+    "description": "An HTTP client processor which can interact with a configurable HTTP Endpoint. The destination URL and HTTP Method are configurable.",
+    "tags": [
+      "http",
+      "https",
+      "rest",
+      "client"
+    ],
+    "properties": [
+      {
+        "name": "HTTP Method",
+        "displayName": "HTTP Method",
+        "required": false
+      },
+      {
+        "name": "HTTP URL",
+        "displayName": "HTTP URL",
+        "required": false
+      },
+      {
+        "name": "HTTP/2 Disabled",
+        "displayName": "HTTP/2 Disabled",
+        "required": false
+      },
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "Connection Timeout",
+        "displayName": "Connection Timeout",
+        "required": false
+      },
+      {
+        "name": "Socket Read Timeout",
+        "displayName": "Socket Read Timeout",
+        "required": false
+      },
+      {
+        "name": "Socket Write Timeout",
+        "displayName": "Socket Write Timeout",
+        "required": false
+      },
+      {
+        "name": "Socket Idle Timeout",
+        "displayName": "Socket Idle Timeout",
+        "required": false
+      },
+      {
+        "name": "Socket Idle Connections",
+        "displayName": "Socket Idle Connections",
+        "required": false
+      },
+      {
+        "name": "Request OAuth2 Access Token Provider",
+        "displayName": "Request OAuth2 Access Token Provider",
+        "required": false
+      },
+      {
+        "name": "OAuth2 Access Token Refresh Strategy",
+        "displayName": "OAuth2 Access Token Refresh Strategy",
+        "required": false
+      },
+      {
+        "name": "Request Username",
+        "displayName": "Request Username",
+        "required": false
+      },
+      {
+        "name": "Request Password",
+        "displayName": "Request Password",
+        "required": false
+      },
+      {
+        "name": "Request Digest Authentication Enabled",
+        "displayName": "Request Digest Authentication Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Failure Penalization Enabled",
+        "displayName": "Request Failure Penalization Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Body Enabled",
+        "displayName": "Request Body Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Multipart Form-Data Name",
+        "displayName": "Request Multipart Form-Data Name",
+        "required": false
+      },
+      {
+        "name": "Request Multipart Form-Data Filename Enabled",
+        "displayName": "Request Multipart Form-Data Filename Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Chunked Transfer-Encoding Enabled",
+        "displayName": "Request Chunked Transfer-Encoding Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Content-Encoding",
+        "displayName": "Request Content-Encoding",
+        "required": false
+      },
+      {
+        "name": "Request Content-Type",
+        "displayName": "Request Content-Type",
+        "required": false
+      },
+      {
+        "name": "Request Date Header Enabled",
+        "displayName": "Request Date Header Enabled",
+        "required": false
+      },
+      {
+        "name": "Request Header Attributes Pattern",
+        "displayName": "Request Header Attributes Pattern",
+        "required": false
+      },
+      {
+        "name": "Request User-Agent",
+        "displayName": "Request User-Agent",
+        "required": false
+      },
+      {
+        "name": "Response Body Attribute Name",
+        "displayName": "Response Body Attribute Name",
+        "required": false
+      },
+      {
+        "name": "Response Body Attribute Size",
+        "displayName": "Response Body Attribute Size",
+        "required": false
+      },
+      {
+        "name": "Response Body Ignored",
+        "displayName": "Response Body Ignored",
+        "required": false
+      },
+      {
+        "name": "Response Cache Enabled",
+        "displayName": "Response Cache Enabled",
+        "required": false
+      },
+      {
+        "name": "Response Cache Size",
+        "displayName": "Response Cache Size",
+        "required": false
+      },
+      {
+        "name": "Response Cookie Strategy",
+        "displayName": "Response Cookie Strategy",
+        "required": false
+      },
+      {
+        "name": "Response Generation Required",
+        "displayName": "Response Generation Required",
+        "required": false
+      },
+      {
+        "name": "Response FlowFile Naming Strategy",
+        "displayName": "Response FlowFile Naming Strategy",
+        "required": false
+      },
+      {
+        "name": "Response Header Request Attributes Enabled",
+        "displayName": "Response Header Request Attributes Enabled",
+        "required": false
+      },
+      {
+        "name": "Response Header Request Attributes Prefix",
+        "displayName": "Response Header Request Attributes Prefix",
+        "required": false
+      },
+      {
+        "name": "Response Redirects Enabled",
+        "displayName": "Response Redirects Enabled",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.JoinEnrichment",
+    "nifiClass": "org.apache.nifi.processors.standard.JoinEnrichment",
+    "bundle": "nexus-standard-bundle",
+    "label": "JoinEnrichment",
+    "category": "nexus",
+    "description": "Joins together Records from two different FlowFiles where one FlowFile, the 'original' contains arbitrary records and the second FlowFile, the 'enrichment' contains ",
+    "tags": [
+      "fork",
+      "join",
+      "enrichment",
+      "record",
+      "sql",
+      "wrap",
+      "recordpath",
+      "merge",
+      "combine",
+      "streams"
+    ],
+    "properties": [
+      {
+        "name": "Original Record Reader",
+        "displayName": "Original Record Reader",
+        "required": false
+      },
+      {
+        "name": "Enrichment Record Reader",
+        "displayName": "Enrichment Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Join Strategy",
+        "displayName": "Join Strategy",
+        "required": false
+      },
+      {
+        "name": "SQL",
+        "displayName": "SQL",
+        "required": false
+      },
+      {
+        "name": "Insertion Record Path",
+        "displayName": "Insertion Record Path",
+        "required": false
+      },
+      {
+        "name": "Timeout",
+        "displayName": "Timeout",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListDatabaseTables",
+    "nifiClass": "org.apache.nifi.processors.standard.ListDatabaseTables",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListDatabaseTables",
+    "category": "nexus",
+    "description": "Generates a set of FlowFiles, each containing attributes corresponding to metadata about a table from a database connection. Once ",
+    "tags": [
+      "sql",
+      "list",
+      "jdbc",
+      "table",
+      "database"
+    ],
+    "properties": [
+      {
+        "name": "Database Connection Pooling Service",
+        "displayName": "Database Connection Pooling Service",
+        "required": false
+      },
+      {
+        "name": "Catalog",
+        "displayName": "Catalog",
+        "required": false
+      },
+      {
+        "name": "Schema Pattern",
+        "displayName": "Schema Pattern",
+        "required": false
+      },
+      {
+        "name": "Table Name Pattern",
+        "displayName": "Table Name Pattern",
+        "required": false
+      },
+      {
+        "name": "Table Types",
+        "displayName": "Table Types",
+        "required": false
+      },
+      {
+        "name": "Include Count",
+        "displayName": "Include Count",
+        "required": false
+      },
+      {
+        "name": "Refresh Interval",
+        "displayName": "Refresh Interval",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenFTP",
+    "category": "nexus",
+    "description": "Starts an FTP server that listens on the specified port and transforms incoming files into FlowFiles. ",
+    "tags": [
+      "ingest",
+      "FTP",
+      "FTPS",
+      "listen"
+    ],
+    "properties": [
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "Address",
+        "displayName": "Address",
+        "required": false
+      },
+      {
+        "name": "Port",
+        "displayName": "Port",
+        "required": false
+      },
+      {
+        "name": "Username",
+        "displayName": "Username",
+        "required": false
+      },
+      {
+        "name": "Password",
+        "displayName": "Password",
+        "required": false
+      },
+      {
+        "name": "Passive Port Selection",
+        "displayName": "Passive Port Selection",
+        "required": false
+      },
+      {
+        "name": "Passive Port Range",
+        "displayName": "Passive Port Range",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenHTTP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenHTTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenHTTP",
+    "category": "nexus",
+    "description": "Apache NiFi ListenHTTP",
+    "tags": [
+      "ingest",
+      "http",
+      "https",
+      "rest",
+      "listen"
+    ],
+    "properties": [
+      {
+        "name": "Base Path",
+        "displayName": "Base Path",
+        "required": false
+      },
+      {
+        "name": "Listening Port",
+        "displayName": "Listening Port",
+        "required": false
+      },
+      {
+        "name": "Listening Port for Health Check Requests",
+        "displayName": "Listening Port for Health Check Requests",
+        "required": false
+      },
+      {
+        "name": "Authorized Subject DN Pattern",
+        "displayName": "Authorized Subject DN Pattern",
+        "required": false
+      },
+      {
+        "name": "Authorized Issuer DN Pattern",
+        "displayName": "Authorized Issuer DN Pattern",
+        "required": false
+      },
+      {
+        "name": "Max Unconfirmed Flowfile Time",
+        "displayName": "Max Unconfirmed Flowfile Time",
+        "required": false
+      },
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "HTTP Protocols",
+        "displayName": "HTTP Protocols",
+        "required": false
+      },
+      {
+        "name": "HTTP Headers for Attributes",
+        "displayName": "HTTP Headers for Attributes",
+        "required": false
+      },
+      {
+        "name": "Request Header Maximum Size",
+        "displayName": "Request Header Maximum Size",
+        "required": false
+      },
+      {
+        "name": "Return Code",
+        "displayName": "Return Code",
+        "required": false
+      },
+      {
+        "name": "Multipart Request Max Size",
+        "displayName": "Multipart Request Max Size",
+        "required": false
+      },
+      {
+        "name": "Multipart Read Buffer Size",
+        "displayName": "Multipart Read Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Client Authentication",
+        "displayName": "Client Authentication",
+        "required": false
+      },
+      {
+        "name": "Maximum Thread Pool Size",
+        "displayName": "Maximum Thread Pool Size",
+        "required": false
+      },
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenSyslog",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenSyslog",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenSyslog",
+    "category": "nexus",
+    "description": "Listens for Syslog messages being sent to a given port over TCP or UDP. Incoming messages are checked against regular ",
+    "tags": [
+      "syslog",
+      "listen",
+      "udp",
+      "tcp",
+      "logs"
+    ],
+    "properties": [
+      {
+        "name": "TCP Port",
+        "displayName": "TCP Port",
+        "required": false
+      },
+      {
+        "name": "UDP Port",
+        "displayName": "UDP Port",
+        "required": false
+      },
+      {
+        "name": "Max Size of Message Queue",
+        "displayName": "Max Size of Message Queue",
+        "required": false
+      },
+      {
+        "name": "Receive Buffer Size",
+        "displayName": "Receive Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Max Size of Socket Buffer",
+        "displayName": "Max Size of Socket Buffer",
+        "required": false
+      },
+      {
+        "name": "Worker Threads",
+        "displayName": "Worker Threads",
+        "required": false
+      },
+      {
+        "name": "Max Batch Size",
+        "displayName": "Max Batch Size",
+        "required": false
+      },
+      {
+        "name": "Message Delimiter",
+        "displayName": "Message Delimiter",
+        "required": false
+      },
+      {
+        "name": "Parse Messages",
+        "displayName": "Parse Messages",
+        "required": false
+      },
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "Client Auth",
+        "displayName": "Client Auth",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenTCP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenTCP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenTCP",
+    "category": "nexus",
+    "description": "Listens for incoming TCP connections and reads data from each connection using a line separator ",
+    "tags": [
+      "listen",
+      "tcp",
+      "tls",
+      "ssl"
+    ],
+    "properties": [
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      },
+      {
+        "name": "Client Auth",
+        "displayName": "Client Auth",
+        "required": false
+      },
+      {
+        "name": "Pool Receive Buffers",
+        "displayName": "Pool Receive Buffers",
+        "required": false
+      },
+      {
+        "name": "Idle Connection Timeout",
+        "displayName": "Idle Connection Timeout",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenUDP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenUDP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenUDP",
+    "category": "nexus",
+    "description": "Listens for Datagram Packets on a given port. The default behavior produces a FlowFile ",
+    "tags": [
+      "ingest",
+      "udp",
+      "listen",
+      "source"
+    ],
+    "properties": [
+      {
+        "name": "Sending Host",
+        "displayName": "Sending Host",
+        "required": false
+      },
+      {
+        "name": "Sending Host Port",
+        "displayName": "Sending Host Port",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListenUDPRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.ListenUDPRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListenUDPRecord",
+    "category": "nexus",
+    "description": "Listens for Datagram Packets on a given port and reads the content of each datagram using the ",
+    "tags": [
+      "ingest",
+      "udp",
+      "listen",
+      "source",
+      "record"
+    ],
+    "properties": [
+      {
+        "name": "Sending Host",
+        "displayName": "Sending Host",
+        "required": false
+      },
+      {
+        "name": "Sending Host Port",
+        "displayName": "Sending Host Port",
+        "required": false
+      },
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Poll Timeout",
+        "displayName": "Poll Timeout",
+        "required": false
+      },
+      {
+        "name": "Batch Size",
+        "displayName": "Batch Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListFile",
+    "nifiClass": "org.apache.nifi.processors.standard.ListFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListFile",
+    "category": "nexus",
+    "description": "Retrieves a listing of files from the input directory. For each file listed, creates a FlowFile ",
+    "tags": [
+      "file",
+      "get",
+      "list",
+      "ingest",
+      "source",
+      "filesystem"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListFTP",
+    "category": "nexus",
+    "description": "Performs a listing of the files residing on an FTP server. For each file that is found on the remote server, a new FlowFile will be created with the filename attribute ",
+    "tags": [
+      "list",
+      "ftp",
+      "remote",
+      "ingest",
+      "source",
+      "input",
+      "files"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ListSFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.ListSFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "ListSFTP",
+    "category": "nexus",
+    "description": "Performs a listing of the files residing on an SFTP server. For each file that is found on the remote server, a new FlowFile will be created with the filename attribute ",
+    "tags": [
+      "list",
+      "sftp",
+      "remote",
+      "ingest",
+      "source",
+      "input",
+      "files"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.LogAttribute",
+    "nifiClass": "org.apache.nifi.processors.standard.LogAttribute",
+    "bundle": "nexus-standard-bundle",
+    "label": "LogAttribute",
+    "category": "nexus",
+    "description": "Emits attributes of the FlowFile at the specified log level",
+    "tags": [
+      "attributes",
+      "logging"
+    ],
+    "properties": [
+      {
+        "name": "Log Level",
+        "displayName": "Log Level",
+        "required": false
+      },
+      {
+        "name": "Attributes to Log",
+        "displayName": "Attributes to Log",
+        "required": false
+      },
+      {
+        "name": "Attributes to Log Regular Expression",
+        "displayName": "Attributes to Log Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Attributes to Ignore",
+        "displayName": "Attributes to Ignore",
+        "required": false
+      },
+      {
+        "name": "Attributes to Ignore Regular Expression",
+        "displayName": "Attributes to Ignore Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Output Format",
+        "displayName": "Output Format",
+        "required": false
+      },
+      {
+        "name": "Log Payload",
+        "displayName": "Log Payload",
+        "required": false
+      },
+      {
+        "name": "Log FlowFile Properties",
+        "displayName": "Log FlowFile Properties",
+        "required": false
+      },
+      {
+        "name": "Log Prefix",
+        "displayName": "Log Prefix",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.LogMessage",
+    "nifiClass": "org.apache.nifi.processors.standard.LogMessage",
+    "bundle": "nexus-standard-bundle",
+    "label": "LogMessage",
+    "category": "nexus",
+    "description": "Emits a log message at the specified log level",
+    "tags": [
+      "attributes",
+      "logging"
+    ],
+    "properties": [
+      {
+        "name": "Log Level",
+        "displayName": "Log Level",
+        "required": false
+      },
+      {
+        "name": "Log Prefix",
+        "displayName": "Log Prefix",
+        "required": false
+      },
+      {
+        "name": "Log Message",
+        "displayName": "Log Message",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.LookupAttribute",
+    "nifiClass": "org.apache.nifi.processors.standard.LookupAttribute",
+    "bundle": "nexus-standard-bundle",
+    "label": "LookupAttribute",
+    "category": "nexus",
+    "description": "Lookup attributes from a lookup service",
+    "tags": [
+      "lookup",
+      "cache",
+      "enrich",
+      "join",
+      "attributes",
+      "Attribute Expression Language"
+    ],
+    "properties": [
+      {
+        "name": "Lookup Service",
+        "displayName": "Lookup Service",
+        "required": false
+      },
+      {
+        "name": "Include Empty Values",
+        "displayName": "Include Empty Values",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.LookupRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.LookupRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "LookupRecord",
+    "category": "nexus",
+    "description": "Extracts one or more fields from a Record and looks up a value for those fields in a LookupService. If a result is returned by the LookupService, ",
+    "tags": [
+      "lookup",
+      "enrichment",
+      "route",
+      "record",
+      "csv",
+      "json",
+      "avro",
+      "database",
+      "db",
+      "logs",
+      "convert",
+      "filter"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Lookup Service",
+        "displayName": "Lookup Service",
+        "required": false
+      },
+      {
+        "name": "Root Record Path",
+        "displayName": "Root Record Path",
+        "required": false
+      },
+      {
+        "name": "Record Result Contents",
+        "displayName": "Record Result Contents",
+        "required": false
+      },
+      {
+        "name": "Routing Strategy",
+        "displayName": "Routing Strategy",
+        "required": false
+      },
+      {
+        "name": "Record Update Strategy",
+        "displayName": "Record Update Strategy",
+        "required": false
+      },
+      {
+        "name": "Result RecordPath",
+        "displayName": "Result RecordPath",
+        "required": false
+      },
+      {
+        "name": "Cache Size",
+        "displayName": "Cache Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.MergeContent",
+    "nifiClass": "org.apache.nifi.processors.standard.MergeContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "MergeContent",
+    "category": "nexus",
+    "description": "Merges a Group of FlowFiles together based on a user-defined strategy and packages them into a single FlowFile. ",
+    "tags": [
+      "merge",
+      "content",
+      "correlation",
+      "tar",
+      "zip",
+      "stream",
+      "concatenation",
+      "archive",
+      "flowfile-stream",
+      "flowfile-stream-v3"
+    ],
+    "properties": [
+      {
+        "name": "Merge Strategy",
+        "displayName": "Merge Strategy",
+        "required": false
+      },
+      {
+        "name": "Correlation Attribute Name",
+        "displayName": "Correlation Attribute Name",
+        "required": false
+      },
+      {
+        "name": "Header",
+        "displayName": "Header",
+        "required": false
+      },
+      {
+        "name": "Footer",
+        "displayName": "Footer",
+        "required": false
+      },
+      {
+        "name": "Demarcator",
+        "displayName": "Demarcator",
+        "required": false
+      },
+      {
+        "name": "Compression Level",
+        "displayName": "Compression Level",
+        "required": false
+      },
+      {
+        "name": "Keep Path",
+        "displayName": "Keep Path",
+        "required": false
+      },
+      {
+        "name": "Tar Modified Time",
+        "displayName": "Tar Modified Time",
+        "required": false
+      },
+      {
+        "name": "Bin Termination Check",
+        "displayName": "Bin Termination Check",
+        "required": false
+      },
+      {
+        "name": "FlowFile Insertion Strategy",
+        "displayName": "FlowFile Insertion Strategy",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "merged"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.merge_content.MergeContentProcessor"
+  },
+  {
+    "processorId": "nifi.MergeRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.MergeRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "MergeRecord",
+    "category": "nexus",
+    "description": "This Processor merges together multiple record-oriented FlowFiles into a single FlowFile that contains all of the Records of the input FlowFiles. ",
+    "tags": [
+      "merge",
+      "record",
+      "content",
+      "correlation",
+      "stream",
+      "event"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Merge Strategy",
+        "displayName": "Merge Strategy",
+        "required": false
+      },
+      {
+        "name": "Correlation Attribute Name",
+        "displayName": "Correlation Attribute Name",
+        "required": false
+      },
+      {
+        "name": "Minimum Bin Size",
+        "displayName": "Minimum Bin Size",
+        "required": false
+      },
+      {
+        "name": "Maximum Bin Size",
+        "displayName": "Maximum Bin Size",
+        "required": false
+      },
+      {
+        "name": "Minimum Number of Records",
+        "displayName": "Minimum Number of Records",
+        "required": false
+      },
+      {
+        "name": "Maximum Number of Records",
+        "displayName": "Maximum Number of Records",
+        "required": false
+      },
+      {
+        "name": "Maximum Number of Bins",
+        "displayName": "Maximum Number of Bins",
+        "required": false
+      },
+      {
+        "name": "Max Bin Age",
+        "displayName": "Max Bin Age",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ModifyBytes",
+    "nifiClass": "org.apache.nifi.processors.standard.ModifyBytes",
+    "bundle": "nexus-standard-bundle",
+    "label": "ModifyBytes",
+    "category": "nexus",
+    "description": "Discard byte range at the start and end or all content of a binary file.",
+    "tags": [
+      "binary",
+      "discard",
+      "keep"
+    ],
+    "properties": [
+      {
+        "name": "Start Offset",
+        "displayName": "Start Offset",
+        "required": false
+      },
+      {
+        "name": "End Offset",
+        "displayName": "End Offset",
+        "required": false
+      },
+      {
+        "name": "Remove All Content",
+        "displayName": "Remove All Content",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.MonitorActivity",
+    "nifiClass": "org.apache.nifi.processors.standard.MonitorActivity",
+    "bundle": "nexus-standard-bundle",
+    "label": "MonitorActivity",
+    "category": "nexus",
+    "description": "Monitors the flow for activity and sends out an indicator when the flow has not had any data for ",
+    "tags": [
+      "monitor",
+      "flow",
+      "active",
+      "inactive",
+      "activity",
+      "detection"
+    ],
+    "properties": [
+      {
+        "name": "Threshold Duration",
+        "displayName": "Threshold Duration",
+        "required": false
+      },
+      {
+        "name": "Continually Send Messages",
+        "displayName": "Continually Send Messages",
+        "required": false
+      },
+      {
+        "name": "Activity Restored Message",
+        "displayName": "Activity Restored Message",
+        "required": false
+      },
+      {
+        "name": "Wait for Activity",
+        "displayName": "Wait for Activity",
+        "required": false
+      },
+      {
+        "name": "Reset State on Restart",
+        "displayName": "Reset State on Restart",
+        "required": false
+      },
+      {
+        "name": "Inactivity Message",
+        "displayName": "Inactivity Message",
+        "required": false
+      },
+      {
+        "name": "Copy Attributes",
+        "displayName": "Copy Attributes",
+        "required": false
+      },
+      {
+        "name": "Monitoring Scope",
+        "displayName": "Monitoring Scope",
+        "required": false
+      },
+      {
+        "name": "Reporting Node",
+        "displayName": "Reporting Node",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.Notify",
+    "nifiClass": "org.apache.nifi.processors.standard.Notify",
+    "bundle": "nexus-standard-bundle",
+    "label": "Notify",
+    "category": "nexus",
+    "description": "Caches a release signal identifier in the cache, optionally along with ",
+    "tags": [
+      "map",
+      "cache",
+      "notify",
+      "distributed",
+      "signal",
+      "release"
+    ],
+    "properties": [
+      {
+        "name": "Distributed Cache Service",
+        "displayName": "Distributed Cache Service",
+        "required": false
+      },
+      {
+        "name": "Release Signal Identifier",
+        "displayName": "Release Signal Identifier",
+        "required": false
+      },
+      {
+        "name": "Signal Counter Name",
+        "displayName": "Signal Counter Name",
+        "required": false
+      },
+      {
+        "name": "Signal Counter Delta",
+        "displayName": "Signal Counter Delta",
+        "required": false
+      },
+      {
+        "name": "Signal Buffer Count",
+        "displayName": "Signal Buffer Count",
+        "required": false
+      },
+      {
+        "name": "Attribute Cache Regular Expression",
+        "displayName": "Attribute Cache Regular Expression",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PackageFlowFile",
+    "nifiClass": "org.apache.nifi.processors.standard.PackageFlowFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "PackageFlowFile",
+    "category": "nexus",
+    "description": "This processor will package FlowFile attributes and content into an output FlowFile that can be exported from NiFi",
+    "tags": [
+      "flowfile",
+      "flowfile-stream",
+      "flowfile-stream-v3",
+      "package",
+      "attributes"
+    ],
+    "properties": [
+      {
+        "name": "Maximum Batch Size",
+        "displayName": "Maximum Batch Size",
+        "required": false
+      },
+      {
+        "name": "Maximum Batch Content Size",
+        "displayName": "Maximum Batch Content Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ParseSyslog",
+    "nifiClass": "org.apache.nifi.processors.standard.ParseSyslog",
+    "bundle": "nexus-standard-bundle",
+    "label": "ParseSyslog",
+    "category": "nexus",
+    "description": "Attempts to parses the contents of a Syslog message in accordance to RFC5424 and RFC3164 ",
+    "tags": [
+      "logs",
+      "syslog",
+      "attributes",
+      "system",
+      "event",
+      "message"
+    ],
+    "properties": [
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ParseSyslog5424",
+    "nifiClass": "org.apache.nifi.processors.standard.ParseSyslog5424",
+    "bundle": "nexus-standard-bundle",
+    "label": "ParseSyslog5424",
+    "category": "nexus",
+    "description": "Attempts to parse the contents of a well formed Syslog message in accordance to RFC5424 ",
+    "tags": [
+      "logs",
+      "syslog",
+      "syslog5424",
+      "attributes",
+      "system",
+      "event",
+      "message"
+    ],
+    "properties": [
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "NIL Policy",
+        "displayName": "NIL Policy",
+        "required": false
+      },
+      {
+        "name": "Include Message Body in Attributes",
+        "displayName": "Include Message Body in Attributes",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PartitionRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.PartitionRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "PartitionRecord",
+    "category": "nexus",
+    "description": "Splits, or partitions, record-oriented data based on the configured fields in the data. One or more properties must be added. The name of the property is the name ",
+    "tags": [
+      "record",
+      "partition",
+      "recordpath",
+      "rpath",
+      "segment",
+      "split",
+      "group",
+      "bin",
+      "organize"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutDatabaseRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.PutDatabaseRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutDatabaseRecord",
+    "category": "nexus",
+    "description": "The PutDatabaseRecord processor uses a specified RecordReader to input (possibly multiple) records from an incoming FlowFile. These records are translated to SQL ",
+    "tags": [
+      "sql",
+      "record",
+      "jdbc",
+      "put",
+      "database",
+      "update",
+      "insert",
+      "delete"
+    ],
+    "properties": [
+      {
+        "name": "Database Session AutoCommit",
+        "displayName": "Database Session AutoCommit",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutDistributedMapCache",
+    "nifiClass": "org.apache.nifi.processors.standard.PutDistributedMapCache",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutDistributedMapCache",
+    "category": "nexus",
+    "description": "Gets the content of a FlowFile and puts it to a map cache, using a cache key ",
+    "tags": [
+      "map",
+      "cache",
+      "put",
+      "distributed"
+    ],
+    "properties": [
+      {
+        "name": "Distributed Cache Service",
+        "displayName": "Distributed Cache Service",
+        "required": false
+      },
+      {
+        "name": "Cache Entry Identifier",
+        "displayName": "Cache Entry Identifier",
+        "required": false
+      },
+      {
+        "name": "Cache Update Strategy",
+        "displayName": "Cache Update Strategy",
+        "required": false
+      },
+      {
+        "name": "Max Cache Size",
+        "displayName": "Max Cache Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutEmail",
+    "nifiClass": "org.apache.nifi.processors.standard.PutEmail",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutEmail",
+    "category": "nexus",
+    "description": "Sends an e-mail to configured recipients for each incoming FlowFile",
+    "tags": [
+      "email",
+      "put",
+      "notify",
+      "smtp"
+    ],
+    "properties": [
+      {
+        "name": "SMTP Hostname",
+        "displayName": "SMTP Hostname",
+        "required": false
+      },
+      {
+        "name": "SMTP Port",
+        "displayName": "SMTP Port",
+        "required": false
+      },
+      {
+        "name": "Authorization Mode",
+        "displayName": "Authorization Mode",
+        "required": false
+      },
+      {
+        "name": "OAuth2 Access Token Provider",
+        "displayName": "OAuth2 Access Token Provider",
+        "required": false
+      },
+      {
+        "name": "SMTP Username",
+        "displayName": "SMTP Username",
+        "required": false
+      },
+      {
+        "name": "SMTP Password",
+        "displayName": "SMTP Password",
+        "required": false
+      },
+      {
+        "name": "SMTP Auth",
+        "displayName": "SMTP Auth",
+        "required": false
+      },
+      {
+        "name": "SMTP START TLS",
+        "displayName": "SMTP START TLS",
+        "required": false
+      },
+      {
+        "name": "SMTP Socket Factory",
+        "displayName": "SMTP Socket Factory",
+        "required": false
+      },
+      {
+        "name": "SMTP X-Mailer Header",
+        "displayName": "SMTP X-Mailer Header",
+        "required": false
+      },
+      {
+        "name": "Attributes to Send as Headers Regular Expression",
+        "displayName": "Attributes to Send as Headers Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Content Type",
+        "displayName": "Content Type",
+        "required": false
+      },
+      {
+        "name": "From",
+        "displayName": "From",
+        "required": false
+      },
+      {
+        "name": "To",
+        "displayName": "To",
+        "required": false
+      },
+      {
+        "name": "CC",
+        "displayName": "CC",
+        "required": false
+      },
+      {
+        "name": "BCC",
+        "displayName": "BCC",
+        "required": false
+      },
+      {
+        "name": "Reply-To",
+        "displayName": "Reply-To",
+        "required": false
+      },
+      {
+        "name": "Subject",
+        "displayName": "Subject",
+        "required": false
+      },
+      {
+        "name": "Message",
+        "displayName": "Message",
+        "required": false
+      },
+      {
+        "name": "Attach File",
+        "displayName": "Attach File",
+        "required": false
+      },
+      {
+        "name": "FlowFile Content as Message",
+        "displayName": "FlowFile Content as Message",
+        "required": false
+      },
+      {
+        "name": "Include All Attributes In Message",
+        "displayName": "Include All Attributes In Message",
+        "required": false
+      },
+      {
+        "name": "Input Character Set",
+        "displayName": "Input Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutFile",
+    "nifiClass": "org.apache.nifi.processors.standard.PutFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutFile",
+    "category": "nexus",
+    "description": "Writes the contents of a FlowFile to the local file system",
+    "tags": [
+      "put",
+      "local",
+      "copy",
+      "archive",
+      "files",
+      "filesystem"
+    ],
+    "properties": [
+      {
+        "name": "Directory",
+        "displayName": "Directory",
+        "required": false
+      },
+      {
+        "name": "Maximum File Count",
+        "displayName": "Maximum File Count",
+        "required": false
+      },
+      {
+        "name": "Conflict Resolution Strategy",
+        "displayName": "Conflict Resolution Strategy",
+        "required": false
+      },
+      {
+        "name": "Last Modified Time",
+        "displayName": "Last Modified Time",
+        "required": false
+      },
+      {
+        "name": "Permissions",
+        "displayName": "Permissions",
+        "required": false
+      },
+      {
+        "name": "Owner",
+        "displayName": "Owner",
+        "required": false
+      },
+      {
+        "name": "Group",
+        "displayName": "Group",
+        "required": false
+      },
+      {
+        "name": "Create Missing Directories",
+        "displayName": "Create Missing Directories",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.PutFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutFTP",
+    "category": "nexus",
+    "description": "Sends FlowFiles to an FTP Server",
+    "tags": [
+      "remote",
+      "copy",
+      "egress",
+      "put",
+      "ftp",
+      "archive",
+      "files"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.PutRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutRecord",
+    "category": "nexus",
+    "description": "The PutRecord processor uses a specified RecordReader to input (possibly multiple) records from an incoming FlowFile, and sends them ",
+    "tags": [
+      "record",
+      "put",
+      "sink"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Destination Service",
+        "displayName": "Record Destination Service",
+        "required": false
+      },
+      {
+        "name": "Include Zero Record Results",
+        "displayName": "Include Zero Record Results",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutSFTP",
+    "nifiClass": "org.apache.nifi.processors.standard.PutSFTP",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutSFTP",
+    "category": "nexus",
+    "description": "Sends FlowFiles to an SFTP Server",
+    "tags": [
+      "remote",
+      "copy",
+      "egress",
+      "put",
+      "sftp",
+      "archive",
+      "files"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutSQL",
+    "nifiClass": "org.apache.nifi.processors.standard.PutSQL",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutSQL",
+    "category": "nexus",
+    "description": "Executes a SQL UPDATE or INSERT command. The content of an incoming FlowFile is expected to be the SQL command ",
+    "tags": [
+      "sql",
+      "put",
+      "rdbms",
+      "database",
+      "update",
+      "insert",
+      "relational"
+    ],
+    "properties": [
+      {
+        "name": "JDBC Connection Pool",
+        "displayName": "JDBC Connection Pool",
+        "required": false
+      },
+      {
+        "name": "SQL Statement",
+        "displayName": "SQL Statement",
+        "required": false
+      },
+      {
+        "name": "Database Session AutoCommit",
+        "displayName": "Database Session AutoCommit",
+        "required": false
+      },
+      {
+        "name": "Support Fragmented Transactions",
+        "displayName": "Support Fragmented Transactions",
+        "required": false
+      },
+      {
+        "name": "Transaction Timeout",
+        "displayName": "Transaction Timeout",
+        "required": false
+      },
+      {
+        "name": "Batch Size",
+        "displayName": "Batch Size",
+        "required": false
+      },
+      {
+        "name": "Obtain Generated Keys",
+        "displayName": "Obtain Generated Keys",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutSyslog",
+    "nifiClass": "org.apache.nifi.processors.standard.PutSyslog",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutSyslog",
+    "category": "nexus",
+    "description": "Sends Syslog messages to a given host and port over TCP or UDP. Messages are constructed from the \\",
+    "tags": [
+      "syslog",
+      "put",
+      "udp",
+      "tcp",
+      "logs"
+    ],
+    "properties": [
+      {
+        "name": "Hostname",
+        "displayName": "Hostname",
+        "required": false
+      },
+      {
+        "name": "Max Size of Socket Send Buffer",
+        "displayName": "Max Size of Socket Send Buffer",
+        "required": false
+      },
+      {
+        "name": "SSL Context Service",
+        "displayName": "SSL Context Service",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutTCP",
+    "nifiClass": "org.apache.nifi.processors.standard.PutTCP",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutTCP",
+    "category": "nexus",
+    "description": "Sends serialized FlowFiles or Records over TCP to a configurable destination with optional support for TLS",
+    "tags": [
+      "remote",
+      "egress",
+      "put",
+      "tcp"
+    ],
+    "properties": [
+      {
+        "name": "Transmission Strategy",
+        "displayName": "Transmission Strategy",
+        "required": false
+      },
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.PutUDP",
+    "nifiClass": "org.apache.nifi.processors.standard.PutUDP",
+    "bundle": "nexus-standard-bundle",
+    "label": "PutUDP",
+    "category": "nexus",
+    "description": "The PutUDP processor receives a FlowFile and packages the FlowFile content into a single UDP datagram packet which is then transmitted to the configured UDP server. ",
+    "tags": [
+      "remote",
+      "egress",
+      "put",
+      "udp"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.QueryDatabaseTable",
+    "nifiClass": "org.apache.nifi.processors.standard.QueryDatabaseTable",
+    "bundle": "nexus-standard-bundle",
+    "label": "QueryDatabaseTable",
+    "category": "nexus",
+    "description": "Generates a SQL select query, or uses a provided statement, and executes it to fetch all rows whose values in the specified ",
+    "tags": [
+      "sql",
+      "select",
+      "jdbc",
+      "query",
+      "database"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.QueryDatabaseTableRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.QueryDatabaseTableRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "QueryDatabaseTableRecord",
+    "category": "nexus",
+    "description": "Generates a SQL select query, or uses a provided statement, and executes it to fetch all rows whose values in the specified ",
+    "tags": [
+      "sql",
+      "select",
+      "jdbc",
+      "query",
+      "database",
+      "record"
+    ],
+    "properties": [
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Normalize Table/Column Names",
+        "displayName": "Normalize Table/Column Names",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.QueryRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.QueryRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "QueryRecord",
+    "category": "nexus",
+    "description": "Evaluates one or more SQL queries against the contents of a FlowFile. The result of the ",
+    "tags": [
+      "sql",
+      "query",
+      "calcite",
+      "route",
+      "record",
+      "transform",
+      "select",
+      "update",
+      "modify",
+      "etl",
+      "filter",
+      "record",
+      "csv",
+      "json",
+      "logs",
+      "text",
+      "avro",
+      "aggregate"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Include Zero Record FlowFiles",
+        "displayName": "Include Zero Record FlowFiles",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.query_record.QueryRecordProcessor"
+  },
+  {
+    "processorId": "nifi.RemoveRecordField",
+    "nifiClass": "org.apache.nifi.processors.standard.RemoveRecordField",
+    "bundle": "nexus-standard-bundle",
+    "label": "RemoveRecordField",
+    "category": "nexus",
+    "description": "Modifies the contents of a FlowFile that contains Record-oriented data (i.e. data that can be read via a RecordReader and written by a RecordWriter) ",
+    "tags": [
+      "update",
+      "record",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "freeform",
+      "text",
+      "remove",
+      "delete"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.RenameRecordField",
+    "nifiClass": "org.apache.nifi.processors.standard.RenameRecordField",
+    "bundle": "nexus-standard-bundle",
+    "label": "RenameRecordField",
+    "category": "nexus",
+    "description": "Renames one or more fields in each Record of a FlowFile. ",
+    "tags": [
+      "update",
+      "record",
+      "rename",
+      "field",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "log",
+      "logs"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ReplaceText",
+    "nifiClass": "org.apache.nifi.processors.standard.ReplaceText",
+    "bundle": "nexus-standard-bundle",
+    "label": "ReplaceText",
+    "category": "nexus",
+    "description": "Updates the content of a FlowFile by searching for some textual value in the FlowFile content (via Regular Expression/regex, or literal value) and replacing the ",
+    "tags": [
+      "Text",
+      "Regular Expression",
+      "Update",
+      "Change",
+      "Replace",
+      "Modify",
+      "Regex"
+    ],
+    "properties": [
+      {
+        "name": "Replacement Strategy",
+        "displayName": "Replacement Strategy",
+        "required": false
+      },
+      {
+        "name": "Search Value",
+        "displayName": "Search Value",
+        "required": false
+      },
+      {
+        "name": "Replacement Value",
+        "displayName": "Replacement Value",
+        "required": false
+      },
+      {
+        "name": "Text to Prepend",
+        "displayName": "Text to Prepend",
+        "required": false
+      },
+      {
+        "name": "Text to Append",
+        "displayName": "Text to Append",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Maximum Buffer Size",
+        "displayName": "Maximum Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Evaluation Mode",
+        "displayName": "Evaluation Mode",
+        "required": false
+      },
+      {
+        "name": "Line-by-Line Evaluation Mode",
+        "displayName": "Line-by-Line Evaluation Mode",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.replace_text.ReplaceTextProcessor"
+  },
+  {
+    "processorId": "nifi.ReplaceTextWithMapping",
+    "nifiClass": "org.apache.nifi.processors.standard.ReplaceTextWithMapping",
+    "bundle": "nexus-standard-bundle",
+    "label": "ReplaceTextWithMapping",
+    "category": "nexus",
+    "description": "Apache NiFi ReplaceTextWithMapping",
+    "tags": [
+      "Text",
+      "Regular Expression",
+      "Update",
+      "Change",
+      "Replace",
+      "Modify",
+      "Regex",
+      "Mapping"
+    ],
+    "properties": [
+      {
+        "name": "Regular Expression",
+        "displayName": "Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Matching Group",
+        "displayName": "Matching Group",
+        "required": false
+      },
+      {
+        "name": "Mapping File",
+        "displayName": "Mapping File",
+        "required": false
+      },
+      {
+        "name": "Mapping File Refresh Interval",
+        "displayName": "Mapping File Refresh Interval",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      },
+      {
+        "name": "Maximum Buffer Size",
+        "displayName": "Maximum Buffer Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.RetryFlowFile",
+    "nifiClass": "org.apache.nifi.processors.standard.RetryFlowFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "RetryFlowFile",
+    "category": "nexus",
+    "description": "FlowFiles passed to this Processor have a 'Retry Attribute' value checked against a ",
+    "tags": [
+      "Retry",
+      "FlowFile"
+    ],
+    "properties": [
+      {
+        "name": "Retry Attribute",
+        "displayName": "Retry Attribute",
+        "required": false
+      },
+      {
+        "name": "Maximum Retries",
+        "displayName": "Maximum Retries",
+        "required": false
+      },
+      {
+        "name": "Penalize Retries",
+        "displayName": "Penalize Retries",
+        "required": false
+      },
+      {
+        "name": "Fail on Nonnumerical Overwrite",
+        "displayName": "Fail on Nonnumerical Overwrite",
+        "required": false
+      },
+      {
+        "name": "Reuse Mode",
+        "displayName": "Reuse Mode",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.RouteOnAttribute",
+    "nifiClass": "org.apache.nifi.processors.standard.RouteOnAttribute",
+    "bundle": "nexus-standard-bundle",
+    "label": "RouteOnAttribute",
+    "category": "nexus",
+    "description": "Routes FlowFiles based on their Attributes using the Attribute Expression Language",
+    "tags": [
+      "attributes",
+      "routing",
+      "Attribute Expression Language",
+      "regexp",
+      "regex",
+      "Regular Expression",
+      "Expression Language",
+      "find",
+      "text",
+      "string",
+      "search",
+      "filter",
+      "detect"
+    ],
+    "properties": [
+      {
+        "name": "Routing Strategy",
+        "displayName": "Routing Strategy",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.route_on_attribute.RouteOnAttributeProcessor"
+  },
+  {
+    "processorId": "nifi.RouteOnContent",
+    "nifiClass": "org.apache.nifi.processors.standard.RouteOnContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "RouteOnContent",
+    "category": "nexus",
+    "description": "Applies Regular Expressions to the content of a FlowFile and routes a copy of the FlowFile to each ",
+    "tags": [
+      "route",
+      "content",
+      "regex",
+      "regular expression",
+      "regexp",
+      "find",
+      "text",
+      "string",
+      "search",
+      "filter",
+      "detect"
+    ],
+    "properties": [
+      {
+        "name": "Content Buffer Size",
+        "displayName": "Content Buffer Size",
+        "required": false
+      },
+      {
+        "name": "Match Requirement",
+        "displayName": "Match Requirement",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.RouteText",
+    "nifiClass": "org.apache.nifi.processors.standard.RouteText",
+    "bundle": "nexus-standard-bundle",
+    "label": "RouteText",
+    "category": "nexus",
+    "description": "Routes textual data based on a set of user-defined rules. Each line in an incoming FlowFile is compared against the values specified by user-defined Properties. ",
+    "tags": [
+      "attributes",
+      "routing",
+      "text",
+      "regexp",
+      "regex",
+      "Regular Expression",
+      "Expression Language",
+      "csv",
+      "filter",
+      "logs",
+      "delimited",
+      "find",
+      "string",
+      "search",
+      "filter",
+      "detect"
+    ],
+    "properties": [
+      {
+        "name": "Routing Strategy",
+        "displayName": "Routing Strategy",
+        "required": false
+      },
+      {
+        "name": "Matching Strategy",
+        "displayName": "Matching Strategy",
+        "required": false
+      },
+      {
+        "name": "Ignore Leading/Trailing Whitespace",
+        "displayName": "Ignore Leading/Trailing Whitespace",
+        "required": false
+      },
+      {
+        "name": "Ignore Case",
+        "displayName": "Ignore Case",
+        "required": false
+      },
+      {
+        "name": "Grouping Regular Expression",
+        "displayName": "Grouping Regular Expression",
+        "required": false
+      },
+      {
+        "name": "Character Set",
+        "displayName": "Character Set",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SampleRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.SampleRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "SampleRecord",
+    "category": "nexus",
+    "description": "Samples the records of a FlowFile based on a specified sampling strategy (such as Reservoir Sampling). The resulting ",
+    "tags": [
+      "record",
+      "sample",
+      "reservoir",
+      "range",
+      "interval"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Sampling Strategy",
+        "displayName": "Sampling Strategy",
+        "required": false
+      },
+      {
+        "name": "Sampling Interval",
+        "displayName": "Sampling Interval",
+        "required": false
+      },
+      {
+        "name": "Sampling Range",
+        "displayName": "Sampling Range",
+        "required": false
+      },
+      {
+        "name": "Sampling Probability",
+        "displayName": "Sampling Probability",
+        "required": false
+      },
+      {
+        "name": "Reservoir Size",
+        "displayName": "Reservoir Size",
+        "required": false
+      },
+      {
+        "name": "Random Seed",
+        "displayName": "Random Seed",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ScanAttribute",
+    "nifiClass": "org.apache.nifi.processors.standard.ScanAttribute",
+    "bundle": "nexus-standard-bundle",
+    "label": "ScanAttribute",
+    "category": "nexus",
+    "description": "Scans the specified attributes of FlowFiles, checking to see if any of their values are ",
+    "tags": [
+      "scan",
+      "attributes",
+      "search",
+      "lookup",
+      "find",
+      "text"
+    ],
+    "properties": [
+      {
+        "name": "Match Criteria",
+        "displayName": "Match Criteria",
+        "required": false
+      },
+      {
+        "name": "Attribute Pattern",
+        "displayName": "Attribute Pattern",
+        "required": false
+      },
+      {
+        "name": "Dictionary File",
+        "displayName": "Dictionary File",
+        "required": false
+      },
+      {
+        "name": "Dictionary Filter Pattern",
+        "displayName": "Dictionary Filter Pattern",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ScanContent",
+    "nifiClass": "org.apache.nifi.processors.standard.ScanContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "ScanContent",
+    "category": "nexus",
+    "description": "Scans the content of FlowFiles for terms that are found in a user-supplied dictionary. If a term is matched, the UTF-8 ",
+    "tags": [
+      "aho-corasick",
+      "scan",
+      "content",
+      "byte sequence",
+      "search",
+      "find",
+      "dictionary"
+    ],
+    "properties": [
+      {
+        "name": "Dictionary File",
+        "displayName": "Dictionary File",
+        "required": false
+      },
+      {
+        "name": "Dictionary Encoding",
+        "displayName": "Dictionary Encoding",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SegmentContent",
+    "nifiClass": "org.apache.nifi.processors.standard.SegmentContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "SegmentContent",
+    "category": "nexus",
+    "description": "Segments a FlowFile into multiple smaller segments on byte boundaries. Each segment is given the following attributes: ",
+    "tags": [
+      "segment",
+      "split"
+    ],
+    "properties": [
+      {
+        "name": "Segment Size",
+        "displayName": "Segment Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SplitContent",
+    "nifiClass": "org.apache.nifi.processors.standard.SplitContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "SplitContent",
+    "category": "nexus",
+    "description": "Splits incoming FlowFiles by a specified byte sequence",
+    "tags": [
+      "content",
+      "split",
+      "binary"
+    ],
+    "properties": [
+      {
+        "name": "Byte Sequence Format",
+        "displayName": "Byte Sequence Format",
+        "required": false
+      },
+      {
+        "name": "Byte Sequence",
+        "displayName": "Byte Sequence",
+        "required": false
+      },
+      {
+        "name": "Keep Byte Sequence",
+        "displayName": "Keep Byte Sequence",
+        "required": false
+      },
+      {
+        "name": "Byte Sequence Location",
+        "displayName": "Byte Sequence Location",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SplitJson",
+    "nifiClass": "org.apache.nifi.processors.standard.SplitJson",
+    "bundle": "nexus-standard-bundle",
+    "label": "SplitJson",
+    "category": "nexus",
+    "description": "Splits a JSON File into multiple, separate FlowFiles for an array element specified by a JsonPath expression. ",
+    "tags": [
+      "json",
+      "split",
+      "jsonpath"
+    ],
+    "properties": [
+      {
+        "name": "JsonPath Expression",
+        "displayName": "JsonPath Expression",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.split_json.SplitJsonProcessor"
+  },
+  {
+    "processorId": "nifi.SplitRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.SplitRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "SplitRecord",
+    "category": "nexus",
+    "description": "Splits up an input FlowFile that is in a record-oriented data format into multiple smaller FlowFiles",
+    "tags": [
+      "split",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "log",
+      "logs",
+      "freeform",
+      "text"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Records Per Split",
+        "displayName": "Records Per Split",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SplitText",
+    "nifiClass": "org.apache.nifi.processors.standard.SplitText",
+    "bundle": "nexus-standard-bundle",
+    "label": "SplitText",
+    "category": "nexus",
+    "description": "Splits a text file into multiple smaller text files on line boundaries limited by maximum number of lines ",
+    "tags": [
+      "split",
+      "text"
+    ],
+    "properties": [
+      {
+        "name": "Line Split Count",
+        "displayName": "Line Split Count",
+        "required": false
+      },
+      {
+        "name": "Maximum Fragment Size",
+        "displayName": "Maximum Fragment Size",
+        "required": false
+      },
+      {
+        "name": "Header Line Count",
+        "displayName": "Header Line Count",
+        "required": false
+      },
+      {
+        "name": "Header Line Marker Characters",
+        "displayName": "Header Line Marker Characters",
+        "required": false
+      },
+      {
+        "name": "Remove Trailing Newlines",
+        "displayName": "Remove Trailing Newlines",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.SplitXml",
+    "nifiClass": "org.apache.nifi.processors.standard.SplitXml",
+    "bundle": "nexus-standard-bundle",
+    "label": "SplitXml",
+    "category": "nexus",
+    "description": "Splits an XML File into multiple separate FlowFiles, each comprising a child or descendant of the original root element",
+    "tags": [
+      "xml",
+      "split"
+    ],
+    "properties": [
+      {
+        "name": "Split Depth",
+        "displayName": "Split Depth",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.TailFile",
+    "nifiClass": "org.apache.nifi.processors.standard.TailFile",
+    "bundle": "nexus-standard-bundle",
+    "label": "TailFile",
+    "category": "nexus",
+    "description": "\\",
+    "tags": [
+      "tail",
+      "file",
+      "log",
+      "text",
+      "source"
+    ],
+    "properties": [],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.TransformXml",
+    "nifiClass": "org.apache.nifi.processors.standard.TransformXml",
+    "bundle": "nexus-standard-bundle",
+    "label": "TransformXml",
+    "category": "nexus",
+    "description": "Applies the provided XSLT file to the FlowFile XML payload. A new FlowFile is created ",
+    "tags": [
+      "xml",
+      "xslt",
+      "transform"
+    ],
+    "properties": [
+      {
+        "name": "XSLT Document",
+        "displayName": "XSLT Document",
+        "required": false
+      },
+      {
+        "name": "XSLT Lookup",
+        "displayName": "XSLT Lookup",
+        "required": false
+      },
+      {
+        "name": "XSLT Lookup Key",
+        "displayName": "XSLT Lookup Key",
+        "required": false
+      },
+      {
+        "name": "Indent",
+        "displayName": "Indent",
+        "required": false
+      },
+      {
+        "name": "Secure Processing",
+        "displayName": "Secure Processing",
+        "required": false
+      },
+      {
+        "name": "Cache Size",
+        "displayName": "Cache Size",
+        "required": false
+      },
+      {
+        "name": "Cache Duration",
+        "displayName": "Cache Duration",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UnpackContent",
+    "nifiClass": "org.apache.nifi.processors.standard.UnpackContent",
+    "bundle": "nexus-standard-bundle",
+    "label": "UnpackContent",
+    "category": "nexus",
+    "description": "Apache NiFi UnpackContent",
+    "tags": [
+      "Unpack",
+      "un-merge",
+      "tar",
+      "zip",
+      "archive",
+      "flowfile-stream",
+      "flowfile-stream-v3"
+    ],
+    "properties": [
+      {
+        "name": "Packaging Format",
+        "displayName": "Packaging Format",
+        "required": false
+      },
+      {
+        "name": "Filename Character Set",
+        "displayName": "Filename Character Set",
+        "required": false
+      },
+      {
+        "name": "File Filter",
+        "displayName": "File Filter",
+        "required": false
+      },
+      {
+        "name": "Password",
+        "displayName": "Password",
+        "required": false
+      },
+      {
+        "name": "Allow Stored Entries With Data Descriptor",
+        "displayName": "Allow Stored Entries With Data Descriptor",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UpdateCounter",
+    "nifiClass": "org.apache.nifi.processors.standard.UpdateCounter",
+    "bundle": "nexus-standard-bundle",
+    "label": "UpdateCounter",
+    "category": "nexus",
+    "description": "This processor allows users to set specific counters and key points in their flow. It is useful for debugging and basic counting functions.",
+    "tags": [
+      "counter",
+      "debug",
+      "instrumentation"
+    ],
+    "properties": [
+      {
+        "name": "Counter Name",
+        "displayName": "Counter Name",
+        "required": false
+      },
+      {
+        "name": "Delta",
+        "displayName": "Delta",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UpdateDatabaseTable",
+    "nifiClass": "org.apache.nifi.processors.standard.UpdateDatabaseTable",
+    "bundle": "nexus-standard-bundle",
+    "label": "UpdateDatabaseTable",
+    "category": "nexus",
+    "description": "This processor uses a JDBC connection and incoming records to generate any database table changes needed to support the incoming records. It expects a 'flat' record layout, ",
+    "tags": [
+      "metadata",
+      "jdbc",
+      "database",
+      "table",
+      "update",
+      "alter"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Database Connection Pooling Service",
+        "displayName": "Database Connection Pooling Service",
+        "required": false
+      },
+      {
+        "name": "Catalog Name",
+        "displayName": "Catalog Name",
+        "required": false
+      },
+      {
+        "name": "Schema Name",
+        "displayName": "Schema Name",
+        "required": false
+      },
+      {
+        "name": "Table Name",
+        "displayName": "Table Name",
+        "required": false
+      },
+      {
+        "name": "Create Table Strategy",
+        "displayName": "Create Table Strategy",
+        "required": false
+      },
+      {
+        "name": "Primary Key Fields",
+        "displayName": "Primary Key Fields",
+        "required": false
+      },
+      {
+        "name": "Translate Field Names",
+        "displayName": "Translate Field Names",
+        "required": false
+      },
+      {
+        "name": "Column Name Translation Pattern",
+        "displayName": "Column Name Translation Pattern",
+        "required": false
+      },
+      {
+        "name": "Update Field Names",
+        "displayName": "Update Field Names",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Quote Column Identifiers",
+        "displayName": "Quote Column Identifiers",
+        "required": false
+      },
+      {
+        "name": "Quote Table Identifiers",
+        "displayName": "Quote Table Identifiers",
+        "required": false
+      },
+      {
+        "name": "Query Timeout",
+        "displayName": "Query Timeout",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UpdateGauge",
+    "nifiClass": "org.apache.nifi.processors.standard.UpdateGauge",
+    "bundle": "nexus-standard-bundle",
+    "label": "UpdateGauge",
+    "category": "nexus",
+    "description": "Apache NiFi UpdateGauge",
+    "tags": [
+      "gauge",
+      "metrics",
+      "instrumentation"
+    ],
+    "properties": [
+      {
+        "name": "Gauge Name",
+        "displayName": "Gauge Name",
+        "required": false
+      },
+      {
+        "name": "Gauge Value",
+        "displayName": "Gauge Value",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UpdateRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.UpdateRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "UpdateRecord",
+    "category": "nexus",
+    "description": "Updates the contents of a FlowFile that contains Record-oriented data (i.e., data that can be read via a RecordReader and written by a RecordWriter). ",
+    "tags": [
+      "update",
+      "record",
+      "generic",
+      "schema",
+      "json",
+      "csv",
+      "avro",
+      "log",
+      "logs",
+      "freeform",
+      "text"
+    ],
+    "properties": [
+      {
+        "name": "Replacement Value Strategy",
+        "displayName": "Replacement Value Strategy",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ValidateCsv",
+    "nifiClass": "org.apache.nifi.processors.standard.ValidateCsv",
+    "bundle": "nexus-standard-bundle",
+    "label": "ValidateCsv",
+    "category": "nexus",
+    "description": "Validates the contents of FlowFiles or a FlowFile attribute value against a user-specified CSV schema. ",
+    "tags": [
+      "csv",
+      "schema",
+      "validation"
+    ],
+    "properties": [
+      {
+        "name": "Schema",
+        "displayName": "Schema",
+        "required": false
+      },
+      {
+        "name": "Header",
+        "displayName": "Header",
+        "required": false
+      },
+      {
+        "name": "Quote Character",
+        "displayName": "Quote Character",
+        "required": false
+      },
+      {
+        "name": "Max Lines Per Row",
+        "displayName": "Max Lines Per Row",
+        "required": false
+      },
+      {
+        "name": "Delimiter Character",
+        "displayName": "Delimiter Character",
+        "required": false
+      },
+      {
+        "name": "End of Line Symbols",
+        "displayName": "End of Line Symbols",
+        "required": false
+      },
+      {
+        "name": "Validation Strategy",
+        "displayName": "Validation Strategy",
+        "required": false
+      },
+      {
+        "name": "CSV Source Attribute",
+        "displayName": "CSV Source Attribute",
+        "required": false
+      },
+      {
+        "name": "Include Violations",
+        "displayName": "Include Violations",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ValidateJson",
+    "nifiClass": "org.apache.nifi.processors.standard.ValidateJson",
+    "bundle": "nexus-standard-bundle",
+    "label": "ValidateJson",
+    "category": "nexus",
+    "description": "Apache NiFi ValidateJson",
+    "tags": [
+      "JSON",
+      "schema",
+      "validation"
+    ],
+    "properties": [
+      {
+        "name": "Schema Access Strategy",
+        "displayName": "Schema Access Strategy",
+        "required": false
+      },
+      {
+        "name": "JSON Schema Registry",
+        "displayName": "JSON Schema Registry",
+        "required": false
+      },
+      {
+        "name": "Input Format",
+        "displayName": "Input Format",
+        "required": false
+      },
+      {
+        "name": "Max String Length",
+        "displayName": "Max String Length",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ValidateRecord",
+    "nifiClass": "org.apache.nifi.processors.standard.ValidateRecord",
+    "bundle": "nexus-standard-bundle",
+    "label": "ValidateRecord",
+    "category": "nexus",
+    "description": "Validates the Records of an incoming FlowFile against a given schema. All records that adhere to the schema are routed to the \\",
+    "tags": [
+      "record",
+      "schema",
+      "validate"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      },
+      {
+        "name": "Record Writer for Invalid Records",
+        "displayName": "Record Writer for Invalid Records",
+        "required": false
+      },
+      {
+        "name": "Allow Extra Fields",
+        "displayName": "Allow Extra Fields",
+        "required": false
+      },
+      {
+        "name": "Strict Type Checking",
+        "displayName": "Strict Type Checking",
+        "required": false
+      },
+      {
+        "name": "Force Types From Reader Schema",
+        "displayName": "Force Types From Reader Schema",
+        "required": false
+      },
+      {
+        "name": "Validation Details Attribute Name",
+        "displayName": "Validation Details Attribute Name",
+        "required": false
+      },
+      {
+        "name": "Maximum Validation Details Length",
+        "displayName": "Maximum Validation Details Length",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.ValidateXml",
+    "nifiClass": "org.apache.nifi.processors.standard.ValidateXml",
+    "bundle": "nexus-standard-bundle",
+    "label": "ValidateXml",
+    "category": "nexus",
+    "description": "Validates XML contained in a FlowFile. By default, the XML is contained in the FlowFile content. If the 'XML Source Attribute' property is set, the XML to be validated ",
+    "tags": [
+      "xml",
+      "schema",
+      "validation",
+      "xsd"
+    ],
+    "properties": [
+      {
+        "name": "Schema File",
+        "displayName": "Schema File",
+        "required": false
+      },
+      {
+        "name": "XML Source Attribute",
+        "displayName": "XML Source Attribute",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.Wait",
+    "nifiClass": "org.apache.nifi.processors.standard.Wait",
+    "bundle": "nexus-standard-bundle",
+    "label": "Wait",
+    "category": "nexus",
+    "description": "Routes incoming FlowFiles to the 'wait' relationship until a matching release signal ",
+    "tags": [
+      "map",
+      "cache",
+      "wait",
+      "hold",
+      "distributed",
+      "signal",
+      "release"
+    ],
+    "properties": [
+      {
+        "name": "Distributed Cache Service",
+        "displayName": "Distributed Cache Service",
+        "required": false
+      },
+      {
+        "name": "Release Signal Identifier",
+        "displayName": "Release Signal Identifier",
+        "required": false
+      },
+      {
+        "name": "Target Signal Count",
+        "displayName": "Target Signal Count",
+        "required": false
+      },
+      {
+        "name": "Signal Counter Name",
+        "displayName": "Signal Counter Name",
+        "required": false
+      },
+      {
+        "name": "Wait Buffer Count",
+        "displayName": "Wait Buffer Count",
+        "required": false
+      },
+      {
+        "name": "Releasable FlowFile Count",
+        "displayName": "Releasable FlowFile Count",
+        "required": false
+      },
+      {
+        "name": "Expiration Duration",
+        "displayName": "Expiration Duration",
+        "required": false
+      },
+      {
+        "name": "Attribute Copy Mode",
+        "displayName": "Attribute Copy Mode",
+        "required": false
+      },
+      {
+        "name": "Wait Mode",
+        "displayName": "Wait Mode",
+        "required": false
+      },
+      {
+        "name": "Wait Penalty Duration",
+        "displayName": "Wait Penalty Duration",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.JoltTransformJSON",
+    "nifiClass": "org.apache.nifi.processors.jolt.JoltTransformJSON",
+    "bundle": "nexus-jolt-bundle",
+    "label": "JoltTransformJSON",
+    "category": "nexus",
+    "description": "Apache NiFi JoltTransformJSON",
+    "tags": [
+      "json",
+      "jolt",
+      "transform",
+      "chainr",
+      "shift",
+      "default",
+      "remove",
+      "cardinality",
+      "sort"
+    ],
+    "properties": [
+      {
+        "name": "JSON Source",
+        "displayName": "JSON Source",
+        "required": false
+      },
+      {
+        "name": "JSON Source Attribute",
+        "displayName": "JSON Source Attribute",
+        "required": false
+      },
+      {
+        "name": "Pretty Print",
+        "displayName": "Pretty Print",
+        "required": false
+      },
+      {
+        "name": "Max String Length",
+        "displayName": "Max String Length",
+        "required": false
+      },
+      {
+        "name": "Retain Unicode Escape Sequences",
+        "displayName": "Retain Unicode Escape Sequences",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.jolt_transform_j_s_o_n.JoltTransformJSONProcessor"
+  },
+  {
+    "processorId": "nifi.JoltTransformRecord",
+    "nifiClass": "org.apache.nifi.processors.jolt.JoltTransformRecord",
+    "bundle": "nexus-jolt-bundle",
+    "label": "JoltTransformRecord",
+    "category": "nexus",
+    "description": "Applies a JOLT specification to each record in the FlowFile payload. A new FlowFile is created ",
+    "tags": [
+      "record",
+      "jolt",
+      "transform",
+      "shiftr",
+      "chainr",
+      "defaultr",
+      "removr",
+      "cardinality",
+      "sort"
+    ],
+    "properties": [
+      {
+        "name": "Record Reader",
+        "displayName": "Record Reader",
+        "required": false
+      },
+      {
+        "name": "Record Writer",
+        "displayName": "Record Writer",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "stub",
+    "codeRef": ""
+  },
+  {
+    "processorId": "nifi.UpdateAttribute",
+    "nifiClass": "org.apache.nifi.processors.attributes.UpdateAttribute",
+    "bundle": "nexus-update-attribute-bundle",
+    "label": "UpdateAttribute",
+    "category": "nexus",
+    "description": "Updates the Attributes for a FlowFile by using the Attribute Expression Language and/or deletes the attributes based on a regular expression",
+    "tags": [
+      "attributes",
+      "modification",
+      "update",
+      "delete",
+      "Attribute Expression Language",
+      "state"
+    ],
+    "properties": [
+      {
+        "name": "Cache Value Lookup Cache Size",
+        "displayName": "Cache Value Lookup Cache Size",
+        "required": false
+      }
+    ],
+    "relationships": [
+      {
+        "name": "success"
+      },
+      {
+        "name": "failure"
+      }
+    ],
+    "runtime": "live",
+    "codeRef": "python://src.services.flow_processors.update_attribute.UpdateAttributeProcessor"
+  }
+]

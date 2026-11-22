@@ -22,6 +22,22 @@ if _current_dir not in sys.path:
 
 from base_stage import BaseStage
 
+try:
+    from src.constants.etl_step_catalog import ETL_RUNTIME_STEPS, ETL_VDL_RUNTIME_STEPS, EXTERNAL_SOURCE_TYPES
+except ImportError:
+    ETL_RUNTIME_STEPS = [
+        {"id": "extract", "name": "Extract Source Data", "description": "Read data from source system (FDW, file, API)"},
+        {"id": "validate_schema", "name": "Validate Schema", "description": "Validate source data against mapping rule field definitions"},
+        {"id": "transform", "name": "Transform Data", "description": "Apply field mappings and business logic transforms"},
+        {"id": "load", "name": "Load Data", "description": "Write transformed data to hydrated storage"},
+        {"id": "verify", "name": "Verify Results", "description": "Row count checks, null validation, data quality"},
+    ]
+    ETL_VDL_RUNTIME_STEPS = [
+        {"id": "register_vdl", "name": "Register VDL Mappings", "description": "Create active FDW mapping rules for virtual entities and warehouse tables"},
+        {"id": "materialize_warehouse", "name": "Materialize Warehouse", "description": "Refresh warehouse snapshot tables from external feeds"},
+    ]
+    EXTERNAL_SOURCE_TYPES = frozenset({"social_listening", "file_uploads", "google_drive", "external_full"})
+
 
 def _decimal_to_native(obj):
     if isinstance(obj, Decimal):
@@ -50,6 +66,14 @@ class ETLPipelineStage(BaseStage):
             data = _decimal_to_native(data)
             metadata = data.get('metadata', data)
             config = metadata.get('config', {})
+            prod = metadata.get('productionConfig')
+            if isinstance(prod, dict) and prod:
+                config = {**config, **prod}
+            graph = metadata.get('dataFlowGraph') or metadata.get('productionGraphSnapshot')
+            if isinstance(graph, dict):
+                config['dataFlowGraph'] = graph
+                if graph.get('draftVersion') is not None:
+                    config['draftVersion'] = graph.get('draftVersion')
             source_type = config.get('sourceType', metadata.get('sourceType', 'generic'))
             config['sourceType'] = source_type
             config['source_type'] = source_type
@@ -69,19 +93,13 @@ class ETLPipelineStage(BaseStage):
 
     @property
     def steps(self) -> List[Dict[str, Any]]:
-        base = [
-            {"id": "extract", "name": "Extract Source Data", "description": "Read data from source system (FDW, file, API)"},
-            {"id": "validate_schema", "name": "Validate Schema", "description": "Validate source data against mapping rule field definitions"},
-            {"id": "transform", "name": "Transform Data", "description": "Apply field mappings and business logic transforms"},
-            {"id": "load", "name": "Load Data", "description": "Write transformed data to hydrated storage"},
-            {"id": "verify", "name": "Verify Results", "description": "Row count checks, null validation, data quality"},
-        ]
+        base = list(ETL_RUNTIME_STEPS)
         source_type = self._etl_config.get("source_type") or self._etl_config.get("sourceType") or "generic"
-        if source_type in ("social_listening", "file_uploads", "google_drive", "external_full"):
-            base.extend([
-                {"id": "register_vdl", "name": "Register VDL Mappings", "description": "Create active FDW mapping rules for virtual entities and warehouse tables"},
-                {"id": "materialize_warehouse", "name": "Materialize Warehouse", "description": "Refresh warehouse snapshot tables from external feeds"},
-            ])
+        if source_type in EXTERNAL_SOURCE_TYPES:
+            base.extend(ETL_VDL_RUNTIME_STEPS)
+        draft = self._etl_config.get("draftVersion") or self._etl_config.get("dataFlowGraph", {}).get("draftVersion")
+        if draft:
+            self.log_info(f"ETL pipeline studio draftVersion={draft}")
         return base
 
     def execute_step(self, step_id: str, step_data: Dict[str, Any]) -> Dict[str, Any]:

@@ -2210,6 +2210,37 @@ def mount_api_routes():
             logger.info("Mounted VDL composition APIs at /api/v1/vdl-compositions")
         except Exception as e:
             logger.warning(f"Failed to mount Mapping Rule APIs: {e}")
+
+        try:
+            from src.apis import data_flow_api as _df_api
+            from src.services.journey_service import JourneyService as _DfJourneyService
+
+            _df_journey = None
+            try:
+                _df_journey = _DfJourneyService()
+            except Exception as _dfe:
+                logger.warning(f"Data flow API journey service unavailable: {_dfe}")
+
+            _df_api.configure(journey_service=_df_journey, mapping_rule_checker=None)
+            app.include_router(_df_api.router, tags=["Data Flow"])
+            logger.info("Mounted Data Flow APIs at /api/v1/data-flow")
+        except Exception as e:
+            logger.warning(f"Failed to mount Data Flow APIs: {e}")
+
+        try:
+            from src.apis import nifi_processor_api as _nifi_api
+            from src.services.data_plane.nifi_processor_registry_service import (
+                get_nifi_processor_registry_service,
+            )
+
+            app.include_router(_nifi_api.router)
+            app.include_router(_nifi_api.assets_router)
+            import asyncio
+
+            asyncio.run(get_nifi_processor_registry_service().sync_from_seeds())
+            logger.info("Mounted NiFi processor catalog APIs + synced NIFIPROC#")
+        except Exception as nfe:
+            logger.warning(f"NiFi processor catalog mount failed (non-fatal): {nfe}")
         
     except Exception as e:
         logger.error(f"Failed to mount API routes: {e}")
