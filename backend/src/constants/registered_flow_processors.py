@@ -1,0 +1,145 @@
+"""Processor IDs backed by real Python modules in src.services.flow_processors."""
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import FrozenSet
+
+REGISTERED_FLOW_PROCESSOR_IDS: FrozenSet[str] = frozenset(
+    {
+        "nexus.AttributesToCSV",
+        "nexus.AttributesToJSON",
+        "nexus.CalculateRecordStats",
+        "nexus.CompressContent",
+        "nexus.ControlRate",
+        "nexus.ConvertCharacterSet",
+        "nexus.ConvertRecord",
+        "nexus.CountText",
+        "nexus.CryptographicHashContent",
+        "nexus.DebugFlow",
+        "nexus.DeduplicateRecord",
+        "nexus.DeleteFile",
+        "nexus.DeleteSFTP",
+        "nexus.DetectDuplicate",
+        "nexus.DistributeLoad",
+        "nexus.DuplicateFlowFile",
+        "nexus.EncodeContent",
+        "nexus.EnforceOrder",
+        "nexus.EvaluateJsonPath",
+        "nexus.EvaluateXPath",
+        "nexus.EvaluateXQuery",
+        "nexus.ExecuteProcess",
+        "nexus.ExecuteSQL",
+        "nexus.ExecuteSQLRecord",
+        "nexus.ExecuteStreamCommand",
+        "nexus.ExtractGrok",
+        "nexus.ExtractRecordSchema",
+        "nexus.ExtractText",
+        "nexus.FetchDistributedMapCache",
+        "nexus.FetchFTP",
+        "nexus.FetchFile",
+        "nexus.FetchSFTP",
+        "nexus.FilterAttribute",
+        "nexus.FlattenJson",
+        "nexus.ForkEnrichment",
+        "nexus.ForkRecord",
+        "nexus.GenerateFlowFile",
+        "nexus.GenerateRecord",
+        "nexus.GenerateTableFetch",
+        "nexus.GetFTP",
+        "nexus.GetFile",
+        "nexus.GetFileResource",
+        "nexus.GetSFTP",
+        "nexus.HandleHttpRequest",
+        "nexus.HandleHttpResponse",
+        "nexus.IdentifyMimeType",
+        "nexus.InvokeHTTP",
+        "nexus.JoinEnrichment",
+        "nexus.JoltTransformJSON",
+        "nexus.JoltTransformRecord",
+        "nexus.ListDatabaseTables",
+        "nexus.ListFTP",
+        "nexus.ListFile",
+        "nexus.ListSFTP",
+        "nexus.ListenFTP",
+        "nexus.ListenHTTP",
+        "nexus.ListenSyslog",
+        "nexus.ListenTCP",
+        "nexus.ListenUDP",
+        "nexus.ListenUDPRecord",
+        "nexus.LogAttribute",
+        "nexus.LogMessage",
+        "nexus.LookupAttribute",
+        "nexus.LookupRecord",
+        "nexus.MergeContent",
+        "nexus.MergeRecord",
+        "nexus.ModifyBytes",
+        "nexus.MonitorActivity",
+        "nexus.Notify",
+        "nexus.PackageFlowFile",
+        "nexus.ParseSyslog",
+        "nexus.ParseSyslog5424",
+        "nexus.PartitionRecord",
+        "nexus.PutDatabaseRecord",
+        "nexus.PutDistributedMapCache",
+        "nexus.PutEmail",
+        "nexus.PutFTP",
+        "nexus.PutFile",
+        "nexus.PutRecord",
+        "nexus.PutSFTP",
+        "nexus.PutSQL",
+        "nexus.PutSyslog",
+        "nexus.PutTCP",
+        "nexus.PutUDP",
+        "nexus.QueryDatabaseTable",
+        "nexus.QueryDatabaseTableRecord",
+        "nexus.QueryRecord",
+        "nexus.RemoveRecordField",
+        "nexus.RenameRecordField",
+        "nexus.ReplaceText",
+        "nexus.ReplaceTextWithMapping",
+        "nexus.RetryFlowFile",
+        "nexus.RouteOnAttribute",
+        "nexus.RouteOnContent",
+        "nexus.RouteText",
+        "nexus.SampleRecord",
+        "nexus.ScanAttribute",
+        "nexus.ScanContent",
+        "nexus.SegmentContent",
+        "nexus.SplitContent",
+        "nexus.SplitJson",
+        "nexus.SplitRecord",
+        "nexus.SplitText",
+        "nexus.SplitXml",
+        "nexus.TailFile",
+        "nexus.TransformXml",
+        "nexus.UnpackContent",
+        "nexus.UpdateAttribute",
+        "nexus.UpdateCounter",
+        "nexus.UpdateDatabaseTable",
+        "nexus.UpdateGauge",
+        "nexus.UpdateRecord",
+        "nexus.ValidateCsv",
+        "nexus.ValidateJson",
+        "nexus.ValidateRecord",
+        "nexus.ValidateXml",
+        "nexus.Wait",
+    }
+)
+
+
+@lru_cache(maxsize=1)
+def registered_flow_processor_ids() -> FrozenSet[str]:
+    try:
+        import src.services.flow_processors  # noqa: F401
+        from src.services.flow_runtime.processor import list_registered_processor_ids
+
+        live = {canonical_id(pid) for pid in list_registered_processor_ids()}
+        return live & set(REGISTERED_FLOW_PROCESSOR_IDS)
+    except Exception:
+        return REGISTERED_FLOW_PROCESSOR_IDS
+
+
+def canonical_id(processor_id: str) -> str:
+    if processor_id.startswith("nifi."):
+        return "nexus." + processor_id[5:]
+    return processor_id

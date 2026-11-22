@@ -1,5 +1,5 @@
 """
-Nexus Flow stage — harvested NiFi processors as plain Python journey steps.
+Nexus Flow stage — catalog data processors as plain Python journey steps.
 """
 from __future__ import annotations
 

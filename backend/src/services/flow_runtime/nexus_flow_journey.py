@@ -1,8 +1,8 @@
 """
-Linear Nexus journey execution for harvested NiFi processors.
+Linear Nexus journey execution for catalog flow processors.
 
-Processors run as plain Python classes (flow_processors), one step at a time,
-in topological order — not via an in-memory NiFi DAG engine.
+Each step is a plain Python class (flow_processors), run one at a time in
+topological order.
 """
 from __future__ import annotations
 
@@ -13,24 +13,25 @@ from typing import Any, Dict, List, Optional
 from src.models.data_flow_models import DataFlowGraph, DataFlowNode
 from src.services.flow_runtime.context import ProcessContext
 from src.services.flow_runtime.dag_runner import _topo_order
-from src.services.flow_runtime.flowfile import FlowFile
+from src.services.flow_runtime.flow_record import FlowRecord
 from src.services.flow_runtime.processor import get_processor_class
+from src.services.flow_runtime.processor_ids import canonical_processor_id
 
 
 def _ensure_processors():
     import src.services.flow_processors  # noqa: F401
 
 
-def flowfile_to_state(ff: FlowFile) -> Dict[str, Any]:
+def record_to_state(ff: FlowRecord) -> Dict[str, Any]:
     return {
         "contentB64": base64.b64encode(ff.content).decode("ascii"),
         "attributes": dict(ff.attributes),
     }
 
 
-def state_to_flowfile(state: Dict[str, Any]) -> FlowFile:
+def state_to_record(state: Dict[str, Any]) -> FlowRecord:
     raw = base64.b64decode(state.get("contentB64") or b"")
-    return FlowFile(content=raw, attributes=dict(state.get("attributes") or {}))
+    return FlowRecord(content=raw, attributes=dict(state.get("attributes") or {}))
 
 
 def compile_graph_to_flow_steps(graph: DataFlowGraph) -> List[Dict[str, Any]]:
@@ -41,13 +42,16 @@ def compile_graph_to_flow_steps(graph: DataFlowGraph) -> List[Dict[str, Any]]:
     steps: List[Dict[str, Any]] = []
     for idx, nid in enumerate(order):
         node = by_id.get(nid)
-        if node is None or not node.type.startswith("nifi."):
+        if node is None or not (
+            node.type.startswith("nexus.") or node.type.startswith("nifi.")
+        ):
             continue
+        ptype = canonical_processor_id(node.type)
         steps.append(
             {
                 "id": nid,
                 "name": (node.ui.label if node.ui else None) or node.type,
-                "processorType": node.type,
+                "processorType": ptype,
                 "params": dict(node.params or {}),
                 "order": idx,
             }
@@ -60,7 +64,7 @@ def run_processor_step(
     params: Dict[str, Any],
     flow_state: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Single journey step: one Python processor, one FlowFile."""
+    """Single journey step: one Python processor, one FlowRecord."""
     _ensure_processors()
     from src.services.flow_runtime.session import ProcessSession
 
@@ -68,7 +72,7 @@ def run_processor_step(
     if proc_cls is None:
         return {"status": "error", "error": f"no python processor for {processor_type}"}
 
-    ff = state_to_flowfile(flow_state)
+    ff = state_to_record(flow_state)
     session = ProcessSession()
     session.set_inbound([ff])
     ctx = ProcessContext(params or {})
@@ -78,11 +82,11 @@ def run_processor_step(
         by_rel = session.commit()
         success = by_rel.get("success") or []
         if success:
-            return {"status": "ok", "relationship": "success", "flowState": flowfile_to_state(success[0])}
+            return {"status": "ok", "relationship": "success", "flowState": record_to_state(success[0])}
         for rel, ffs in by_rel.items():
             if ffs:
-                return {"status": "ok", "relationship": rel, "flowState": flowfile_to_state(ffs[0])}
-        return {"status": "error", "error": "processor produced no output flowfiles"}
+                return {"status": "ok", "relationship": rel, "flowState": record_to_state(ffs[0])}
+        return {"status": "error", "error": "processor produced no output records"}
     except Exception as exc:
         return {"status": "error", "error": str(exc)[:500]}
 
@@ -90,16 +94,16 @@ def run_processor_step(
 def run_nexus_flow_linear(
     graph: DataFlowGraph,
     *,
-    initial_flowfiles: Optional[List[FlowFile]] = None,
+    initial_records: Optional[List[FlowRecord]] = None,
 ) -> Dict[str, Any]:
     steps = compile_graph_to_flow_steps(graph)
     if not steps:
-        return {"ok": False, "error": "no nifi processor steps in graph", "nodeStats": []}
+        return {"ok": False, "error": "no flow processor steps in graph", "nodeStats": []}
 
-    if initial_flowfiles:
-        state = flowfile_to_state(initial_flowfiles[0])
+    if initial_records:
+        state = record_to_state(initial_records[0])
     else:
-        state = flowfile_to_state(FlowFile(content=b"{}", attributes={"mime.type": "application/json"}))
+        state = record_to_state(FlowRecord(content=b"{}", attributes={"mime.type": "application/json"}))
 
     node_stats: List[Dict[str, Any]] = []
     for step in steps:
@@ -121,7 +125,7 @@ def run_nexus_flow_linear(
         state = out["flowState"]
         node_stats.append({"nodeId": step["id"], "type": step["processorType"], "relationship": out.get("relationship")})
 
-    ff = state_to_flowfile(state)
+    ff = state_to_record(state)
     return {
         "ok": True,
         "terminalCount": 1,
@@ -130,3 +134,7 @@ def run_nexus_flow_linear(
         "executionMode": "nexus_journey_linear",
         "preview": json.dumps(ff.attributes)[:240],
     }
+
+
+flowfile_to_state = record_to_state
+state_to_flowfile = state_to_record

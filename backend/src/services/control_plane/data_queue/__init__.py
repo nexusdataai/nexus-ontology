@@ -1,6 +1,6 @@
 """DataQueueManager protocol + factory.
 
-NiFi-style queues between ReAct journey steps. Phase 0 of the AI
+Bounded queues between ReAct journey steps. Phase 0 of the AI
 Engine Data Queues plan introduces the abstraction; the runner does
 not yet route through it. Two implementations:
 
@@ -13,9 +13,9 @@ not yet route through it. Two implementations:
     consumer groups, and back-pressure across crashes.
 
 The protocol stays intentionally narrow: enqueue / dequeue / ack /
-depth / is_full / drop_expired / snapshot / reset_run. Anything
-NiFi-specific (prioritizers, fan-in strategies, expiry sweeps) is
-layered on top of these primitives in subsequent phases.
+depth / is_full / drop_expired / snapshot / reset_run. Advanced features
+(prioritizers, fan-in strategies, expiry sweeps) are layered on top of
+these primitives in subsequent phases.
 """
 
 from __future__ import annotations

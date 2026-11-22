@@ -1,0 +1,194 @@
+[
+  {
+    "assetId": "jolt-shift-customer",
+    "title": "Jolt shift: flatten customer",
+    "kind": "jolt-spec",
+    "processorIds": [
+      "nexus.JoltTransformJSON"
+    ],
+    "contentText": "[\n  {\n    \"operation\": \"shift\",\n    \"spec\": {\n      \"customer\": {\n        \"name\": \"fullName\",\n        \"id\": \"custId\"\n      }\n    }\n  }\n]"
+  },
+  {
+    "assetId": "jolt-default-inject",
+    "title": "Jolt default: add lineage fields",
+    "kind": "jolt-spec",
+    "processorIds": [
+      "nexus.JoltTransformJSON"
+    ],
+    "contentText": "[\n  {\n    \"operation\": \"default\",\n    \"spec\": {\n      \"ingestedAt\": \"${now():toNumber()}\",\n      \"source\": \"nexus-flow\"\n    }\n  }\n]"
+  },
+  {
+    "assetId": "update-attribute-doc",
+    "title": "UpdateAttribute quick reference",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.UpdateAttribute"
+    ],
+    "contentText": "Add dynamic properties: name becomes record attribute. Values support ${attribute} expression subset. Delete Attributes Expression accepts a regex to remove keys."
+  },
+  {
+    "assetId": "evaluate-jsonpath-doc",
+    "title": "EvaluateJsonPath usage",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.EvaluateJsonPath"
+    ],
+    "contentText": "Map JsonPath expressions to attributes, e.g. id = $.order.id"
+  },
+  {
+    "assetId": "replace-text-doc",
+    "title": "ReplaceText patterns",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.ReplaceText"
+    ],
+    "contentText": "Search Value + Replacement Value; Regex Replace strategy for content transforms."
+  },
+  {
+    "assetId": "route-on-attribute-doc",
+    "title": "RouteOnAttribute rules",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.RouteOnAttribute"
+    ],
+    "contentText": "Each property is a relationship name; value is an expression evaluated against attributes."
+  },
+  {
+    "assetId": "query-record-doc",
+    "title": "QueryRecord SQL subset",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.QueryRecord"
+    ],
+    "contentText": "Filter JSON record arrays with SQL, e.g. SELECT * WHERE status = 'OPEN'."
+  },
+  {
+    "assetId": "convert-record-doc",
+    "title": "ConvertRecord json/csv",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.ConvertRecord"
+    ],
+    "contentText": "Set Record Reader / Record Writer to json or csv for lightweight format conversion."
+  },
+  {
+    "assetId": "split-json-doc",
+    "title": "SplitJson array fan-out",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.SplitJson"
+    ],
+    "contentText": "JsonPath Expression defaults to $; emits one record per array element."
+  },
+  {
+    "assetId": "merge-content-doc",
+    "title": "MergeContent strategies",
+    "kind": "doc",
+    "processorIds": [
+      "nexus.MergeContent"
+    ],
+    "contentText": "Binary Concatenation or JSON Array merge for rebatching outbound payloads."
+  },
+  {
+    "assetId": "flow-etl-attribute-enrich",
+    "title": "Example flow: JSON enrich + route",
+    "kind": "example-flow",
+    "processorIds": [
+      "nexus.UpdateAttribute",
+      "nexus.EvaluateJsonPath",
+      "nexus.RouteOnAttribute"
+    ],
+    "contentText": "{\n  \"nodes\": [\n    {\n      \"id\": \"u\",\n      \"type\": \"nexus.UpdateAttribute\",\n      \"params\": {\n        \"region\": \"US\"\n      }\n    },\n    {\n      \"id\": \"j\",\n      \"type\": \"nexus.EvaluateJsonPath\",\n      \"params\": {\n        \"orderId\": \"$.id\"\n      }\n    },\n    {\n      \"id\": \"r\",\n      \"type\": \"nexus.RouteOnAttribute\",\n      \"params\": {\n        \"premium\": \"${tier} == 'GOLD'\"\n      }\n    }\n  ],\n  \"edges\": [\n    {\n      \"source\": \"u\",\n      \"target\": \"j\",\n      \"relationship\": \"success\"\n    },\n    {\n      \"source\": \"j\",\n      \"target\": \"r\",\n      \"relationship\": \"success\"\n    }\n  ]\n}"
+  },
+  {
+    "assetId": "flow-jolt-load",
+    "title": "Example flow: Jolt then ConvertRecord",
+    "kind": "example-flow",
+    "processorIds": [
+      "nexus.JoltTransformJSON",
+      "nexus.ConvertRecord"
+    ],
+    "contentText": "{\n  \"nodes\": [\n    {\n      \"id\": \"jolt\",\n      \"type\": \"nexus.JoltTransformJSON\",\n      \"params\": {\n        \"Jolt Specification\": \"[{\\\"operation\\\":\\\"shift\\\",\\\"spec\\\":{\\\"payload\\\":\\\"data\\\"}}]\"\n      }\n    },\n    {\n      \"id\": \"conv\",\n      \"type\": \"nexus.ConvertRecord\",\n      \"params\": {\n        \"Record Reader\": \"json\",\n        \"Record Writer\": \"csv\"\n      }\n    }\n  ],\n  \"edges\": [\n    {\n      \"source\": \"jolt\",\n      \"target\": \"conv\",\n      \"relationship\": \"success\"\n    }\n  ]\n}"
+  },
+  {
+    "assetId": "processor-ref-updateattribute",
+    "title": "UpdateAttribute (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.UpdateAttribute"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.UpdateAttribute with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-jolttransformjson",
+    "title": "JoltTransformJSON (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.JoltTransformJSON"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.JoltTransformJSON with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-evaluatejsonpath",
+    "title": "EvaluateJsonPath (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.EvaluateJsonPath"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.EvaluateJsonPath with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-replacetext",
+    "title": "ReplaceText (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.ReplaceText"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.ReplaceText with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-routeonattribute",
+    "title": "RouteOnAttribute (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.RouteOnAttribute"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.RouteOnAttribute with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-queryrecord",
+    "title": "QueryRecord (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.QueryRecord"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.QueryRecord with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-convertrecord",
+    "title": "ConvertRecord (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.ConvertRecord"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.ConvertRecord with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-splitjson",
+    "title": "SplitJson (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.SplitJson"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.SplitJson with Python runtime."
+  },
+  {
+    "assetId": "processor-ref-mergecontent",
+    "title": "MergeContent (live Nexus processor)",
+    "kind": "processor-ref",
+    "processorIds": [
+      "nexus.MergeContent"
+    ],
+    "contentText": "Registered in Nexus Flow Studio as nexus.MergeContent with Python runtime."
+  }
+]

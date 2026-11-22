@@ -204,7 +204,7 @@ class StepDoc(BaseModel):
 
 
 class ConnectionDoc(BaseModel):
-    """A NiFi-style edge between two steps inside the same stage.
+    """A typed edge between two steps inside the same stage.
 
     Replaces the implicit ``${steps.X.y}`` substitution model: the
     producer step's named output ``from_relationship`` feeds the
@@ -225,7 +225,7 @@ class ConnectionDoc(BaseModel):
 
     Phase 2 (Data Queues) additions:
       - ``max_object_count`` / ``max_byte_size`` -- per-queue back-pressure
-        thresholds (NiFi FlowFileQueue equivalent). When the queue
+        thresholds (per-connection queue limits). When the queue
         depth or byte size exceeds the threshold, the producer's
         ``enqueue`` call blocks (or yields) until the consumer drains.
       - ``fan_in_strategy`` -- how multiple producers feeding the same
@@ -571,7 +571,7 @@ class JourneyDoc(UseCaseDoc):
     inputs: List[ParamSpec] = Field(default_factory=list)
     outputs: List[OutputSpec] = Field(default_factory=list)
     # Phase 1 -- registry bucket / namespace this journey belongs to.
-    # Mirrors NiFi-Registry's bucket grouping. Defaults to "default" so
+    # Registry bucket grouping. Defaults to "default" so
     # every pre-Phase-1 persisted JourneyDoc keeps validating. The
     # legacy migration script stamps each existing journey's bucket
     # from its ``solution_id``.

@@ -30,11 +30,10 @@ def _apply_jolt(doc: object, chain: list) -> object:
     return cur
 
 
-@register_processor("nifi.JoltTransformJSON")
+@register_processor("nexus.JoltTransformJSON")
 class JoltTransformJSONProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.JoltTransformJSON",
-        nifi_class="org.apache.nifi.processors.jolt.JoltTransformJSON",
+        processor_id="nexus.JoltTransformJSON",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

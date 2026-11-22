@@ -1,14 +1,21 @@
-"""Python implementations of phase-1 NiFi processors."""
+"""Pure Python implementations of the Nexus flow processor catalog."""
 
-# Import modules so @register_processor runs
-from src.services.flow_processors import (  # noqa: F401
-    convert_record,
-    evaluate_json_path,
-    jolt_transform_json,
-    merge_content,
-    query_record,
-    replace_text,
-    route_on_attribute,
-    split_json,
-    update_attribute,
-)
+from pathlib import Path
+import importlib
+import pkgutil
+
+_LOADED = False
+
+
+def ensure_all_processors_loaded() -> None:
+    global _LOADED
+    if _LOADED:
+        return
+    _LOADED = True
+    pkg_path = Path(__file__).parent
+    skip = {"handlers", "content_helpers", "io_adapter"}
+    for mod in sorted(pkgutil.iter_modules([str(pkg_path)]), key=lambda m: m.name):
+        name = mod.name
+        if name.startswith("_") or name in skip:
+            continue
+        importlib.import_module(f"{__name__}.{name}")

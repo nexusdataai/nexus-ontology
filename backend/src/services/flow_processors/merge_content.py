@@ -7,11 +7,10 @@ from src.services.flow_runtime.processor import AbstractProcessor, ProcessorSpec
 from src.services.flow_runtime.session import ProcessSession
 
 
-@register_processor("nifi.MergeContent")
+@register_processor("nexus.MergeContent")
 class MergeContentProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.MergeContent",
-        nifi_class="org.apache.nifi.processors.standard.MergeContent",
+        processor_id="nexus.MergeContent",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

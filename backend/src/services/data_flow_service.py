@@ -18,8 +18,8 @@ from src.constants.etl_step_catalog import (
     STUB_NODE_TYPES,
     runtime_steps_for_source,
 )
-from src.constants.nifi_processor_seeds import nifi_catalog_nodes, stub_processor_ids
-from src.services.flow_runtime.dag_runner import graph_has_nifi_nodes
+from src.constants.flow_processor_seeds import nexus_catalog_nodes
+from src.services.flow_runtime.dag_runner import graph_has_flow_processor_nodes
 from src.services.flow_runtime.nexus_flow_journey import compile_graph_to_flow_steps
 from src.models.data_flow_models import (
     DataFlowCompileResponse,
@@ -38,23 +38,25 @@ def get_catalog() -> Dict[str, Any]:
     by_source: Dict[str, List[Dict[str, str]]] = {}
     for st in ("generic", *EXTERNAL_SOURCE_TYPES):
         by_source[st] = runtime_steps_for_source(st)
-    nifi_nodes = nifi_catalog_nodes()
+    flow_nodes = nexus_catalog_nodes()
     return {
-        "nodeTypes": PIPELINE_NODE_CATALOG + nifi_nodes,
+        "nodeTypes": PIPELINE_NODE_CATALOG + flow_nodes,
         "runtimeStepsBySource": by_source,
         "runtimeStepOrder": list(RUNTIME_STEP_ORDER),
-        "nifiProcessorCount": len(nifi_nodes),
+        "flowProcessorCount": len(flow_nodes),
     }
 
 
 def all_known_node_types() -> Set[str]:
     return {c["type"] for c in PIPELINE_NODE_CATALOG} | {
-        c["type"] for c in nifi_catalog_nodes()
+        c["type"] for c in nexus_catalog_nodes()
     }
 
 
-def nifi_stub_types() -> Set[str]:
-    return set(stub_processor_ids())
+def flow_stub_types() -> Set[str]:
+    return set()
+
+
 
 
 def _issue(
@@ -218,10 +220,10 @@ def validate_graph(
         warnings.append(_issue("empty_graph", "Drag a source onto the canvas to start", severity="warning"))
 
     known_types = all_known_node_types()
-    nifi_mode = graph_has_nifi_nodes(graph)
+    flow_mode = graph_has_flow_processor_nodes(graph)
     sources = [n for n in graph.nodes if n.type.startswith("source.")]
     live_sources = _live_source_nodes(graph)
-    if graph.nodes and len(sources) == 0 and not nifi_mode:
+    if graph.nodes and len(sources) == 0 and not flow_mode:
         issues.append(_issue("missing_source", "Add a source node"))
     elif len(live_sources) > 1:
         warnings.append(
@@ -232,7 +234,7 @@ def validate_graph(
             )
         )
 
-    stub_types = STUB_NODE_TYPES | nifi_stub_types()
+    stub_types = STUB_NODE_TYPES | flow_stub_types()
     for n in graph.nodes:
         if n.type in stub_types:
             warnings.append(
@@ -380,8 +382,8 @@ def compile_graph(
             valid=False,
             issues=[_issue("empty_graph", "Pipeline graph must contain at least one node")],
         )
-    nifi_mode = graph_has_nifi_nodes(graph)
-    should_inject = inject_missing and not nifi_mode
+    flow_mode = graph_has_flow_processor_nodes(graph)
+    should_inject = inject_missing and not flow_mode
     working = inject_missing_nodes(graph) if should_inject else graph
     validation = validate_graph(working, mapping_rule_exists=mapping_rule_exists)
     if not validation.valid:
@@ -393,10 +395,10 @@ def compile_graph(
 
     source_type = _source_type_from_graph(working)
     config = _config_from_graph(working)
-    if nifi_mode:
+    if flow_mode:
         flow_steps = compile_graph_to_flow_steps(working)
         enabled_steps = [s["id"] for s in flow_steps]
-        config["compileMode"] = "nifi_journey"
+        config["compileMode"] = "nexus_flow"
         config["flowSteps"] = flow_steps
         config["enabledSteps"] = enabled_steps
     else:
@@ -409,7 +411,7 @@ def compile_graph(
         "studioLayout": "v1",
         "config": config,
         "sourceType": source_type,
-        "frontendType": "etl-pipeline" if not nifi_mode else "nexus-flow",
+        "frontendType": "etl-pipeline" if not flow_mode else "nexus-flow",
     }
 
     return DataFlowCompileResponse(
@@ -417,7 +419,7 @@ def compile_graph(
         issues=[],
         config=config,
         enabledSteps=enabled_steps,
-        runtimeSteps=runtime_steps_for_source(source_type) if not nifi_mode else [],
+        runtimeSteps=runtime_steps_for_source(source_type) if not flow_mode else [],
         metadataPatch=metadata_patch,
         graphWithInjections=working if should_inject else None,
     )

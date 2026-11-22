@@ -387,7 +387,7 @@ async def test_connection_doc_routes_relationship_into_consumer_param():
 @pytest.mark.asyncio
 async def test_connection_doc_overrides_literal_param():
     """A literal ``customer_id`` in step.params is overridden by an
-    incoming ConnectionDoc -- mirrors NiFi semantics where a wire wins
+    incoming ConnectionDoc -- explicit wire wins over placeholder substitution
     over a hand-typed value.
     """
     producer = _StubTool("p", result={"customer_id": "FROM-WIRE"})

@@ -16,7 +16,7 @@ const SOURCE_TYPES: ETLSourceType[] = [
 
 const LIVE_SOURCE = (t: string) => t.startsWith('source.') && t !== 'source.mapping_rule' && !['source.kafka', 'source.postgres_cdc', 'source.s3'].includes(t);
 
-const NIFI_TYPE = (t: string) => t.startsWith('nifi.');
+const FLOW_PROCESSOR_TYPE = (t: string) => t.startsWith('nexus.') || t.startsWith('nifi.');
 
 export default function PipelineInspector({
   node,
@@ -134,8 +134,8 @@ export default function PipelineInspector({
         </div>
       )}
 
-      {NIFI_TYPE(node.type) && (
-        <NiFiPropertyEditor
+      {FLOW_PROCESSOR_TYPE(node.type) && (
+        <FlowProcessorPropertyEditor
           node={node}
           catalogEntry={catalog.find(c => c.type === node.type)}
           onPatch={onPatch}
@@ -145,7 +145,7 @@ export default function PipelineInspector({
   );
 }
 
-function NiFiPropertyEditor({
+function FlowProcessorPropertyEditor({
   node,
   catalogEntry,
   onPatch,

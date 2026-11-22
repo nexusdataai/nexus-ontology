@@ -24,11 +24,10 @@ def _query_records(rows: list[dict], sql: str) -> list[dict]:
     return [r for r in rows if str(r.get(field)) == val]
 
 
-@register_processor("nifi.QueryRecord")
+@register_processor("nexus.QueryRecord")
 class QueryRecordProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.QueryRecord",
-        nifi_class="org.apache.nifi.processors.standard.QueryRecord",
+        processor_id="nexus.QueryRecord",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

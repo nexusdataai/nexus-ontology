@@ -2228,19 +2228,19 @@ def mount_api_routes():
             logger.warning(f"Failed to mount Data Flow APIs: {e}")
 
         try:
-            from src.apis import nifi_processor_api as _nifi_api
-            from src.services.data_plane.nifi_processor_registry_service import (
-                get_nifi_processor_registry_service,
+            from src.apis import nexus_data_processor_api as _flow_proc_api
+            from src.services.data_plane.nexus_data_processor_registry_service import (
+                get_nexus_data_processor_registry_service,
             )
 
-            app.include_router(_nifi_api.router)
-            app.include_router(_nifi_api.assets_router)
+            app.include_router(_flow_proc_api.router)
+            app.include_router(_flow_proc_api.assets_router)
             import asyncio
 
-            asyncio.run(get_nifi_processor_registry_service().sync_from_seeds())
-            logger.info("Mounted NiFi processor catalog APIs + synced NIFIPROC#")
+            asyncio.run(get_nexus_data_processor_registry_service().sync_from_seeds())
+            logger.info("Mounted data processor catalog APIs + synced catalog seeds")
         except Exception as nfe:
-            logger.warning(f"NiFi processor catalog mount failed (non-fatal): {nfe}")
+            logger.warning(f"Data processor catalog mount failed (non-fatal): {nfe}")
         
     except Exception as e:
         logger.error(f"Failed to mount API routes: {e}")

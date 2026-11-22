@@ -18,8 +18,8 @@ import MappingRulesEditor from '@/components/control-plane/MappingRulesEditor';
 import ConnectorApiWorkbenchPanel from '@/components/diagnostics/ConnectorApiWorkbenchPanel';
 import ConnectorApisRegistryBrowser from '@/components/registry-browser/ConnectorApisRegistryBrowser';
 import VdlApiRegistryBrowser from '@/components/registry-browser/VdlApiRegistryBrowser';
-import NiFiProcessorRegistryBrowser from '@/components/registry-browser/NiFiProcessorRegistryBrowser';
-import NiFiAssetsRegistryBrowser from '@/components/registry-browser/NiFiAssetsRegistryBrowser';
+import FlowProcessorRegistryBrowser from '@/components/registry-browser/FlowProcessorRegistryBrowser';
+import FlowAssetsRegistryBrowser from '@/components/registry-browser/FlowAssetsRegistryBrowser';
 
 const SOURCE_ICONS: Record<string, IconName> = {
   FDW: 'database',
@@ -56,7 +56,7 @@ const DATA_PLANE_TABS = new Set([
   ...DP_SECTIONS.flatMap((s) => s.items.map((i) => i.value)),
   'virtualdata',
   'mappingrules',
-  'nifi-assets',
+  'nexus-data-assets',
   'nifi-processors',
 ]);
 
@@ -64,7 +64,7 @@ const LEGACY_TAB_REDIRECT: Record<string, string> = {
   virtualdata: 'vdl',
   mappingrules: 'mapper',
   composition: 'mapper',
-  'nifi-assets': 'nexus-data-assets',
+  'nexus-data-assets': 'nexus-data-assets',
   'nifi-processors': 'nexus-processors',
 };
 
@@ -306,10 +306,10 @@ export default function DataPlanePage() {
           <DataPipelinesTab />
         </TabsContent>
         <TabsContent value="nexus-processors" className="pane-wide mt-0 h-pane-sub">
-          <NiFiProcessorRegistryBrowser />
+          <FlowProcessorRegistryBrowser />
         </TabsContent>
         <TabsContent value="nexus-data-assets" className="pane-wide mt-0 h-pane-sub">
-          <NiFiAssetsRegistryBrowser />
+          <FlowAssetsRegistryBrowser />
         </TabsContent>
         <TabsContent value="connectors" className="mt-0">
           <ConnectorsTab />

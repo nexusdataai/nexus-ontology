@@ -12,10 +12,10 @@ import {
   type InvokeResponse,
 } from '@/services/connectorApiWorkbenchService';
 import {
-  nifiProcessorService,
-  type NiFiPropertyDescriptor,
+  flowProcessorService,
+  type FlowPropertyDescriptor,
   type ProcessorProbeRequest,
-} from '@/services/nifiProcessorService';
+} from '@/services/flowProcessorService';
 import type { ExecuteAdapter, ExecuteResultEnvelope } from './types';
 
 interface ExecuteDrawerProps {
@@ -73,12 +73,12 @@ export function adapterFromTool(args: {
  * them in dedicated tabs.
  */
 /**
- * Build an adapter for a Nexus flow processor probe (single-node FlowFile run).
+ * Build an adapter for a Nexus flow processor probe (single-node record run).
  */
 export function adapterFromProcessor(args: {
   processorId: string;
   displayName?: string;
-  properties?: NiFiPropertyDescriptor[];
+  properties?: FlowPropertyDescriptor[];
   defaultProbe?: ProcessorProbeRequest;
 }): ExecuteAdapter {
   const schema = {
@@ -86,10 +86,10 @@ export function adapterFromProcessor(args: {
     properties: {
       params: {
         type: 'object',
-        description: 'Processor property values (NiFi config)',
+        description: 'Processor property values',
       },
-      content: { type: 'string', description: 'FlowFile body' },
-      attributes: { type: 'object', description: 'FlowFile attributes' },
+      content: { type: 'string', description: 'Input record body' },
+      attributes: { type: 'object', description: 'Record attributes' },
     },
   };
   return {
@@ -104,7 +104,7 @@ export function adapterFromProcessor(args: {
         content: typeof payload.content === 'string' ? payload.content : JSON.stringify(payload.content ?? {}),
         attributes: (payload.attributes as Record<string, unknown>) || {},
       };
-      const r = await nifiProcessorService.probeProcessor(args.processorId, body);
+      const r = await flowProcessorService.probeProcessor(args.processorId, body);
       const status = r.status === 'pass' ? 'pass' : r.status === 'skip' ? 'skip' : 'fail';
       return {
         status,

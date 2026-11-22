@@ -12,7 +12,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   sinks: 'Sinks',
   control: 'Control',
   nexus: 'Nexus processors',
-  nifi: 'Nexus processors',
   route: 'Routing',
 };
 

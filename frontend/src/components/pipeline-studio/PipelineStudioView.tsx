@@ -14,7 +14,7 @@ import { defaultGraphForSource, emptyGraph } from './pipelineStudioState';
 import { etlPipelineService, type ETLSourceType } from '@/services/etlPipelineService';
 import { mappingRuleService, type MappingRule } from '@/services/mappingRuleService';
 import { dataPlaneService, type DataPlane } from '@/services/dataPlaneService';
-import { nifiProcessorService } from '@/services/nifiProcessorService';
+import { flowProcessorService } from '@/services/flowProcessorService';
 
 export default function PipelineStudioView({
   journeyId,
@@ -38,7 +38,7 @@ export default function PipelineStudioView({
   const [mappingRules, setMappingRules] = useState<MappingRule[]>([]);
   const [planes, setPlanes] = useState<DataPlane[]>([]);
   const [savedId, setSavedId] = useState<string | undefined>(journeyId);
-  const [nifiExecutionEnabled, setNifiExecutionEnabled] = useState(false);
+  const [flowExecutionEnabled, setFlowExecutionEnabled] = useState(false);
 
   const sourceType = useMemo((): ETLSourceType => {
     const src = graph.nodes.find(n => n.type.startsWith('source.') && n.type !== 'source.mapping_rule');
@@ -56,13 +56,13 @@ export default function PipelineStudioView({
           dataFlowService.getCatalog(),
           mappingRuleService.list(),
           dataPlaneService.list().catch(() => [] as DataPlane[]),
-          nifiProcessorService.listProcessors().catch(() => null),
+          flowProcessorService.listProcessors().catch(() => null),
         ]);
         if (cancelled) return;
         setCatalog(cat.nodeTypes ?? []);
         setMappingRules(Array.isArray(rules) ? rules : (rules as any)?.data ?? []);
         setPlanes(Array.isArray(dps) ? dps : []);
-        setNifiExecutionEnabled(procMeta?.capabilities?.runtimeExecution === true);
+        setFlowExecutionEnabled(procMeta?.capabilities?.runtimeExecution === true);
         if (journeyId) {
           const journey = await dataFlowService.getJourneyGraph(journeyId);
           if (cancelled) return;
@@ -139,13 +139,16 @@ export default function PipelineStudioView({
     }
   };
 
-  const hasNifi = useMemo(() => graph.nodes.some(n => n.type.startsWith('nifi.')), [graph.nodes]);
+  const hasFlowProcessors = useMemo(
+    () => graph.nodes.some(n => n.type.startsWith('nexus.') || n.type.startsWith('nifi.')),
+    [graph.nodes],
+  );
 
-  const previewNifi = async () => {
+  const previewFlow = async () => {
     try {
-      const r = await dataFlowService.previewNifiRun(graph);
+      const r = await dataFlowService.previewFlowRun(graph);
       toast.success('Flow preview', {
-        description: `Terminal flowfiles: ${(r as { terminalCount?: number }).terminalCount ?? 0}`,
+        description: `Terminal records: ${(r as { terminalCount?: number }).terminalCount ?? 0}`,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -182,13 +185,13 @@ export default function PipelineStudioView({
             Draft v{graph.draftVersion ?? 1}{dirty ? ' · unsaved changes' : savedId ? '' : ' · not created yet'}
           </p>
         </div>
-        {hasNifi && (
+        {hasFlowProcessors && (
           <Button
             variant="outline"
             size="sm"
-            onClick={previewNifi}
-            disabled={!nifiExecutionEnabled}
-            title={nifiExecutionEnabled ? undefined : 'Preview dry-run disabled. Save the pipeline and run the nexus_flow journey stage instead (NEXUS_NIFI_RUNTIME_EXECUTION).'}
+            onClick={previewFlow}
+            disabled={!flowExecutionEnabled}
+            title={flowExecutionEnabled ? undefined : 'Preview dry-run disabled. Save the pipeline and run the nexus_flow journey stage (set NEXUS_FLOW_RUNTIME_EXECUTION=true).'}
           >
             Preview flow run
           </Button>

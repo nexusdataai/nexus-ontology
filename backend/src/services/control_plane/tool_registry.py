@@ -5,7 +5,7 @@ Manages available tools that the ReAct agent can invoke.  Each tool has:
   - An OpenAI function-calling definition (name, description, parameters JSON schema)
   - A risk level (read_only, low_risk_write, high_risk_write)
   - An async execute() callable
-  - One or more named output relationships (NiFi-style routing channels)
+  - One or more named output relationships (routing channels between steps)
 
 The LLM never calls raw APIs.  It selects a tool, the registry validates
 and dispatches, and the result is fed back into the agent loop.
@@ -79,7 +79,7 @@ class RiskLevel(str, Enum):
 class Relationship:
     """A named output channel a tool may emit on.
 
-    Mirrors NiFi's ``Relationship`` concept: every tool declares one or
+    Named output channel: every tool declares one or
     more relationships at registration time; at runtime each
     ``execute(...)`` call emits zero or more :class:`RelationshipResult`
     instances, each tagged with the relationship it travelled.
@@ -97,7 +97,7 @@ class Relationship:
 
 # Conventional default relationship name used when a tool does not
 # explicitly declare an output relationship set. Mirrors the "success"
-# relationship most NiFi processors emit on.
+# relationship most flow processors emit on.
 DEFAULT_RELATIONSHIP = Relationship(name="success", description="Default channel for single-output tools")
 
 
@@ -150,8 +150,7 @@ class Tool:
     output_relationships: List[Relationship] = field(
         default_factory=lambda: [DEFAULT_RELATIONSHIP],
     )
-    # Phase 1 -- registry bucket / namespace. Mirrors NiFi-Registry's
-    # bucket grouping. Defaults to "default" so unmigrated tools keep
+    # Phase 1 -- registry bucket / namespace. Defaults to "default" so unmigrated tools keep
     # registering without churn.
     bucket: str = "default"
     # Phase 3 (Data Queues) -- streaming tool flag. When True, ``execute``

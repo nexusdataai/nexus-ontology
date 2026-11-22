@@ -5,11 +5,10 @@ from src.services.flow_runtime.processor import AbstractProcessor, ProcessorSpec
 from src.services.flow_runtime.session import ProcessSession
 
 
-@register_processor("nifi.RouteOnAttribute")
+@register_processor("nexus.RouteOnAttribute")
 class RouteOnAttributeProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.RouteOnAttribute",
-        nifi_class="org.apache.nifi.processors.standard.RouteOnAttribute",
+        processor_id="nexus.RouteOnAttribute",
         relationships=["matched", "unmatched"],
     )
 

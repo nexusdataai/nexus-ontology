@@ -47,7 +47,7 @@ def _resolve_url() -> str:
 
 def _consumer_group_name(*, run_id: str) -> str:
     """One consumer group per run so resumes after a crash see the
-    same XPENDING state. NiFi consumer-group analog."""
+    same XPENDING state for crash recovery."""
     return f"nexus-run-{run_id}"
 
 
@@ -97,7 +97,7 @@ class RedisStreamsQueueManager:
             # ``mkstream=True`` creates the stream if it doesn't exist.
             # ``id="0"`` starts the group at the earliest entry so a
             # late-joining consumer sees historical items (rare for
-            # journey runs but matches NiFi swap-in semantics).
+            # journey runs but allows late-joining consumers to replay).
             await client.xgroup_create(name=key, groupname=group, id="0", mkstream=True)
         except Exception as e:
             # BUSYGROUP means the group already exists -- benign.

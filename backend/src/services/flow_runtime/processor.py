@@ -5,13 +5,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type
 
 from src.services.flow_runtime.context import ProcessContext
+from src.services.flow_runtime.processor_ids import canonical_processor_id
 from src.services.flow_runtime.session import ProcessSession
 
 
 @dataclass
 class ProcessorSpec:
     processor_id: str
-    nifi_class: str = ""
+    label: str = ""
     relationships: List[str] = field(default_factory=lambda: ["success", "failure"])
     properties_schema: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -37,8 +38,15 @@ def register_processor(processor_id: str):
 
 
 def get_processor_class(processor_id: str) -> Optional[Type[AbstractProcessor]]:
-    return _PROCESSOR_REGISTRY.get(processor_id)
+    cid = canonical_processor_id(processor_id)
+    return _PROCESSOR_REGISTRY.get(cid) or _PROCESSOR_REGISTRY.get(processor_id)
 
 
 def list_registered_processor_ids() -> List[str]:
+    try:
+        from src.services.flow_processors import ensure_all_processors_loaded
+
+        ensure_all_processors_loaded()
+    except Exception:
+        pass
     return sorted(_PROCESSOR_REGISTRY.keys())

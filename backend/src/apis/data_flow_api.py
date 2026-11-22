@@ -24,8 +24,8 @@ from src.models.data_flow_models import (
     DataFlowValidateResponse,
 )
 from src.constants.etl_step_catalog import STUB_NODE_TYPES
-from src.services.data_flow_service import nifi_stub_types
-from src.services.flow_runtime.dag_runner import graph_has_nifi_nodes
+from src.services.data_flow_service import flow_stub_types
+from src.services.flow_runtime.dag_runner import graph_has_flow_processor_nodes
 from src.services.flow_runtime.nexus_flow_journey import run_nexus_flow_linear
 from src.models.journey_model import JourneyActionRequest
 from src.services import data_flow_service
@@ -77,20 +77,20 @@ async def apply_patches(request: DataFlowApplyPatchesRequest):
     return data_flow_service.apply_patches(request.graph, request.patches)
 
 
-@router.post("/nifi/preview-run")
-async def preview_nifi_run(graph: DataFlowGraph):
-    from src.services.flow_runtime.execution_policy import require_nifi_runtime_execution
+@router.post("/flow/preview-run")
+async def preview_flow_run(graph: DataFlowGraph):
+    from src.services.flow_runtime.execution_policy import require_flow_runtime_execution
 
-    require_nifi_runtime_execution()
-    if not graph_has_nifi_nodes(graph):
-        raise HTTPException(status_code=422, detail="Graph has no nifi.* processors")
+    require_flow_runtime_execution()
+    if not graph_has_flow_processor_nodes(graph):
+        raise HTTPException(status_code=422, detail="Graph has no nexus.* flow processors")
     return run_nexus_flow_linear(graph)
 
 
 def _refuse_stub_deploy(graph: DataFlowGraph, deploy: bool) -> None:
     if not deploy:
         return
-    stub_types = STUB_NODE_TYPES | nifi_stub_types()
+    stub_types = STUB_NODE_TYPES | flow_stub_types()
     stubs = [n.type for n in graph.nodes if n.type in stub_types]
     if stubs:
         raise HTTPException(
@@ -117,9 +117,9 @@ async def create_pipeline_from_graph(body: DataFlowCreatePipelineRequest) -> Dic
         patch["productionGraphSnapshot"] = copy.deepcopy(patch["dataFlowGraph"])
         patch["productionConfig"] = copy.deepcopy(patch.get("config", {}))
 
-    nifi_mode = graph_has_nifi_nodes(graph)
-    stage_id = "nexus_flow" if nifi_mode else "etl_pipeline"
-    stage_label = f"Nexus Flow — {body.name}" if nifi_mode else f"ETL Pipeline — {body.name}"
+    flow_mode = graph_has_flow_processor_nodes(graph)
+    stage_id = "nexus_flow" if flow_mode else "etl_pipeline"
+    stage_label = f"Nexus Flow — {body.name}" if flow_mode else f"ETL Pipeline — {body.name}"
     create_req = JourneyActionRequest(
         action="create",
         name=body.name,

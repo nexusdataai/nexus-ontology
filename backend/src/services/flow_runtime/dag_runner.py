@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from src.models.data_flow_models import DataFlowEdge, DataFlowGraph, DataFlowNode
 from src.services.flow_runtime.context import ProcessContext
-from src.services.flow_runtime.flowfile import FlowFile
+from src.services.flow_runtime.flow_record import FlowRecord
 from src.services.flow_runtime.processor import AbstractProcessor, get_processor_class
 from src.services.flow_runtime.session import ProcessSession
 
@@ -43,27 +43,29 @@ def _topo_order(graph: DataFlowGraph) -> Optional[List[str]]:
     return order if len(order) == len(graph.nodes) else None
 
 
-def graph_has_nifi_nodes(graph: DataFlowGraph) -> bool:
-    return any(n.type.startswith("nifi.") for n in graph.nodes)
+def graph_has_flow_processor_nodes(graph: DataFlowGraph) -> bool:
+    return any(
+        n.type.startswith("nexus.") or n.type.startswith("nifi.") for n in graph.nodes
+    )
 
 
-def run_nifi_dag(
+def run_nexus_flow_dag(
     graph: DataFlowGraph,
     *,
-    initial_flowfiles: Optional[List[FlowFile]] = None,
+    initial_records: Optional[List[FlowRecord]] = None,
     _skip_execution_policy: bool = False,
 ) -> Dict[str, Any]:
-    """Deprecated: use ``run_nexus_flow_linear`` (journey steps, not NiFi DAG engine)."""
     if not _skip_execution_policy:
-        from src.services.flow_runtime.execution_policy import nifi_runtime_execution_enabled
+        from src.services.flow_runtime.execution_policy import flow_runtime_execution_enabled
 
-        if not nifi_runtime_execution_enabled():
+        if not flow_runtime_execution_enabled():
             return {
                 "ok": False,
-                "error": "nifi_runtime_execution_disabled",
+                "error": "flow_runtime_execution_disabled",
                 "nodeStats": [],
             }
 
     from src.services.flow_runtime.nexus_flow_journey import run_nexus_flow_linear
 
-    return run_nexus_flow_linear(graph, initial_flowfiles=initial_flowfiles)
+    return run_nexus_flow_linear(graph, initial_records=initial_records)
+

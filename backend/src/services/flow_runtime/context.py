@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import re
 from typing import Any, Dict, Mapping
 
-_EL_ATTR = re.compile(r"\$\{([a-zA-Z0-9_.-]+)\}")
+from src.services.flow_runtime.expression_language import evaluate_condition, evaluate_expression
 
 
 class ProcessContext:
-    """Resolved processor configuration (subset of NiFi Expression Language)."""
+    """Resolved processor configuration (attribute expression subset)."""
 
     def __init__(self, properties: Mapping[str, Any]):
         self._properties = dict(properties)
@@ -17,10 +16,7 @@ class ProcessContext:
         return str(val) if val is not None else default
 
     def resolve(self, template: str, flowfile_attrs: Dict[str, str]) -> str:
-        if not template:
-            return ""
+        return evaluate_expression(template, flowfile_attrs)
 
-        def repl(m: re.Match[str]) -> str:
-            return flowfile_attrs.get(m.group(1), "")
-
-        return _EL_ATTR.sub(repl, template)
+    def evaluate(self, template: str, flowfile_attrs: Dict[str, str]) -> bool:
+        return evaluate_condition(template, flowfile_attrs)

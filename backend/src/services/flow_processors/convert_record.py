@@ -9,11 +9,10 @@ from src.services.flow_runtime.processor import AbstractProcessor, ProcessorSpec
 from src.services.flow_runtime.session import ProcessSession
 
 
-@register_processor("nifi.ConvertRecord")
+@register_processor("nexus.ConvertRecord")
 class ConvertRecordProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.ConvertRecord",
-        nifi_class="org.apache.nifi.processors.standard.ConvertRecord",
+        processor_id="nexus.ConvertRecord",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

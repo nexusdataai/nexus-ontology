@@ -44,7 +44,7 @@ export interface CatalogNodeType {
   runtime?: 'live' | 'stub';
   properties?: { name: string; displayName?: string }[];
   relationships?: { name: string }[];
-  nifiClass?: string;
+  implementation?: string;
   bundle?: string;
 }
 
@@ -76,8 +76,8 @@ export const dataFlowService = {
   applyPatches: (graph: DataFlowGraph, patches: ProposedPatch[]) =>
     apiClient.post('/api/v1/data-flow/apply-patches', { graph, patches }) as Promise<DataFlowGraph>,
 
-  previewNifiRun: (graph: DataFlowGraph) =>
-    apiClient.post('/api/v1/data-flow/nifi/preview-run', graph) as Promise<Record<string, unknown>>,
+  previewFlowRun: (graph: DataFlowGraph) =>
+    apiClient.post('/api/v1/data-flow/flow/preview-run', graph) as Promise<Record<string, unknown>>,
 
   getJourneyGraph: (journeyId: string) =>
     apiClient.get(`/api/v1/data-flow/journeys/${journeyId}`) as Promise<{

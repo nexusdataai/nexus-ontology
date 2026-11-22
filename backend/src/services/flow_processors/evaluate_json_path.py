@@ -35,11 +35,10 @@ def _json_path_one(payload: object, path: str) -> str:
     return str(cur)
 
 
-@register_processor("nifi.EvaluateJsonPath")
+@register_processor("nexus.EvaluateJsonPath")
 class EvaluateJsonPathProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.EvaluateJsonPath",
-        nifi_class="org.apache.nifi.processors.standard.EvaluateJsonPath",
+        processor_id="nexus.EvaluateJsonPath",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

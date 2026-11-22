@@ -7,11 +7,10 @@ from src.services.flow_runtime.processor import AbstractProcessor, ProcessorSpec
 from src.services.flow_runtime.session import ProcessSession
 
 
-@register_processor("nifi.ReplaceText")
+@register_processor("nexus.ReplaceText")
 class ReplaceTextProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.ReplaceText",
-        nifi_class="org.apache.nifi.processors.standard.ReplaceText",
+        processor_id="nexus.ReplaceText",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

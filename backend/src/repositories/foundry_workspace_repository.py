@@ -40,8 +40,8 @@ Item layout (single-table style, mirrors transformation-system):
 | Tools Registry impl       | TOOLREG#{toolId}            | IMPL#{lang}#{version}               | -                       | -                         |
 | Knowledge Pipeline meta   | KP#{pipelineId}             | META                                | KP                      | {pipelineId|lower}        |
 | Knowledge Pipeline run    | KP#{pipelineId}             | RUN#{iso_ts}                        | -                       | -                         |
-| NiFi processor catalog    | NIFIPROC#{processorId}      | META                                | NIFIPROC                | {category}#{id|lower}     |
-| NiFi harvested asset        | NIFIASSET#{assetId}         | META                                | NIFIASSET               | {kind}#{id|lower}         |
+| Data processor catalog    | NIFIPROC#{processorId}      | META                                | NIFIPROC                | {category}#{id|lower}     |
+| Data flow asset             | NIFIASSET#{assetId}         | META                                | NIFIASSET               | {kind}#{id|lower}         |
 
 Mapping-rule writes are transactional (3 rows: canonical META + 2 denormalized
 link rows) so list-by-source and list-by-target queries are PK-direct without
@@ -230,11 +230,11 @@ def kp_run_sk(iso_ts: str) -> str:
     return f"RUN#{iso_ts}"
 
 
-def nifi_proc_pk(processor_id: str) -> str:
+def data_processor_proc_pk(processor_id: str) -> str:
     return f"NIFIPROC#{processor_id}"
 
 
-def nifi_asset_pk(asset_id: str) -> str:
+def data_flow_asset_pk(asset_id: str) -> str:
     return f"NIFIASSET#{asset_id}"
 
 
@@ -1387,44 +1387,44 @@ class FoundryWorkspaceRepository:
             raise FoundryWorkspaceRepositoryError(str(e))
 
     # =======================================================================
-    # NiFi processor catalog (Data plane, Flow Studio)
+    # Data processor catalog (Data plane, Flow Studio)
     # =======================================================================
 
-    def put_nifi_proc(self, processor_id: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
-        category = str(attrs.get("category") or "nifi").lower()
+    def put_data_processor_proc(self, processor_id: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        category = str(attrs.get("category") or "nexus").lower()
         return self.put_meta(
-            pk=nifi_proc_pk(processor_id),
+            pk=data_processor_proc_pk(processor_id),
             attrs=attrs,
             gsi1pk="NIFIPROC",
             gsi1sk=f"{category}#{processor_id.lower()}",
         )
 
-    def get_nifi_proc(self, processor_id: str) -> Optional[Dict[str, Any]]:
-        return self.get_meta(nifi_proc_pk(processor_id))
+    def get_data_processor_proc(self, processor_id: str) -> Optional[Dict[str, Any]]:
+        return self.get_meta(data_processor_proc_pk(processor_id))
 
-    def list_nifi_procs(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_data_processor_procs(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
         items = self.query_gsi1("NIFIPROC")
         if category:
             wanted = category.lower()
             items = [i for i in items if str(i.get("category", "")).lower() == wanted]
         return items
 
-    def delete_nifi_proc(self, processor_id: str) -> int:
-        return self.delete_pk(nifi_proc_pk(processor_id))
+    def delete_data_processor_proc(self, processor_id: str) -> int:
+        return self.delete_pk(data_processor_proc_pk(processor_id))
 
-    def put_nifi_asset(self, asset_id: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
+    def put_data_flow_asset(self, asset_id: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
         kind = str(attrs.get("kind") or "doc").lower()
         return self.put_meta(
-            pk=nifi_asset_pk(asset_id),
+            pk=data_flow_asset_pk(asset_id),
             attrs=attrs,
             gsi1pk="NIFIASSET",
             gsi1sk=f"{kind}#{asset_id.lower()}",
         )
 
-    def get_nifi_asset(self, asset_id: str) -> Optional[Dict[str, Any]]:
-        return self.get_meta(nifi_asset_pk(asset_id))
+    def get_data_flow_asset(self, asset_id: str) -> Optional[Dict[str, Any]]:
+        return self.get_meta(data_flow_asset_pk(asset_id))
 
-    def list_nifi_assets(self, kind: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_data_flow_assets(self, kind: Optional[str] = None) -> List[Dict[str, Any]]:
         items = self.query_gsi1("NIFIASSET")
         if kind:
             wanted = kind.lower()

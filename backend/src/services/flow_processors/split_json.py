@@ -7,11 +7,10 @@ from src.services.flow_runtime.processor import AbstractProcessor, ProcessorSpec
 from src.services.flow_runtime.session import ProcessSession
 
 
-@register_processor("nifi.SplitJson")
+@register_processor("nexus.SplitJson")
 class SplitJsonProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.SplitJson",
-        nifi_class="org.apache.nifi.processors.standard.SplitJson",
+        processor_id="nexus.SplitJson",
     )
 
     def on_trigger(self, context: ProcessContext, session: ProcessSession) -> None:

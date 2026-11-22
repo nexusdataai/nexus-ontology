@@ -13,11 +13,10 @@ _RESERVED = frozenset(
 )
 
 
-@register_processor("nifi.UpdateAttribute")
+@register_processor("nexus.UpdateAttribute")
 class UpdateAttributeProcessor(AbstractProcessor):
     spec = ProcessorSpec(
-        processor_id="nifi.UpdateAttribute",
-        nifi_class="org.apache.nifi.processors.attributes.UpdateAttribute",
+        processor_id="nexus.UpdateAttribute",
         relationships=["success"],
     )
 
