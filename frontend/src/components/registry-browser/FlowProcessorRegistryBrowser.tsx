@@ -77,6 +77,7 @@ export default function FlowProcessorRegistryBrowser() {
   const [capabilities, setCapabilities] = useState<ProcessorRegistryCapabilities | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const capabilitiesKnown = capabilities !== null;
   const executionEnabled = capabilities?.runtimeExecution === true;
 
   const load = useCallback(async () => {
@@ -504,9 +505,9 @@ export default function FlowProcessorRegistryBrowser() {
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-col gap-3 p-4 sm:px-6">
-          {!executionEnabled && (
+          {capabilitiesKnown && !executionEnabled && (
             <InlineError>
-              {capabilities?.message || 'Inline dry-run is off. Deploy as a Nexus journey (stage nexus_flow) to run processors; catalog browse still works.'}
+              {capabilities.message || 'Inline dry-run is off. Deploy as a Nexus journey (stage nexus_flow) to run processors; catalog browse still works.'}
             </InlineError>
           )}
           {error && <InlineError onRetry={load}>{error}</InlineError>}
