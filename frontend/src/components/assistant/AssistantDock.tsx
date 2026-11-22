@@ -1,13 +1,13 @@
 /**
- * Nexus assistant: a launcher docked at the bottom-right of every page that
- * opens a chat panel anchored to the same corner (a bottom sheet on phones).
+ * Nexus assistant: draggable launcher (position persisted in localStorage) that
+ * opens a chat panel anchored above it on desktop (bottom sheet on phones).
  *
  * It talks to the same agent as the AI Copilot screen
  * (POST /api/v1/control-plane/agent/stream, server-sent events), shows the
  * steps the agent takes while it works, and keeps the conversation while the
  * user moves between pages. Mounted once in App.tsx, above the routes.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LogoMark } from '@/components/ds/Logo';
@@ -30,6 +30,48 @@ interface Msg {
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const toolName = (t: string) => t.replace(/_/g, ' ');
+
+const LAUNCHER_POS_KEY = 'nexus-assistant-launcher-pos';
+const LAUNCHER_SIZE = { w: 148, h: 48 };
+const LAUNCHER_MARGIN = 8;
+
+type LauncherPos = { right: number; bottom: number };
+
+function defaultLauncherPos(): LauncherPos {
+  const narrow = typeof window !== 'undefined' && window.innerWidth < 768;
+  return { right: narrow ? 16 : 24, bottom: narrow ? 76 : 24 };
+}
+
+function readLauncherPos(): LauncherPos {
+  if (typeof window === 'undefined') return defaultLauncherPos();
+  try {
+    const raw = localStorage.getItem(LAUNCHER_POS_KEY);
+    if (!raw) return defaultLauncherPos();
+    const p = JSON.parse(raw) as LauncherPos;
+    if (typeof p.right !== 'number' || typeof p.bottom !== 'number') return defaultLauncherPos();
+    return clampLauncherPos(p);
+  } catch {
+    return defaultLauncherPos();
+  }
+}
+
+function clampLauncherPos(pos: LauncherPos): LauncherPos {
+  if (typeof window === 'undefined') return pos;
+  const maxRight = Math.max(LAUNCHER_MARGIN, window.innerWidth - LAUNCHER_SIZE.w - LAUNCHER_MARGIN);
+  const maxBottom = Math.max(LAUNCHER_MARGIN, window.innerHeight - LAUNCHER_SIZE.h - LAUNCHER_MARGIN);
+  return {
+    right: Math.min(maxRight, Math.max(LAUNCHER_MARGIN, pos.right)),
+    bottom: Math.min(maxBottom, Math.max(LAUNCHER_MARGIN, pos.bottom)),
+  };
+}
+
+function persistLauncherPos(pos: LauncherPos) {
+  try {
+    localStorage.setItem(LAUNCHER_POS_KEY, JSON.stringify(pos));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 /** Suggestions change with the page the user is on. */
 function suggestionsFor(path: string): string[] {
@@ -121,6 +163,31 @@ export function AssistantDock({ userName }: { userName?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [launcherPos, setLauncherPos] = useState<LauncherPos>(readLauncherPos);
+  const [dockDesktop, setDockDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  );
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origin: LauncherPos;
+    moved: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const onResize = () => setLauncherPos(p => clampLauncherPos(p));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => setDockDesktop(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
 
   const patch = useCallback((id: string, p: Partial<Msg>) => setMessages(prev => prev.map(m => (m.id === id ? { ...m, ...p } : m))), []);
 
@@ -219,18 +286,72 @@ export function AssistantDock({ userName }: { userName?: string }) {
   const suggestions = suggestionsFor(loc.pathname);
   const iconBtn = 'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+  const onLauncherPointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (open || e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origin: launcherPos,
+      moved: false,
+    };
+  };
+
+  const onLauncherPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    drag.moved = true;
+    setLauncherPos(
+      clampLauncherPos({
+        right: drag.origin.right - dx,
+        bottom: drag.origin.bottom - dy,
+      }),
+    );
+  };
+
+  const onLauncherPointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (drag.moved) {
+      setLauncherPos(p => {
+        const clamped = clampLauncherPos(p);
+        persistLauncherPos(clamped);
+        return clamped;
+      });
+      return;
+    }
+    setOpen(true);
+  };
+
+  const panelBottom = Math.min(
+    launcherPos.bottom + LAUNCHER_SIZE.h + 12,
+    Math.max(LAUNCHER_MARGIN, (typeof window !== 'undefined' ? window.innerHeight : 800) - 120),
+  );
+
   return (
     <>
       {/* Launcher */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onPointerDown={onLauncherPointerDown}
+        onPointerMove={onLauncherPointerMove}
+        onPointerUp={onLauncherPointerUp}
+        onPointerCancel={onLauncherPointerUp}
         aria-label="Open the Nexus assistant"
         aria-expanded={open}
-        title="Ask Nexus (Ctrl + J)"
+        title="Drag to move · Click to open (Ctrl + J)"
+        style={{ right: launcherPos.right, bottom: launcherPos.bottom }}
         className={cn(
-          'group fixed bottom-[76px] right-4 z-40 flex h-12 items-center gap-2.5 rounded-full border border-border-strong bg-card pl-3 pr-4 text-sm font-medium text-foreground shadow-lg md:bottom-6 md:right-6',
-          'transition-all duration-300 ease-brand-out hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'group fixed z-40 flex h-12 cursor-grab touch-none items-center gap-2.5 rounded-full border border-border-strong bg-card pl-3 pr-4 text-sm font-medium text-foreground shadow-lg active:cursor-grabbing',
+          'transition-[opacity,transform,box-shadow,border-color] duration-300 ease-brand-out hover:border-brand/60 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           open ? 'pointer-events-none translate-y-3 scale-90 opacity-0' : 'opacity-100',
         )}
       >
@@ -246,9 +367,10 @@ export function AssistantDock({ userName }: { userName?: string }) {
         role="dialog"
         aria-label="Nexus assistant"
         aria-hidden={!open}
+        style={dockDesktop ? { right: launcherPos.right, bottom: panelBottom } : undefined}
         className={cn(
           'fixed inset-x-0 bottom-0 z-50 flex h-[min(82dvh,640px)] origin-bottom flex-col overflow-hidden rounded-t-2xl border border-border-strong bg-popover text-popover-foreground shadow-xl',
-          'md:inset-x-auto md:bottom-6 md:right-6 md:h-[min(640px,calc(100dvh-96px))] md:w-[420px] md:origin-bottom-right md:rounded-2xl',
+          'md:inset-x-auto md:bottom-auto md:h-[min(640px,calc(100dvh-96px))] md:w-[420px] md:max-w-[calc(100vw-16px)] md:origin-bottom-right md:rounded-2xl',
           'transition-[opacity,transform] duration-300 ease-brand-out',
           open ? 'translate-y-0 scale-100 opacity-100' : 'pointer-events-none invisible translate-y-4 scale-95 opacity-0',
         )}
