@@ -53,6 +53,36 @@ def all_known_node_types() -> Set[str]:
     }
 
 
+def _catalog_category_map() -> Dict[str, str]:
+    out = {c["type"]: c.get("category", "transform") for c in PIPELINE_NODE_CATALOG}
+    for c in nexus_catalog_nodes():
+        out[c["type"]] = c.get("category", "nexus")
+    return out
+
+
+_ALLOWED_ETL_TARGETS: Dict[str, Set[str]] = {
+    "sources": {"transform", "ai", "sinks", "control", "route", "nexus"},
+    "transform": {"transform", "ai", "sinks", "control", "route", "nexus"},
+    "ai": {"transform", "sinks", "control", "route", "nexus"},
+    "route": {"transform", "ai", "sinks", "control", "nexus"},
+    "nexus": {"transform", "ai", "sinks", "control", "route", "nexus"},
+    "control": {"transform", "sinks", "route", "nexus"},
+    "sinks": {"sinks"},
+}
+
+
+def _node_category(node_type: str, cats: Dict[str, str]) -> str:
+    if node_type in cats:
+        return cats[node_type]
+    if node_type.startswith("source."):
+        return "sources"
+    if node_type.startswith("nexus.") or node_type.startswith("nifi."):
+        return "nexus"
+    if node_type.startswith("sink."):
+        return "sinks"
+    return "transform"
+
+
 def flow_stub_types() -> Set[str]:
     return set()
 
@@ -225,11 +255,11 @@ def validate_graph(
     live_sources = _live_source_nodes(graph)
     if graph.nodes and len(sources) == 0 and not flow_mode:
         issues.append(_issue("missing_source", "Add a source node"))
-    elif len(live_sources) > 1:
+    elif len(live_sources) > 1 and flow_mode:
         warnings.append(
             _issue(
                 "multiple_sources",
-                "Multiple sources compile to one ETL job (external_full when mixed feeds)",
+                "Multiple flow processors with several sources — verify execution order",
                 severity="warning",
             )
         )
@@ -251,9 +281,61 @@ def validate_graph(
             issues.append(_issue("unknown_node_type", f"Unknown node type: {n.type}", node_id=n.id))
 
     edge_nodes = {n.id for n in graph.nodes}
+    by_id = _nodes_by_id(graph)
+    cats = _catalog_category_map()
     for e in graph.edges:
         if e.source not in edge_nodes or e.target not in edge_nodes:
             issues.append(_issue("dangling_edge", f"Edge {e.id} references missing node", node_id=e.target))
+            continue
+        src = by_id.get(e.source)
+        tgt = by_id.get(e.target)
+        if not src or not tgt:
+            continue
+        src_cat = _node_category(src.type, cats)
+        tgt_cat = _node_category(tgt.type, cats)
+        if tgt_cat == "sources":
+            issues.append(
+                _issue(
+                    "illegal_edge",
+                    "Sources cannot be downstream of another step",
+                    node_id=e.target,
+                )
+            )
+        else:
+            allowed = _ALLOWED_ETL_TARGETS.get(src_cat, set())
+            if tgt_cat not in allowed:
+                issues.append(
+                    _issue(
+                        "illegal_edge",
+                        f"Cannot connect {src_cat} to {tgt_cat}" if src_cat != "sinks" else "Sinks cannot connect onward",
+                        node_id=e.target if tgt_cat != "sources" else e.target,
+                    )
+                )
+
+    if not flow_mode and len(live_sources) > 1:
+        issues.append(
+            _issue(
+                "multiple_live_sources",
+                "ETL pipelines allow one primary source; use external_full for mixed feeds",
+                severity="error",
+            )
+        )
+
+    if graph.nodes and len(graph.nodes) > 1:
+        connected: Set[str] = set()
+        for e in graph.edges:
+            connected.add(e.source)
+            connected.add(e.target)
+        for n in graph.nodes:
+            if n.id not in connected:
+                warnings.append(
+                    _issue(
+                        "orphan_node",
+                        f"Step is not connected to the pipeline graph",
+                        severity="warning",
+                        node_id=n.id,
+                    )
+                )
 
     if graph.nodes and graph.edges and _has_cycle(graph):
         issues.append(_issue("cycle", "Graph must be acyclic (DAG)"))

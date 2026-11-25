@@ -34,15 +34,30 @@ router = APIRouter(prefix="/api/v1/data-flow", tags=["data-flow"])
 
 _journey_service: Any = None
 _mapping_rule_checker: Optional[Callable[[str], bool]] = None
+_mapping_rule_service: Any = None
 
 
 def configure(
     journey_service: Any = None,
     mapping_rule_checker: Optional[Callable[[str], bool]] = None,
+    mapping_rule_service: Any = None,
 ) -> None:
-    global _journey_service, _mapping_rule_checker
+    global _journey_service, _mapping_rule_checker, _mapping_rule_service
     _journey_service = journey_service
     _mapping_rule_checker = mapping_rule_checker
+    _mapping_rule_service = mapping_rule_service
+    if mapping_rule_checker is None and mapping_rule_service is not None:
+        repo = getattr(mapping_rule_service, "_repo", None)
+
+        def _sync_rule_exists(rule_id: str) -> bool:
+            if not rule_id or repo is None:
+                return True
+            try:
+                return bool(repo.get_mapping_rule(rule_id))
+            except Exception:
+                return True
+
+        _mapping_rule_checker = _sync_rule_exists
 
 
 def _rule_exists(rule_id: str) -> bool:
@@ -77,6 +92,15 @@ async def apply_patches(request: DataFlowApplyPatchesRequest):
     return data_flow_service.apply_patches(request.graph, request.patches)
 
 
+@router.post("/sources/google-drive/test")
+async def test_google_drive_source():
+    """Connection test for Flow Studio Google Drive source nodes."""
+    from src.services.gdrive_connector_service import get_gdrive_connector_service
+
+    svc = get_gdrive_connector_service()
+    return await svc.test_connection()
+
+
 @router.post("/flow/preview-run")
 async def preview_flow_run(graph: DataFlowGraph):
     from src.services.flow_runtime.execution_policy import require_flow_runtime_execution
@@ -104,14 +128,31 @@ async def create_pipeline_from_graph(body: DataFlowCreatePipelineRequest) -> Dic
     if _journey_service is None:
         raise HTTPException(status_code=503, detail="Journey service not available")
     _refuse_stub_deploy(body.graph, body.deploy)
+    validation = data_flow_service.validate_graph(body.graph, mapping_rule_exists=_rule_exists)
     compiled = data_flow_service.compile_graph(body.graph, mapping_rule_exists=_rule_exists)
-    if not compiled.valid:
+    if body.deploy and not compiled.valid:
         raise HTTPException(
             status_code=422,
             detail={"error": "Invalid graph", "issues": [i.model_dump(by_alias=True) for i in compiled.issues]},
         )
-    graph = compiled.graph_with_injections or body.graph
-    patch = dict(compiled.metadata_patch)
+    if not body.deploy and not compiled.valid:
+        graph = body.graph
+        patch = {
+            "config": data_flow_service.compile_graph(body.graph, inject_missing=False, mapping_rule_exists=_rule_exists).config
+            if body.graph.nodes
+            else {},
+            "studioLayout": "v1",
+            "validationSnapshot": validation.model_dump(by_alias=True),
+        }
+    else:
+        if not compiled.valid:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "Invalid graph", "issues": [i.model_dump(by_alias=True) for i in compiled.issues]},
+            )
+        graph = compiled.graph_with_injections or body.graph
+        patch = dict(compiled.metadata_patch)
+        patch["validationSnapshot"] = validation.model_dump(by_alias=True)
     patch["dataFlowGraph"] = graph.model_dump(by_alias=True)
     if body.deploy:
         patch["productionGraphSnapshot"] = copy.deepcopy(patch["dataFlowGraph"])
@@ -191,8 +232,9 @@ async def save_journey_data_flow(journey_id: str, body: DataFlowSaveRequest) -> 
         raise HTTPException(status_code=503, detail="Journey service not available")
 
     _refuse_stub_deploy(body.graph, body.deploy)
+    validation = data_flow_service.validate_graph(body.graph, mapping_rule_exists=_rule_exists)
     compiled = data_flow_service.compile_graph(body.graph, mapping_rule_exists=_rule_exists)
-    if not compiled.valid:
+    if body.deploy and not compiled.valid:
         raise HTTPException(
             status_code=422,
             detail={"error": "Invalid graph", "issues": [i.model_dump(by_alias=True) for i in compiled.issues]},
@@ -207,9 +249,26 @@ async def save_journey_data_flow(journey_id: str, body: DataFlowSaveRequest) -> 
     meta = existing.get("metadata")
     if not isinstance(meta, dict):
         meta = {}
-    patch = dict(compiled.metadata_patch)
-    graph = compiled.graph_with_injections or body.graph
-    patch["dataFlowGraph"] = graph.model_dump(by_alias=True)
+    if not body.deploy and not compiled.valid:
+        graph = body.graph
+        patch = {
+            "dataFlowGraph": graph.model_dump(by_alias=True),
+            "studioLayout": meta.get("studioLayout", "v1"),
+            "validationSnapshot": validation.model_dump(by_alias=True),
+        }
+        loose = data_flow_service.compile_graph(body.graph, inject_missing=False, mapping_rule_exists=_rule_exists)
+        if loose.config:
+            patch["config"] = loose.config
+    else:
+        if not compiled.valid:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "Invalid graph", "issues": [i.model_dump(by_alias=True) for i in compiled.issues]},
+            )
+        graph = compiled.graph_with_injections or body.graph
+        patch = dict(compiled.metadata_patch)
+        patch["dataFlowGraph"] = graph.model_dump(by_alias=True)
+        patch["validationSnapshot"] = validation.model_dump(by_alias=True)
 
     if body.deploy:
         patch["productionGraphSnapshot"] = copy.deepcopy(patch["dataFlowGraph"])

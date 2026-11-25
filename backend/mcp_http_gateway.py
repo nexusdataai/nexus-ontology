@@ -2221,7 +2221,8 @@ def mount_api_routes():
             except Exception as _dfe:
                 logger.warning(f"Data flow API journey service unavailable: {_dfe}")
 
-            _df_api.configure(journey_service=_df_journey, mapping_rule_checker=None)
+            _df_mr = globals().get("_mapping_rule_service")
+            _df_api.configure(journey_service=_df_journey, mapping_rule_service=_df_mr)
             app.include_router(_df_api.router, tags=["Data Flow"])
             logger.info("Mounted Data Flow APIs at /api/v1/data-flow")
         except Exception as e:

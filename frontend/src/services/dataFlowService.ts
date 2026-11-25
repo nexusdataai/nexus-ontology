@@ -32,6 +32,17 @@ export interface DataFlowGraph {
   viewport?: DataFlowViewport;
 }
 
+export interface CatalogConfigField {
+  key: string;
+  type?: string;
+  label?: string;
+  enum?: string[];
+  default?: unknown;
+  placeholder?: string;
+  help?: string;
+  min?: number;
+}
+
 export interface CatalogNodeType {
   type: string;
   category: string;
@@ -39,6 +50,7 @@ export interface CatalogNodeType {
   description: string;
   icon: string;
   defaultParams?: Record<string, unknown>;
+  configFields?: CatalogConfigField[];
   mapsToRuntimeStep?: string | null;
   requiresSourceTypes?: string[];
   runtime?: 'live' | 'stub';
@@ -46,6 +58,19 @@ export interface CatalogNodeType {
   relationships?: { name: string }[];
   implementation?: string;
   bundle?: string;
+}
+
+export interface DataFlowValidateIssue {
+  code: string;
+  message: string;
+  severity?: string;
+  nodeId?: string;
+}
+
+export interface DataFlowValidateResult {
+  valid: boolean;
+  issues: DataFlowValidateIssue[];
+  warnings: DataFlowValidateIssue[];
 }
 
 export interface ProposedPatch {
@@ -65,7 +90,10 @@ export const dataFlowService = {
   }>,
 
   validate: (graph: DataFlowGraph) =>
-    apiClient.post('/api/v1/data-flow/validate', graph),
+    apiClient.post('/api/v1/data-flow/validate', graph) as Promise<DataFlowValidateResult>,
+
+  testGoogleDriveSource: () =>
+    apiClient.post('/api/v1/data-flow/sources/google-drive/test') as Promise<Record<string, unknown>>,
 
   compile: (graph: DataFlowGraph) =>
     apiClient.post('/api/v1/data-flow/compile', graph),

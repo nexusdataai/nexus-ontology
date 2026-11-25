@@ -18,6 +18,7 @@ import PipelineNode from './PipelineNode';
 import type { DataFlowEdge, DataFlowGraph, DataFlowNode } from '@/services/dataFlowService';
 import type { CatalogNodeType } from '@/services/dataFlowService';
 import { nodeLabel } from './pipelineStudioState';
+import { addPaletteNodeWithRules, isValidGraphConnection } from './pipelineConnectionRules';
 
 const nodeTypes: NodeTypes = { pipeline: PipelineNode };
 
@@ -120,12 +121,23 @@ const Inner = forwardRef<PipelineCanvasHandle, InnerProps>(function Inner(
     [emit, flowEdges, flowNodes],
   );
 
+  const isValidConnection = useCallback(
+    (conn: Connection) => {
+      if (!conn.source || !conn.target) return false;
+      return isValidGraphConnection(conn.source, conn.target, graph, catalog).allowed;
+    },
+    [catalog, graph],
+  );
+
   const onConnect = useCallback(
     (conn: Connection) => {
+      if (!conn.source || !conn.target) return;
+      const check = isValidGraphConnection(conn.source, conn.target, graph, catalog);
+      if (!check.allowed) return;
       const next = addEdge({ ...conn, id: `e-${conn.source}-${conn.target}` }, flowEdges);
       emit(flowNodes, next);
     },
-    [emit, flowEdges, flowNodes],
+    [catalog, emit, flowEdges, flowNodes, graph],
   );
 
   return (
@@ -136,6 +148,7 @@ const Inner = forwardRef<PipelineCanvasHandle, InnerProps>(function Inner(
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      isValidConnection={isValidConnection}
       onNodeClick={(_, n) => onSelectNode(n.id)}
       onPaneClick={() => onSelectNode(null)}
       fitView
@@ -168,20 +181,7 @@ export function addPaletteNode(
   catalog: CatalogNodeType[],
   extraParams?: Record<string, unknown>,
   labelOverride?: string,
+  selectedNodeId?: string | null,
 ): DataFlowGraph {
-  const cat = catalog.find(c => c.type === nodeType);
-  const id = `n-${nodeType}-${crypto.randomUUID().slice(0, 8)}`;
-  const y = graph.nodes.reduce((m, n) => Math.max(m, n.ui?.position?.y ?? 0), 0) + 120;
-  const node: DataFlowNode = {
-    id,
-    type: nodeType,
-    params: { ...(cat?.defaultParams ?? {}), ...(extraParams ?? {}) },
-    ui: { position: { x: 120, y }, label: labelOverride || nodeLabel(nodeType, catalog) },
-  };
-  const edges = [...graph.edges];
-  const last = graph.nodes[graph.nodes.length - 1];
-  if (last) {
-    edges.push({ id: `e-${last.id}-${id}`, source: last.id, target: id });
-  }
-  return { ...graph, nodes: [...graph.nodes, node], edges };
+  return addPaletteNodeWithRules(graph, nodeType, catalog, selectedNodeId ?? null, extraParams, labelOverride);
 }

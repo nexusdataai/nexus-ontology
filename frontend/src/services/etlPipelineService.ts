@@ -190,8 +190,8 @@ export const etlPipelineService = {
   getPipelineJobs: (journeyId: string): Promise<any> =>
     apiClient.get(`/api/v1/journeys/${journeyId}/jobs`),
 
-  runPipeline: (journeyId: string, triggeredBy = 'ui'): Promise<any> =>
+  runPipeline: (journeyId: string, triggeredBy = 'ui', stageId: 'etl_pipeline' | 'nexus_flow' = 'etl_pipeline'): Promise<any> =>
     apiClient.post(
-      `/api/v1/journeys/${journeyId}/jobs?stage_id=etl_pipeline&triggered_by=${encodeURIComponent(triggeredBy)}`,
+      `/api/v1/journeys/${journeyId}/jobs?stage_id=${encodeURIComponent(stageId)}&triggered_by=${encodeURIComponent(triggeredBy)}`,
     ),
 };

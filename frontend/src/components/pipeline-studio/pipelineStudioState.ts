@@ -20,6 +20,12 @@ const TYPE_ORDER_TAIL = [
   'sink.materialize_warehouse',
 ];
 
+export function pipelineStageId(graph: DataFlowGraph): 'etl_pipeline' | 'nexus_flow' {
+  return graph.nodes.some(n => n.type.startsWith('nexus.') || n.type.startsWith('nifi.'))
+    ? 'nexus_flow'
+    : 'etl_pipeline';
+}
+
 export function emptyGraph(): DataFlowGraph {
   return { version: 1, draftVersion: 1, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
 }

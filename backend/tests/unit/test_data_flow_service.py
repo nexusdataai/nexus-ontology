@@ -125,7 +125,7 @@ def test_compile_empty_invalid():
     assert not r.valid
 
 
-def test_two_live_sources_compile_external_full():
+def test_two_live_sources_invalid_etl():
     graph = DataFlowGraph(
         nodes=[
             DataFlowNode(id="a", type="source.social_listening", params={"sourceType": "social_listening"}),
@@ -138,20 +138,30 @@ def test_two_live_sources_compile_external_full():
         ],
     )
     v = data_flow_service.validate_graph(graph)
-    assert v.valid
-    assert any(i.code == "multiple_sources" for i in v.warnings)
-    compiled = data_flow_service.compile_graph(graph, inject_missing=True)
-    assert compiled.valid
-    assert compiled.config["sourceType"] == "external_full"
+    assert not v.valid
+    assert any(i.code == "multiple_live_sources" for i in v.issues)
+
+
+def test_illegal_edge_source_to_source():
+    graph = DataFlowGraph(
+        nodes=[
+            DataFlowNode(id="a", type="source.google_drive", params={"sourceType": "google_drive"}),
+            DataFlowNode(id="b", type="source.file_uploads", params={"sourceType": "file_uploads"}),
+        ],
+        edges=[DataFlowEdge(id="e", source="a", target="b")],
+    )
+    v = data_flow_service.validate_graph(graph)
+    assert not v.valid
+    assert any(i.code == "illegal_edge" for i in v.issues)
 
 
 def test_stub_kafka_is_warning():
     graph = DataFlowGraph(
         nodes=[
             DataFlowNode(id="k", type="source.kafka", params={"topic": "orders"}),
-            DataFlowNode(id="s", type="source.social_listening", params={"sourceType": "social_listening"}),
+            DataFlowNode(id="t", type="transform.map_fields", params={"mappingRuleId": "r1"}),
         ],
-        edges=[DataFlowEdge(id="e", source="k", target="s")],
+        edges=[DataFlowEdge(id="e", source="k", target="t")],
     )
     v = data_flow_service.validate_graph(graph)
     assert v.valid
